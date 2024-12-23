@@ -3,50 +3,48 @@ package main
 import (
 	"log"
 
-	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/confmap"
-	envprovider "go.opentelemetry.io/collector/confmap/provider/envprovider"
-	fileprovider "go.opentelemetry.io/collector/confmap/provider/fileprovider"
-	httpprovider "go.opentelemetry.io/collector/confmap/provider/httpprovider"
-	httpsprovider "go.opentelemetry.io/collector/confmap/provider/httpsprovider"
-	yamlprovider "go.opentelemetry.io/collector/confmap/provider/yamlprovider"
-	"go.opentelemetry.io/collector/otelcol"
+	"github.com/kardianos/service"
+	bgsvc "github.com/kardianos/service"
+
+	"github.com/kloudmate/km-agent/internal/agent"
 )
 
+var logger bgsvc.Logger
+
 func main() {
-	info := component.BuildInfo{
-		Command:     "otelcorecol",
-		Description: "Local OpenTelemetry Collector binary, testing only.",
-		Version:     "0.114.0-dev",
+	var svcConfig = &bgsvc.Config{
+		Name:        "kmagent",
+		DisplayName: "KloudMate Agent",
+		Description: "KloudMate Agent for auto instrumentation",
 	}
-
-	set := otelcol.CollectorSettings{
-		BuildInfo: info,
-		Factories: components,
-		ConfigProviderSettings: otelcol.ConfigProviderSettings{
-			ResolverSettings: confmap.ResolverSettings{
-				ProviderFactories: []confmap.ProviderFactory{
-					envprovider.NewFactory(),
-					fileprovider.NewFactory(),
-					httpprovider.NewFactory(),
-					httpsprovider.NewFactory(),
-					yamlprovider.NewFactory(),
-				},
-			},
-		},
-	}
-
-	if err := run(set); err != nil {
-		// if err := otelcol.NewBackgroundCollector(set); err != nil {
+	prg, err := agent.NewKmAgentService()
+	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func runInteractive(params otelcol.CollectorSettings) error {
-	cmd := otelcol.NewCommand(params)
-	if err := cmd.Execute(); err != nil {
-		log.Fatalf("collector server run finished with error: %v", err)
+	s, err := service.New(prg, svcConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger, err = s.Logger(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	installErr := s.Install()
+	if installErr == nil {
+		logger.Infof("installing kmagent as a service...%s", installErr)
+	}
+	if installErr != nil {
+		logger.Infof("kmagent already installed as a service! %s", installErr)
+	}
+	go func() {
+		err = s.Start()
+		if err != nil {
+			logger.Errorf("failed to run the service : %s", err)
+		}
+	}()
+	err = s.Run()
+	if err != nil {
+		logger.Errorf("failed to run the service : %s", err)
 	}
 
-	return nil
 }

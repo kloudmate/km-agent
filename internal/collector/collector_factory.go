@@ -1,5 +1,0 @@
-package collector
-
-func NewBackgroundCollector() {
-
-}
