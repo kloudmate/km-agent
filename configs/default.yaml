@@ -1,35 +1,45 @@
 # This config file will be used by the KM-Agent on it's first initialization.
 
 receivers:
+  hostmetrics:
+    collection_interval: 25s
+    scrapers:
+      cpu:
+      disk:
+      processes:
+      process:
+      memory:
+      network:
+      filesystem:
+      load:
+      paging:
   otlp:
     protocols:
       grpc:
-        endpoint: 0.0.0.0:4317
+      http:
 
 exporters:
   debug:
-  otlp:
-    endpoint: jaeger-all-in-one:4317
-    tls:
-      insecure: true
+  otlphttp:
+    endpoint: https://otel.kloudmate.com:4318
+    headers:
+        Authorization: <KM_API_KEY>
 
 processors:
   batch:
 
 extensions:
-  # pprof:
-  #   endpoint: :1888
   zpages:
     endpoint: :55679
 
 service:
-  extensions: [ zpages]
+  extensions: [zpages]
   pipelines:
-    traces:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [debug, otlp]
     metrics:
-      receivers: [otlp]
+      receivers: [hostmetrics]
       processors: [batch]
-      exporters: [debug]
+      exporters: [otlphttp]
+    logs:
+      receivers: [hostmetrics]
+      processors: [batch]
+      exporters: [otlphttp]

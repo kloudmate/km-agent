@@ -2,11 +2,11 @@
 
 create-config-dir:
 	@echo Setting Up Config Directory.
-	@mkdir -p ${HOME}/.kloudmate
+	@mkdir -p /var/kloudmate
 
 setup-config: create-config-dir
 	@echo Copying default configuration.
-	@rsync -a configs/default.yaml ${HOME}/.kloudmate/agent-config.yaml
+	@rsync -a configs/default.yaml /var/kloudmate/agent-config.yaml
 
 build: setup-config
 	@go build cmd/kmagent/main.go
