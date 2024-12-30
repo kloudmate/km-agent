@@ -1,4 +1,4 @@
-.PHONY: build run setup-config create-config-dir
+.PHONY: build build-debian build-debian-binary run setup-config create-config-dir
 
 create-config-dir:
 	@echo Setting Up Config Directory.
@@ -10,6 +10,12 @@ setup-config: create-config-dir
 
 build: setup-config
 	@go build cmd/kmagent/main.go
+
+build-debian-binary:
+	@go build -o km-agent/usr/local/bin/km-agent cmd/kmagent/main.go
+
+build-debian: build-debian-binary
+	@dpkg-deb --build --nocheck km-agent
 
 run: build
 	@./main
