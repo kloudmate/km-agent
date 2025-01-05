@@ -1,0 +1,37 @@
+name: km-agent-releaser
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+  # will be required in future if we need to push image to docker.
+  # packages: write
+  # issues: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Action_Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set_Up_Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Run Releaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          # using default `goreleaser` whereas `goreleaser-pro` also available.
+          distribution: goreleaser 
+          version: "~> v1"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          # GORELEASER_KEY: ${{secrets.GORELEASER_KEY}} applicable only and only if `goreleaser-pro` is used.
