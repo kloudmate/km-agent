@@ -31,6 +31,7 @@ jobs:
           # using default `goreleaser` whereas `goreleaser-pro` also available.
           distribution: goreleaser 
           version: "~> v1"
+          workdir: "cmd/kmagent"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
