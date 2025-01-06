@@ -1,0 +1,36 @@
+#!/bin/sh
+set -e
+
+# Service name
+SERVICE_NAME="kmagent"
+
+case "$1" in
+    remove)
+        # Stop and remove the service
+        if [ -x "/bin/systemctl" ]; then
+        # stopping the service
+            echo "[STAGE 1]: stopping the service"
+            systemctl stop $SERVICE_NAME || true
+
+        # disabling the aggent via systemctl
+            echo "[STAGE 2]: disabling via systemctl"
+            systemctl disable $SERVICE_NAME || true
+
+        # uninstalling the kmagent
+            echo "[STAGE 3]: Uninstalling the service"
+            sudo $SERVICE_NAME uninstall 
+
+        # reloading the systemctl after removing kmagent service
+            echo "[STAGE 4]: reloading systemctl daemon"
+            systemctl daemon-reload || true
+
+        fi
+
+        ;;
+
+    upgrade|deconfigure|failed-upgrade)
+        # Do nothing
+        ;;
+esac
+
+exit 0

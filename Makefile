@@ -12,7 +12,7 @@ build: setup-config
 	@go build cmd/kmagent/main.go
 
 build-debian-binary:
-	@go build -o km-agent/usr/local/bin/km-agent cmd/kmagent/main.go
+	@go build -o km-agent/usr/local/bin/kmagent cmd/kmagent/main.go
 
 build-debian: build-debian-binary
 	@dpkg-deb --build --nocheck km-agent
