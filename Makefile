@@ -1,21 +1,18 @@
-.PHONY: build build-debian build-debian-binary run setup-config create-config-dir
-
-create-config-dir:
-	@echo Setting Up Config Directory.
-	@mkdir -p /var/kloudmate
+.PHONY: build build-debian build-debian-binary run setup-config
 
 setup-config: create-config-dir
-	@echo Copying default configuration.
-	@rsync -a configs/default.yaml /var/kloudmate/agent-config.yaml
+	@echo Setting Up default configuration.
+	@mkdir -p /var/kloudmate
+	@rsync -a configs/agent-config.yaml /var/kloudmate/agent-config.yaml
 
-build: setup-config
-	@go build cmd/kmagent/main.go
+build:
+	@go build -o builds/bin/kmagent cmd/kmagent/kmagent.go
 
 build-debian-binary:
-	@go build -o km-agent/usr/local/bin/kmagent cmd/kmagent/main.go
+	@go build -o km-agent/usr/local/bin/kmagent cmd/kmagent/kmagent.go
 
 build-debian: build-debian-binary
 	@dpkg-deb --build --nocheck km-agent
 
 run: build
-	@./main
+	@./builds/bin/kmagent
