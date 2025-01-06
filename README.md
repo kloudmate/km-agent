@@ -84,5 +84,5 @@ Thank you for your interest in contributing to our project! We welcome contribut
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-project/your-repo.git
+   git clone https://github.com/kloudmate/km-agent.git
 
