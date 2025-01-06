@@ -52,3 +52,37 @@ User should be able to install this via automated bash script
 **Windows**
 
 Installation via Windows installer
+
+# Contribution Notice
+
+Thank you for your interest in contributing to our project! We welcome contributions that improve the quality, usability, and functionality of this open-source initiative. Before you start, please review the following guidelines to ensure a smooth collaboration.
+
+## Contribution Guidelines
+
+1. **Understand the Project**
+   - Familiarize yourself with the purpose, scope, and goals of the project.
+   - Read through the [Documentation](#) and [Code of Conduct](#) before proceeding.
+
+2. **Report Issues**
+   - Check if the issue is already reported in the [Issues](#) section.
+   - If not, create a new issue with detailed steps to reproduce, expected behavior, and additional context.
+
+3. **Propose Changes**
+   - Open a [discussion](#) if you're unsure about your approach.
+   - For substantial changes, start by discussing your ideas in an issue.
+
+4. **Submit Pull Requests**
+   - Fork the repository and create a new branch for your feature or bug fix.
+   - Ensure your changes are well-documented and tested.
+   - Submit a pull request with a clear description of the problem being solved.
+
+5. **Follow Coding Standards**
+   - Use consistent style and format as defined in the [Style Guide](#).
+   - Include comments where necessary for readability and maintenance.
+
+## Getting Started
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-project/your-repo.git
+
