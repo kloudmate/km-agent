@@ -1,10 +1,14 @@
-; Basic NSIS based KmAgent Installation Script
+; Basic NSIS based KmAgent Installation Script.
 ; Written for NSIS 3.0 or higher
+
+; including header to get parent direcotry.
+!include FileFunc.nsh
+
 
 BrandingText "KloudMate Technologies Inc. All rights Reserved."
 !define APPNAME "KmAgent"
 !define COMPANYNAME "Kloudmate"
-!define DESCRIPTION "A short description of Km Agent"
+!define DESCRIPTION "KloudMate Agent for OpenTelemetry auto instrumentation"
 !define VERSIONMAJOR 1
 !define VERSIONMINOR 0
 !define VERSIONBUILD 0
@@ -12,11 +16,13 @@ BrandingText "KloudMate Technologies Inc. All rights Reserved."
 !define YAML_INSTALL_DIR "$PROFILE\.kloudmate"
 !define SERVICE_NAME "KmAgent"
 !define SERVICE_DISPLAY_NAME "Kloudmate Agent"
-!define SERVICE_DESCRIPTION "Kloudmate Agent Description"
+!define SERVICE_DESCRIPTION "KloudMate Agent for OpenTelemetry auto instrumentation"
+
+
 
 ; Define installer attributes
 Name "${APPNAME}"
-OutFile "km-agent_yaml_with_service_Setup.exe"
+OutFile ".\..\builds\km-agent_windows_setup.exe"
 InstallDir "$PROGRAMFILES\${COMPANYNAME}\${APPNAME}"
 InstallDirRegKey HKLM "Software\${COMPANYNAME}\${APPNAME}" "Install_Dir"
 
@@ -39,7 +45,7 @@ RequestExecutionLevel admin
 
 ; Pages
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "license.txt"
+!insertmacro MUI_PAGE_LICENSE "..\LICENSE"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
@@ -54,7 +60,7 @@ RequestExecutionLevel admin
 ; Service installation and control functions
 Function InstallService
     ; Install the service
-    nsExec::ExecToLog '"$INSTDIR\km-agent-ci.exe" install'
+    nsExec::ExecToLog '"$INSTDIR\kmagent.exe" install'
     Pop $0
     ${If} $0 != 0
         MessageBox MB_OK|MB_ICONSTOP "Failed to install service. Error code: $0"
@@ -79,7 +85,7 @@ FunctionEnd
 Function un.StopAndRemoveService
     ; Stop and remove the service during uninstall
     nsExec::ExecToLog 'net stop ${SERVICE_NAME}'
-    nsExec::ExecToLog '"$INSTDIR\km-agent-ci.exe" uninstall'
+    nsExec::ExecToLog '"$INSTDIR\kmagent.exe" uninstall'
 FunctionEnd
 
 ; Installer sections
@@ -87,20 +93,20 @@ Section "MainApplication" SecMain
     SectionIn RO  ; Read-only, always installed
     SetOutPath "$INSTDIR"
     
-    ; Add your main application files here
-    File "km-agent-ci.exe"
-    File "readme.txt"
+    ; main application files here
+    File ".\..\builds\bin\kmagent.exe"
+    File ".\..\LICENSE"
     
-    ; Create Start Menu shortcuts
+    ;  Start Menu shortcuts
     CreateDirectory "$SMPROGRAMS\${COMPANYNAME}"
     CreateShortcut "$SMPROGRAMS\${COMPANYNAME}\Uninstall ${APPNAME}.lnk" "$INSTDIR\uninstall.exe"
     
-    ; Write registry keys for uninstall
+    ; registry keys for uninstall
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayName" "${APPNAME}"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "InstallLocation" "$\"$INSTDIR$\""
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayIcon" "$\"$INSTDIR\km-agent-ci.exe$\""
+    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayIcon" "$\"$INSTDIR\kmagent.exe$\""
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "Publisher" "${COMPANYNAME}"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayVersion" "${VERSIONMAJOR}.${VERSIONMINOR}.${VERSIONBUILD}"
     
@@ -121,7 +127,7 @@ Section "YAMLConfiguration" SecYAML
     
     ; Set output path to YAML directory and copy the YAML file
     SetOutPath "${YAML_INSTALL_DIR}"
-    File "${YAML_FILENAME}"
+    File ".\..\configs\${YAML_FILENAME}"
     
     ; Store YAML location for uninstaller
     WriteRegStr HKLM "Software\${COMPANYNAME}\${APPNAME}" "YAMLPath" "${YAML_INSTALL_DIR}"
@@ -141,8 +147,8 @@ Section "Uninstall"
     RMDir "${YAML_INSTALL_DIR}"  ; Remove directory if empty
     
     ; Remove main application files
-    Delete "$INSTDIR\km-agent-ci.exe"
-    Delete "$INSTDIR\readme.txt"
+    Delete "$INSTDIR\kmagent.exe"
+    Delete "$INSTDIR\LICENSE"
     Delete "$INSTDIR\uninstall.exe"
     
     ; Remove install directory
