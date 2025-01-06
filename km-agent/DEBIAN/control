@@ -1,0 +1,8 @@
+Package: km-agent
+Version: 0.1.0
+Section: base
+Priority: optional
+Architecture: amd64
+Maintainer: Kloudmate
+Website: https://kloudmate.com
+Description: Opentelemetry Auto Instrumentation

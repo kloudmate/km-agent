@@ -6,7 +6,10 @@
 *.exe~
 *.dll
 *.so
+*.deb
 *.dylib
+/main
+*.TODO
 
 # Test binary, built with `go test -c`
 *.test
