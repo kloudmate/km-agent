@@ -18,7 +18,7 @@ API_KEY="<API_KEY>" bash -c "$(curl -L https://cdn.kloudmate.com/scripts/docker-
 Bash script should have various configurable arguments to configure the agent apart from API_KEY which is required for authentication at exporter. Each of the script should have corresponding uninstall command to remove the agent from the system.
 
 ### Agent
-Agent is installed as service on the host system/docker container/demonset on a k8s. it is done during installation process. The agent is responsable for managing the lifecycle of the Collector. The Agent is not implimentaton of Collector, instead, it runs and manages lifecycle of existig Otel Collector.
+Agent is installed as service on the host system/docker container/demonset on a k8s. it is done during installation process. The agent is responsible for managing the lifecycle of the Collector. The Agent is not an implementation of Collector, instead, it runs and manages lifecycle of existig Otel Collector.
 
 It is primarily responsible for watching remote configuration (via REST endpoint) and pass on the configuration to Collector when changes has been detected. It has other functionalities such as sending heartbeat metric to external API which can be use to monitor the agent status, various logs for monitoring purpose etc.
 
@@ -84,5 +84,5 @@ Thank you for your interest in contributing to our project! We welcome contribut
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-project/your-repo.git
+   git clone https://github.com/kloudmate/km-agent.git
 
