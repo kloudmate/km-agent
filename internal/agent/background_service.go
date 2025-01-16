@@ -21,6 +21,7 @@ var logger bgsvc.Logger
 type KmAgentService struct {
 	Collector collector.KmCollector
 	Configs   otelcol.CollectorSettings
+	Mode      string
 	Exit      chan struct{}
 }
 
@@ -58,6 +59,7 @@ func NewKmAgentService() (*KmAgentService, error) {
 		return nil, err
 	}
 	return &KmAgentService{
+		Mode:      "host",
 		Configs:   set,
 		Collector: *kmCollector,
 		Exit:      make(chan struct{}),
@@ -71,7 +73,15 @@ func (p *KmAgentService) asyncWork() {
 }
 
 func (p *KmAgentService) Start(s bgsvc.Service) error {
-	fmt.Println("Starting to do async work")
+	if p.Mode == "docker" {
+		p.Configs.ConfigProviderSettings.ResolverSettings.URIs = []string{DOCKER_CONFIG_FILE_URI}
+		col, err := collector.NewKmCollector(p.Configs)
+		if err != nil {
+			return err
+		}
+		p.Collector = *col
+	}
+	fmt.Println(fmt.Sprintf("Running agent on %s mode", p.Mode))
 	go p.asyncWork()
 	return nil
 }

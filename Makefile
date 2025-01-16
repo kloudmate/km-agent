@@ -1,9 +1,10 @@
 .PHONY: build build-debian build-debian-binary run setup-config
 
-setup-config: create-config-dir
+setup-config:
 	@echo Setting Up default configuration.
 	@mkdir -p /var/kloudmate
 	@rsync -a configs/agent-config.yaml /var/kloudmate/agent-config.yaml
+	@rsync -a configs/agent-docker-config.yaml /var/kloudmate/agent-docker-config.yaml
 
 build:
 	@go build -o builds/bin/kmagent cmd/kmagent/kmagent.go

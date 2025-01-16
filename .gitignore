@@ -10,7 +10,7 @@
 *.dylib
 /main
 *.TODO
-
+builds
 # Test binary, built with `go test -c`
 *.test
 

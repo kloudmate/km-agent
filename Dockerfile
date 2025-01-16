@@ -9,5 +9,7 @@ RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o kmagent cmd/kmagent/kmagen
 FROM alpine:latest
 COPY --from=BuildStage /app/kmagent .
 COPY ./configs/agent-config.yaml /var/kloudmate/agent-config.yaml
+COPY ./configs/agent-docker-config.yaml /var/kloudmate/agent-docker-config.yaml
 
-CMD ["./kmagent"]
+CMD ["./kmagent install"]
+CMD ["./kmagent start --mode docker"]
