@@ -12,4 +12,4 @@ COPY ./configs/agent-config.yaml /var/kloudmate/agent-config.yaml
 COPY ./configs/agent-docker-config.yaml /var/kloudmate/agent-docker-config.yaml
 
 CMD ["./kmagent install"]
-CMD ["./kmagent start --mode docker"]
+CMD ["./kmagent -m=docker start"]
