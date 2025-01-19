@@ -15,5 +15,5 @@ docker run \
   -v /:/hostfs:ro \
   --privileged \
   --pid=host \
-  kmagent:latest \
+  ghcr.io/kloudmate/km-agent:latest \
   /kmagent -m=docker -t=${KM_API_KEY} start
