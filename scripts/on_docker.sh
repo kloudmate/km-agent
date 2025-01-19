@@ -7,7 +7,7 @@ else
   echo "Environment variable KM_API_KEY is set to: $KM_API_KEY"
 fi
 
-docker run \
+docker run -d\
   --name kmagent \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   -v /proc:/hostfs/proc:ro \
