@@ -1,4 +1,4 @@
-name: Docker Image Bulid For Docker Registry
+name: Docker Image Bulid For GHCR
 
 on:
   push
@@ -10,6 +10,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build & Push Image
         run: |
-          docker login --username ${{ secrets.DOCKER_USERNAME }} --password ${{ secrets.DOCKER_PASSWORD }} registry-1.docker.io
-          docker build . --tag kloudmate/km-agent:latest
-          docker push kloudmate/km-agent:latest
+          docker login --username kloudmate --password ${{ secrets.GHCR_PAT }} ghcr.io
+          docker build . --tag ghcr.io/kloudmate/km-agent:latest
+          docker push ghcr.io/kloudmate/km-agent:latest
