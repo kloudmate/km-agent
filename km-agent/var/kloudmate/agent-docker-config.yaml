@@ -10,6 +10,20 @@ receivers:
       container.memory.total_rss:
         enabled: true
 
+  hostmetrics:
+    root_path: /hostfs
+    collection_interval: 25s
+    scrapers:
+      cpu:
+      disk:
+      processes:
+      process:
+      memory:
+      network:
+      filesystem:
+      load:
+      paging:
+
   otlp:
     protocols:
       grpc:
@@ -17,6 +31,7 @@ receivers:
 
 exporters:
   debug:
+    verbosity: detailed
   otlphttp:
     endpoint: https://otel.kloudmate.com:4318
     headers:
@@ -33,7 +48,7 @@ service:
   extensions: [zpages]
   pipelines:
     metrics:
-      receivers: [hostmetrics]
+      receivers: [hostmetrics, docker_stats]
       processors: [batch]
       exporters: [otlphttp]
     logs:
