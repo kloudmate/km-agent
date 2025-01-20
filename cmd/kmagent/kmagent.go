@@ -43,12 +43,20 @@ func main() {
 				Usage:       "Km Agent mode",
 				Destination: &prg.Mode,
 			},
+			&cli.StringFlag{
+				Name:        "apply-token",
+				Aliases:     []string{"t"},
+				Value:       "",
+				Usage:       "KM API KEY",
+				Destination: &prg.Token,
+			},
 		},
 		Commands: []*cli.Command{
 			{
 				Name:  "install",
 				Usage: "Install the service",
 				Action: func(c *cli.Context) error {
+					prg.SetToken()
 					return service.Control(s, "install")
 				},
 			},
@@ -63,7 +71,7 @@ func main() {
 				Name:  "start",
 				Usage: "Start the service",
 				Action: func(c *cli.Context) error {
-
+					prg.SetToken()
 					err = s.Run()
 					if err != nil {
 						logger.Error(err)

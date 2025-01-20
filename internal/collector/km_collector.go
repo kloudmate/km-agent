@@ -223,6 +223,10 @@ func (col *KmCollector) reloadConfiguration(ctx context.Context) error {
 	return nil
 }
 
+func (col *KmCollector) ReloadConfiguration(ctx context.Context) error {
+	return col.reloadConfiguration(ctx)
+}
+
 func (col *KmCollector) DryRun(ctx context.Context) error {
 	factories, err := col.set.Factories()
 	if err != nil {
@@ -289,7 +293,7 @@ func (col *KmCollector) Run(ctx context.Context) error {
 	go func() {
 		for {
 			time.Sleep(time.Second * 5)
-			col.service.Logger().Warn("performing configuration reload")
+			// col.service.Logger().Warn("performing configuration reload")
 			// if err := col.reloadConfiguration(ctx); err != nil {
 			// 	col.service.Logger().Warn("performing configuration reload failed")
 			// }
