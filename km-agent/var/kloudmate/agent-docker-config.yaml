@@ -1,0 +1,57 @@
+# This config file will be used by the KM-Agent on it's first initialization in docker mode.
+
+receivers:
+  docker_stats:
+    collection_interval: 2s
+    timeout: 20s
+    metrics:
+      container.cpu.usage.system:
+        enabled: true
+      container.memory.total_rss:
+        enabled: true
+
+  hostmetrics:
+    root_path: /hostfs
+    collection_interval: 25s
+    scrapers:
+      cpu:
+      disk:
+      processes:
+      process:
+      memory:
+      network:
+      filesystem:
+      load:
+      paging:
+
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+exporters:
+  debug:
+    verbosity: detailed
+  otlphttp:
+    endpoint: https://otel.kloudmate.com:4318
+    headers:
+        Authorization: <KM_API_KEY>
+
+processors:
+  batch:
+
+extensions:
+  zpages:
+    endpoint: :55679
+
+service:
+  extensions: [zpages]
+  pipelines:
+    metrics:
+      receivers: [hostmetrics, docker_stats]
+      processors: [batch]
+      exporters: [otlphttp]
+    logs:
+      receivers: [hostmetrics]
+      processors: [batch]
+      exporters: [otlphttp]

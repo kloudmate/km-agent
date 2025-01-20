@@ -1,12 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
 	"github.com/kardianos/service"
 	bgsvc "github.com/kardianos/service"
+	cli "github.com/urfave/cli/v2"
 
 	"github.com/kloudmate/km-agent/internal/agent"
 )
@@ -32,70 +32,66 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if len(os.Args) > 1 {
-		verb := os.Args[1]
+	app := &cli.App{
+		Name:  "kmagent",
+		Usage: "KloudMate Agent for auto instrumentation",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:        "mode",
+				Aliases:     []string{"m"},
+				Value:       "host",
+				Usage:       "Km Agent mode",
+				Destination: &prg.Mode,
+			},
+		},
+		Commands: []*cli.Command{
+			{
+				Name:  "install",
+				Usage: "Install the service",
+				Action: func(c *cli.Context) error {
+					return service.Control(s, "install")
+				},
+			},
+			{
+				Name:  "uninstall",
+				Usage: "Uninstall the service",
+				Action: func(c *cli.Context) error {
+					return service.Control(s, "uninstall")
+				},
+			},
+			{
+				Name:  "start",
+				Usage: "Start the service",
+				Action: func(c *cli.Context) error {
 
-		switch verb {
-		case "install":
-			if err := s.Install(); err != nil {
-				fmt.Println("failed to install:", err)
-				return
-			}
-			fmt.Printf("[INFO] : service \"%s\" installed.\n", svcConfig.DisplayName)
-			return
-
-		case "uninstall":
-			if err := s.Uninstall(); err != nil {
-				fmt.Println("Failed to uninstall:", err)
-				return
-			}
-
-			fmt.Printf("[INFO] : service \"%s\" uninstalled.\n", svcConfig.DisplayName)
-			return
-
-		case "start":
-			if err := s.Start(); err != nil {
-				fmt.Println("Failed to start:", err)
-				return
-			}
-
-			fmt.Printf("[INFO] : service \"%s\" started.\n", svcConfig.DisplayName)
-			return
-
-		case "stop":
-			if err := s.Stop(); err != nil {
-				fmt.Println("Failed to stop:", err)
-				return
-			}
-
-			fmt.Printf("[INFO] : service \"%s\" stopped.\n", svcConfig.DisplayName)
-			return
-
-		case "restart":
-			if err := s.Restart(); err != nil {
-				fmt.Println("Failed to restart:", err)
-				return
-			}
-
-			fmt.Printf("[INFO] : service \"%s\" restarted.\n", svcConfig.DisplayName)
-			return
-
-		case "dry-run":
-			if err := s.Run(); err != nil {
-				fmt.Println("Failed to dry-run:", err)
-				return
-			}
-
-			fmt.Printf("[INFO] : service \"%s\" dry-run started.\n", svcConfig.DisplayName)
-			return
-
-		default:
-			fmt.Printf("Options for \"%s\": (install | uninstall | start | stop | dry-run)\n", os.Args[0])
-			return
-		}
+					err = s.Run()
+					if err != nil {
+						logger.Error(err)
+						return err
+					}
+					return nil
+				},
+			},
+			{
+				Name:  "stop",
+				Usage: "Stop the service",
+				Action: func(c *cli.Context) error {
+					return service.Control(s, "stop")
+				},
+			},
+		},
 	}
-	err = s.Run()
-	if err != nil {
-		logger.Error(err)
+
+	app.Action = func(c *cli.Context) error {
+		return cli.ShowAppHelp(c)
 	}
+
+	if err := app.Run(os.Args); err != nil {
+		log.Fatal(err)
+	}
+
+	// err = s.Run()
+	// if err != nil {
+	// 	logger.Error(err)
+	// }
 }
