@@ -1,0 +1,45 @@
+# This config file will be used by the KM-Agent on it's first initialization.
+
+receivers:
+  hostmetrics:
+    collection_interval: 25s
+    scrapers:
+      cpu:
+      disk:
+      processes:
+      process:
+      memory:
+      network:
+      filesystem:
+      load:
+      paging:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+exporters:
+
+  otlphttp:
+    endpoint: https://otel.kloudmate.com:4318
+    headers:
+        Authorization: ${KM_API_KEY}
+
+processors:
+  batch:
+
+extensions:
+  zpages:
+    endpoint: :55679
+
+service:
+  extensions: [zpages]
+  pipelines:
+    metrics:
+      receivers: [hostmetrics]
+      processors: [batch]
+      exporters: [otlphttp]
+    logs:
+      receivers: [hostmetrics]
+      processors: [batch]
+      exporters: [otlphttp]

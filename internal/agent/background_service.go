@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	bgsvc "github.com/kardianos/service"
 	"github.com/kloudmate/km-agent/internal/collector"
@@ -29,8 +28,15 @@ type KmAgentService struct {
 	Exit      chan struct{}
 }
 
+type agentYaml struct {
+	Key      string `yaml:"key"`
+	IsDebug  bool   `yaml:"debug"`
+	Endpoint string `yaml:"endpoint"`
+}
+
 // Constructor for the KmAgentService with default configurations
 func NewKmAgentService() (*KmAgentService, error) {
+
 	// information about the collector
 	info := component.BuildInfo{
 		Command:     "kmagent",
@@ -39,7 +45,7 @@ func NewKmAgentService() (*KmAgentService, error) {
 	}
 
 	// hardcoded relative path to the default config which will be picked on the initial start.
-	uris := []string{CONFIG_FILE_URI}
+	uris := []string{HOST_CONFIG_FILE_URI}
 
 	// default configurations for the collector
 	set := otelcol.CollectorSettings{
@@ -58,12 +64,14 @@ func NewKmAgentService() (*KmAgentService, error) {
 			},
 		},
 	}
+
 	kmCollector, err := collector.NewKmCollector(set)
 	if err != nil {
 		return nil, err
 	}
+
 	return &KmAgentService{
-		Mode:      "host",
+		Mode:      hostMode,
 		Token:     "",
 		Configs:   set,
 		Collector: *kmCollector,
@@ -78,14 +86,7 @@ func (p *KmAgentService) asyncWork() {
 }
 
 func (p *KmAgentService) Start(s bgsvc.Service) error {
-	if p.Mode == "docker" {
-		p.Configs.ConfigProviderSettings.ResolverSettings.URIs = []string{DOCKER_CONFIG_FILE_URI}
-		col, err := collector.NewKmCollector(p.Configs)
-		if err != nil {
-			return err
-		}
-		p.Collector = *col
-	}
+
 	fmt.Println(fmt.Sprintf("Running agent on %s mode", p.Mode))
 	go p.asyncWork()
 	return nil
@@ -97,62 +98,81 @@ func (p *KmAgentService) Stop(s bgsvc.Service) error {
 	return nil
 }
 
-func (p *KmAgentService) SetToken() {
+// SetToken is used to apply KM_API_KEY on the collector configuration for windows flavoured builds.
+func (p *KmAgentService) ApplyAgentConfig() {
+	p.Collector.SetupConfigurationComponents(context.TODO())
+
 	var apiKey string
+	// var debugVerbosityLevel string
+	var agentParsedData agentYaml
+
+	// check if api key is passed via environment
 	keyFromEnv := os.Getenv("KM_API_KEY")
-	if p.Token == "" && keyFromEnv == "" {
-		return
-	}
 	if keyFromEnv != "" {
 		apiKey = keyFromEnv
-	} else {
+	}
+
+	// reading the default agent configuration
+	fileData, err := os.ReadFile(AGENT_CONFIG_FILE_URI)
+	if err != nil {
+		fmt.Printf("failed to read agent configuration : %v \n", err)
+	}
+
+	// parsing the agent configuration from yaml
+	if err := yaml.Unmarshal(fileData, &agentParsedData); err != nil {
+		fmt.Printf("failed to parse agent configuration : %v \n", err)
+	}
+
+	// if not empty and not set on env then use the key from agent configuration
+	if agentParsedData.Key != "" && agentParsedData.Key != "${KM_API_KEY}" {
+		apiKey = agentParsedData.Key
+	}
+
+	// check if key is passed via flags
+	if p.Token != "" {
 		apiKey = p.Token
 	}
 
-	var configFile string
-	if p.Mode == "host" {
-		configFile = CONFIG_FILE_URI
+	// if found pass then build their uri
+	// debugUri := fmt.Sprintf("yaml:exporters::debug::verbosity:%s", debugVerbosityLevel)
+	ApiKeyUri := fmt.Sprintf("yaml:exporters::otlphttp::headers::Authorization:%s", apiKey)
+
+	// Applying configuration to the agent depending on the mode (i.e - host/ docker)
+	if p.Mode == containerMode {
+		p.Configs.ConfigProviderSettings.ResolverSettings.URIs =
+			[]string{
+				DOCKER_CONFIG_FILE_URI,
+				ApiKeyUri,
+			}
 	} else {
-		configFile = DOCKER_CONFIG_FILE_URI
+		p.Configs.ConfigProviderSettings.ResolverSettings.URIs =
+			[]string{
+				HOST_CONFIG_FILE_URI,
+				ApiKeyUri,
+			}
 	}
 
-	fileData, err := os.ReadFile(configFile)
-	if err != nil {
-		fmt.Printf("failed to set Token : caused by not able to read file : %v \n", err)
-	}
+	// reloads the agent configuration
 
-	var parsedData yaml.Node
-	if err := yaml.Unmarshal(fileData, &parsedData); err != nil {
-		fmt.Printf("failed to set Token : caused by not able to unmarshal config file : %v \n", err)
-	}
-
-	nPaths := strings.Split("exporters.otlphttp.headers.Authorization", ".")
-	isModified := p.lookupAndUpdateYamlNode(&parsedData, nPaths, apiKey, 0)
-
-	if isModified {
-		// creating temp file to store modified configuration
-		tmpFile, err := os.CreateTemp("", "conf-tmp-*.yaml")
+	if apiKey != agentParsedData.Key {
+		agentParsedData.Key = apiKey
+		file, err := os.Create(AGENT_CONFIG_FILE_URI)
 		if err != nil {
-			fmt.Printf("failed to set Token : caused by not able to create temp file : %s \n", err.Error())
+			logger.Errorf("failed to save agent configuration : %v\n", err)
 		}
-		tmpFilePath := tmpFile.Name()
 
-		defer os.Remove(tmpFilePath)
-		defer tmpFile.Close()
-
-		enc := yaml.NewEncoder(tmpFile)
+		enc := yaml.NewEncoder(file)
 		enc.SetIndent(2)
-		if err = enc.Encode(&parsedData); err != nil {
-			fmt.Printf("failed to set Token : caused by not able to encode modified config : %s \n", err.Error())
+		if err = enc.Encode(&agentParsedData); err != nil {
+			logger.Errorf("failed to save agent configuration : caused by not able to encode config : %v \n", err)
 		}
-		enc.Close()
-		tmpFile.Close()
 
-		if err = os.Rename(tmpFilePath, configFile); err != nil {
-			fmt.Printf("failed to set Token : caused by not able to rename temp file to original config : %s \n", err.Error())
+		defer enc.Close()
+
+		p.Collector.ReloadConfiguration(context.TODO())
+		if err != nil {
+			logger.Errorf("failed to apply agent configuration : %v \n", err)
 		}
-	} else {
-		fmt.Printf("failed to set Token : caused by not able to locate the kloudmate based node in config file : %v \n", err)
 	}
 
 }

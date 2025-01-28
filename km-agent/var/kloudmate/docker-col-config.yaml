@@ -30,12 +30,10 @@ receivers:
       http:
 
 exporters:
-  debug:
-    verbosity: detailed
   otlphttp:
     endpoint: https://otel.kloudmate.com:4318
     headers:
-        Authorization: <KM_API_KEY>
+        Authorization: ${KM_API_KEY}
 
 processors:
   batch:

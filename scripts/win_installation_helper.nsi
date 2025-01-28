@@ -12,13 +12,13 @@ BrandingText "KloudMate Technologies Inc. All rights Reserved."
 !define VERSIONMAJOR 1
 !define VERSIONMINOR 0
 !define VERSIONBUILD 0
-!define YAML_FILENAME "agent-config.yaml"
+!define YAML_FILENAME "host-col-config.yaml"
 !define YAML_INSTALL_DIR "$PROFILE\.kloudmate"
 !define SERVICE_NAME "KmAgent"
 !define SERVICE_DISPLAY_NAME "Kloudmate Agent"
 !define SERVICE_DESCRIPTION "KloudMate Agent for OpenTelemetry auto instrumentation"
 
-
+Var APIKey
 
 ; Define installer attributes
 Name "${APPNAME}"
@@ -57,10 +57,43 @@ RequestExecutionLevel admin
 ; Language
 !insertmacro MUI_LANGUAGE "English"
 
+Function APIKeyEnterPage
+    nsDialogs::Create 1018
+    Pop $0
+    
+    ${If} $0 == error
+        Abort
+    ${EndIf}
+
+    nsDialogs::SetRTLTextDirection left
+
+    ${NSD_CreateLabel} 0 0 100% 24u "Enter your KloudMate API Key:"
+    Pop $1
+
+    ${NSD_CreateText} 0 25u 100% 12u ""
+    Pop $2
+    
+    ; Store the text control for validation
+    IntOp $R0 0 + $2
+
+    nsDialogs::Show
+
+FunctionEnd
+
+Function APIKeyValidate
+    ${NSD_GetText} $R0 $APIKey
+    
+    ; Basic validation - ensure key is not empty
+    ${If} $APIKey == ""
+        MessageBox MB_OK|MB_ICONEXCLAMATION "API Key cannot be empty. Please enter your KloudMate API Key."
+        Abort
+    ${EndIf}
+FunctionEnd
+
 ; Service installation and control functions
 Function InstallService
     ; Install the service
-    nsExec::ExecToLog '"$INSTDIR\kmagent.exe" install'
+    nsExec::ExecToLog '"$INSTDIR\kmagent.exe" install -key "$APIKey'
     Pop $0
     ${If} $0 != 0
         MessageBox MB_OK|MB_ICONSTOP "Failed to install service. Error code: $0"
