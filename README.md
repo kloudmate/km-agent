@@ -1,9 +1,9 @@
 # km-agent
 KloudMate Agent for OpenTelemetry auto instrumentation
 
-Purpose of KloudMate Agent is to auto instrument host system with OTel collector. This is a wrapper on top of Otel Collector for ease of deployment and management.
+Purpose of KloudMate Agent is to auto instrument host system with OTel Collector. This is a wrapper on top of OTel Collector for ease of deployment and management.
 
-Right now, user has to go through various documents to understand and configure otel collector depending on components to be monitored. This is fairly complex process for someone new to OpenTelemetry. There is step learning curve which becomes a barrier to adopting OpenTelemetry. This custom KM Agent will solve two problems: 
+Right now, user has to go through various documents to understand and configure OTel Collector depending on components to be monitored. This is a fairly complex process for someone new to OpenTelemetry. There is a steep learning curve which becomes a barrier to adopting OpenTelemetry. This custom KM Agent will solve two problems: 
 
 1. Ease of installation using automated installation script (Bash script/Windows Installer).
 2. Remote configuration of the collector. User can configure the agent from a web interface without having to login into the host system.
@@ -18,7 +18,7 @@ API_KEY="<API_KEY>" bash -c "$(curl -L https://cdn.kloudmate.com/scripts/docker-
 Bash script should have various configurable arguments to configure the agent apart from API_KEY which is required for authentication at exporter. Each of the script should have corresponding uninstall command to remove the agent from the system.
 
 ### Agent
-Agent is installed as service on the host system/docker container/demonset on a k8s. it is done during installation process. The agent is responsible for managing the lifecycle of the Collector. The Agent is not an implementation of Collector, instead, it runs and manages lifecycle of existig Otel Collector.
+Agent is installed as service on the host system/docker container/demonset on a k8s. It is done during installation process. The agent is responsible for managing the lifecycle of the Collector. The Agent is not an implementation of Collector, instead, it runs and manages lifecycle of existig OTel Collector.
 
 It is primarily responsible for watching remote configuration (via REST endpoint) and pass on the configuration to Collector when changes has been detected. It has other functionalities such as sending heartbeat metric to external API which can be use to monitor the agent status, various logs for monitoring purpose etc.
 
@@ -46,7 +46,7 @@ User should be able to install this via automated bash script (bash/.bat/Helm)
 
 **Linux**
 
-Similar to native Otel agent, should support both debian and Red Hat based systems
+Similar to native OTel agent, should support both debian and Red Hat based systems
 User should be able to install this via automated bash script
 
 **Windows**
