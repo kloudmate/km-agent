@@ -31,7 +31,7 @@ func (p *KmAgentService) CliArgs() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
 			Name:        modeFlag,
-			Aliases:     []string{"m"},
+			Aliases:     []string{"mode"},
 			Value:       hostMode,
 			Usage:       "Km Agent mode",
 			Destination: &p.Mode,
