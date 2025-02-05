@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	bgsvc "github.com/kardianos/service"
 	"github.com/kloudmate/km-agent/internal/collector"
@@ -24,14 +25,15 @@ type KmAgentService struct {
 	Collector collector.KmCollector
 	Configs   otelcol.CollectorSettings
 	Mode      string
-	Token     string
+	AgentCfg  agentYaml
 	Exit      chan struct{}
 }
 
 type agentYaml struct {
-	Key      string `yaml:"key"`
-	IsDebug  bool   `yaml:"debug"`
-	Endpoint string `yaml:"endpoint"`
+	Key        string `yaml:"key"`
+	debugLevel string `yaml:"debug"`
+	Endpoint   string `yaml:"endpoint"`
+	Interval   string `yaml:"interval"`
 }
 
 // Constructor for the KmAgentService with default configurations
@@ -71,8 +73,9 @@ func NewKmAgentService() (*KmAgentService, error) {
 	}
 
 	return &KmAgentService{
-		Mode:      hostMode,
-		Token:     "",
+		Mode: hostMode,
+		// Token:     "",
+		AgentCfg:  agentYaml{},
 		Configs:   set,
 		Collector: *kmCollector,
 		Exit:      make(chan struct{}),
@@ -100,42 +103,52 @@ func (p *KmAgentService) Stop(s bgsvc.Service) error {
 
 // SetToken is used to apply KM_API_KEY on the collector configuration for windows flavoured builds.
 func (p *KmAgentService) ApplyAgentConfig() {
+
+	var agentParsedData agentYaml
 	p.Collector.SetupConfigurationComponents(context.TODO())
 
-	var apiKey string
-	// var debugVerbosityLevel string
-	var agentParsedData agentYaml
-
-	// check if api key is passed via environment
-	keyFromEnv := os.Getenv("KM_API_KEY")
-	if keyFromEnv != "" {
-		apiKey = keyFromEnv
-	}
-
-	// reading the default agent configuration
+	// reading the default agent configuration and loading them...
 	fileData, err := os.ReadFile(AGENT_CONFIG_FILE_URI)
 	if err != nil {
 		fmt.Printf("failed to read agent configuration : %v \n", err)
 	}
-
-	// parsing the agent configuration from yaml
 	if err := yaml.Unmarshal(fileData, &agentParsedData); err != nil {
 		fmt.Printf("failed to parse agent configuration : %v \n", err)
 	}
 
-	// if not empty and not set on env then use the key from agent configuration
-	if agentParsedData.Key != "" && agentParsedData.Key != "${KM_API_KEY}" {
-		apiKey = agentParsedData.Key
+	// if empty and not set on env then use the key from the agent configuration
+	if p.AgentCfg.Key == "" {
+		p.AgentCfg.Key = agentParsedData.Key
 	}
 
-	// check if key is passed via flags
-	if p.Token != "" {
-		apiKey = p.Token
+	// if empty and not set on env then use the endpoint from the agent configuration
+	if p.AgentCfg.Endpoint == "" {
+		p.AgentCfg.Endpoint = agentParsedData.Endpoint
+	}
+
+	// if the debug level is not normal then apply it on current configuration.
+	if p.AgentCfg.debugLevel != "normal" {
+		p.AgentCfg.debugLevel = agentParsedData.debugLevel
+	}
+
+	if p.AgentCfg.Interval != "10s" {
+		duration, err := time.ParseDuration(p.AgentCfg.Interval)
+		if err != nil {
+			fmt.Println(fmt.Errorf("error while processing config interval : %v\n", err))
+			p.AgentCfg.Interval = "10s"
+		}
+		// If the duration is less than 10 second then don't apply the interval...
+		if duration.Seconds() > 10 {
+			p.AgentCfg.Interval = "10s"
+		} else {
+			p.AgentCfg.Interval = agentParsedData.Interval
+		}
 	}
 
 	// if found pass then build their uri
-	// debugUri := fmt.Sprintf("yaml:exporters::debug::verbosity:%s", debugVerbosityLevel)
-	ApiKeyUri := fmt.Sprintf("yaml:exporters::otlphttp::headers::Authorization:%s", apiKey)
+	debugUri := fmt.Sprintf("yaml:exporters::debug::verbosity:%s", p.AgentCfg.debugLevel)
+	endpointUri := fmt.Sprintf("yaml:exporters::otlphttp::endpoint:%s", p.AgentCfg.Endpoint)
+	ApiKeyUri := fmt.Sprintf("yaml:exporters::otlphttp::headers::Authorization:%s", p.AgentCfg.Key)
 
 	// Applying configuration to the agent depending on the mode (i.e - host/ docker)
 	if p.Mode == containerMode {
@@ -143,19 +156,24 @@ func (p *KmAgentService) ApplyAgentConfig() {
 			[]string{
 				DOCKER_CONFIG_FILE_URI,
 				ApiKeyUri,
+				debugUri,
+				endpointUri,
 			}
 	} else {
 		p.Configs.ConfigProviderSettings.ResolverSettings.URIs =
 			[]string{
 				HOST_CONFIG_FILE_URI,
 				ApiKeyUri,
+				debugUri,
+				endpointUri,
 			}
 	}
 
 	// reloads the agent configuration
 
-	if apiKey != agentParsedData.Key {
-		agentParsedData.Key = apiKey
+	if p.AgentCfg.Key != agentParsedData.Key {
+		// agentParsedData.Key = p.AgentCfg.Key
+		p.AgentCfg.Key = agentParsedData.Key
 		file, err := os.Create(AGENT_CONFIG_FILE_URI)
 		if err != nil {
 			logger.Errorf("failed to save agent configuration : %v\n", err)

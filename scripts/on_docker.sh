@@ -36,4 +36,4 @@ docker run -d\
   --privileged \
   --pid=host \
   ghcr.io/kloudmate/km-agent:latest \
-  /kmagent -m=docker start
+  /kmagent -mode=docker start

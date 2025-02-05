@@ -9,8 +9,11 @@ import (
 const (
 
 	// Flags
-	modeFlag = "mode"
-	keyFlag  = "key"
+	keyFlag        = "key"
+	modeFlag       = "mode"
+	debugLevelFlag = "debuglevel"
+	endpointFlag   = "collector-endpoint"
+	intervalFlag   = "config-check-interval"
 
 	// Mode types
 	hostMode      = "host"
@@ -35,10 +38,34 @@ func (p *KmAgentService) CliArgs() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:        keyFlag,
-			Aliases:     []string{"k"},
+			Aliases:     []string{"key"},
 			Value:       "",
+			EnvVars:     []string{"KM_API_KEY"},
 			Usage:       "used for kloudmate otel authentication",
-			Destination: &p.Token,
+			Destination: &p.AgentCfg.Key,
+		},
+		&cli.StringFlag{
+			Name:        endpointFlag,
+			Aliases:     []string{"collector-endpoint"},
+			Value:       "",
+			EnvVars:     []string{"KM_COLLECTOR_ENDPOINT"},
+			Usage:       "for kloudmate collector endpoint",
+			Destination: &p.AgentCfg.Endpoint,
+		},
+		&cli.StringFlag{
+			Name:        intervalFlag,
+			Aliases:     []string{"config-check-interval"},
+			Value:       "10s",
+			EnvVars:     []string{"KM_CONFIG_CHECK_INTERVAL"},
+			Usage:       "for kloudmate otel config retrieval",
+			Destination: &p.AgentCfg.Interval,
+		},
+		&cli.StringFlag{
+			Name:        debugLevelFlag,
+			Aliases:     []string{"debuglevel"},
+			Value:       "normal",
+			Usage:       "for kloudmate otel debugging",
+			Destination: &p.AgentCfg.debugLevel,
 		},
 	}
 }
