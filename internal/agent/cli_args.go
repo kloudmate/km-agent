@@ -19,6 +19,9 @@ const (
 	hostMode      = "host"
 	containerMode = "docker"
 
+	// deafault telemetry endpoint
+	defaultKmEndpoint = ""
+
 	// Commands
 	installCommand   = "install"
 	uninstallCommand = "uninstall"
@@ -27,45 +30,50 @@ const (
 )
 
 // cliArgs are flags that are available in windows flavoured agent.
-func (p *KmAgentService) CliArgs() []cli.Flag {
+func (svc *KmAgentService) CliArgs() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
 			Name:        modeFlag,
-			Aliases:     []string{"mode"},
+			Aliases:     []string{"m"},
 			Value:       hostMode,
-			Usage:       "Km Agent mode",
-			Destination: &p.Mode,
+			Usage:       "Kloudmate Agent mode",
+			Category:    "Agent Configuration",
+			Destination: &svc.Mode,
 		},
 		&cli.StringFlag{
 			Name:        keyFlag,
-			Aliases:     []string{"key"},
-			Value:       "",
+			Aliases:     []string{"k"},
+			Value:       `${KM_API_KEY}`,
 			EnvVars:     []string{"KM_API_KEY"},
 			Usage:       "used for kloudmate otel authentication",
-			Destination: &p.AgentCfg.Key,
+			Category:    "Agent Configuration",
+			Destination: &svc.AgentCfg.Key,
 		},
 		&cli.StringFlag{
 			Name:        endpointFlag,
-			Aliases:     []string{"collector-endpoint"},
-			Value:       "",
+			Aliases:     []string{"endpoint"},
+			Value:       defaultKmEndpoint,
 			EnvVars:     []string{"KM_COLLECTOR_ENDPOINT"},
-			Usage:       "for kloudmate collector endpoint",
-			Destination: &p.AgentCfg.Endpoint,
+			Usage:       "collector endpoint to send telemetry data to",
+			Category:    "Agent Configuration",
+			Destination: &svc.AgentCfg.Endpoint,
 		},
 		&cli.StringFlag{
 			Name:        intervalFlag,
-			Aliases:     []string{"config-check-interval"},
+			Aliases:     []string{"interval"},
 			Value:       "10s",
 			EnvVars:     []string{"KM_CONFIG_CHECK_INTERVAL"},
-			Usage:       "for kloudmate otel config retrieval",
-			Destination: &p.AgentCfg.Interval,
+			Usage:       "configuration retrieval interval",
+			Category:    "Agent Configuration",
+			Destination: &svc.AgentCfg.Interval,
 		},
 		&cli.StringFlag{
 			Name:        debugLevelFlag,
-			Aliases:     []string{"debuglevel"},
+			Aliases:     []string{"debug-level"},
 			Value:       "normal",
 			Usage:       "for kloudmate otel debugging",
-			Destination: &p.AgentCfg.debugLevel,
+			Category:    "For Debugging Purposes",
+			Destination: &svc.AgentCfg.debugLevel,
 		},
 	}
 }
@@ -76,7 +84,7 @@ func (p *KmAgentService) CliCommands(s bgsvc.Service) []*cli.Command {
 			Name:  installCommand,
 			Usage: "Install the service",
 			Action: func(c *cli.Context) error {
-				p.ApplyAgentConfig()
+				p.setupAgent()
 				return bgsvc.Control(s, installCommand)
 			},
 		},

@@ -82,30 +82,30 @@ func NewKmAgentService() (*KmAgentService, error) {
 	}, nil
 }
 
-func (p *KmAgentService) asyncWork() {
-	if err := p.Collector.Run(context.Background()); err != nil {
+func (svc *KmAgentService) asyncWork() {
+	if err := svc.Collector.Run(context.Background()); err != nil {
 		fmt.Println(fmt.Errorf("error occured while running collector : %s", err.Error()))
 	}
 }
 
-func (p *KmAgentService) Start(s bgsvc.Service) error {
+func (svc *KmAgentService) Start(s bgsvc.Service) error {
 
-	fmt.Println(fmt.Sprintf("Running agent on %s mode", p.Mode))
-	go p.asyncWork()
+	fmt.Println(fmt.Sprintf("Running agent on %s mode", svc.Mode))
+	go svc.asyncWork()
 	return nil
 }
 
-func (p *KmAgentService) Stop(s bgsvc.Service) error {
+func (svc *KmAgentService) Stop(s bgsvc.Service) error {
 	fmt.Println("stopping the KloudMate Agent !")
-	close(p.Exit)
+	close(svc.Exit)
 	return nil
 }
 
 // SetToken is used to apply KM_API_KEY on the collector configuration for windows flavoured builds.
-func (p *KmAgentService) ApplyAgentConfig() {
+func (svc *KmAgentService) ApplyAgentConfig() {
 
 	var agentParsedData agentYaml
-	p.Collector.SetupConfigurationComponents(context.TODO())
+	svc.Collector.SetupConfigurationComponents(context.TODO())
 
 	// reading the default agent configuration and loading them...
 	fileData, err := os.ReadFile(AGENT_CONFIG_FILE_URI)
@@ -117,42 +117,42 @@ func (p *KmAgentService) ApplyAgentConfig() {
 	}
 
 	// if empty and not set on env then use the key from the agent configuration
-	if p.AgentCfg.Key == "" {
-		p.AgentCfg.Key = agentParsedData.Key
+	if svc.AgentCfg.Key == "" {
+		svc.AgentCfg.Key = agentParsedData.Key
 	}
 
 	// if empty and not set on env then use the endpoint from the agent configuration
-	if p.AgentCfg.Endpoint == "" {
-		p.AgentCfg.Endpoint = agentParsedData.Endpoint
+	if svc.AgentCfg.Endpoint == "" {
+		svc.AgentCfg.Endpoint = agentParsedData.Endpoint
 	}
 
 	// if the debug level is not normal then apply it on current configuration.
-	if p.AgentCfg.debugLevel != "normal" {
-		p.AgentCfg.debugLevel = agentParsedData.debugLevel
+	if svc.AgentCfg.debugLevel != "normal" {
+		svc.AgentCfg.debugLevel = agentParsedData.debugLevel
 	}
 
-	if p.AgentCfg.Interval != "10s" {
-		duration, err := time.ParseDuration(p.AgentCfg.Interval)
+	if svc.AgentCfg.Interval != "10s" {
+		duration, err := time.ParseDuration(svc.AgentCfg.Interval)
 		if err != nil {
 			fmt.Println(fmt.Errorf("error while processing config interval : %v\n", err))
-			p.AgentCfg.Interval = "10s"
+			svc.AgentCfg.Interval = "10s"
 		}
 		// If the duration is less than 10 second then don't apply the interval...
 		if duration.Seconds() > 10 {
-			p.AgentCfg.Interval = "10s"
+			svc.AgentCfg.Interval = "10s"
 		} else {
-			p.AgentCfg.Interval = agentParsedData.Interval
+			svc.AgentCfg.Interval = agentParsedData.Interval
 		}
 	}
 
 	// if found pass then build their uri
-	debugUri := fmt.Sprintf("yaml:exporters::debug::verbosity:%s", p.AgentCfg.debugLevel)
-	endpointUri := fmt.Sprintf("yaml:exporters::otlphttp::endpoint:%s", p.AgentCfg.Endpoint)
-	ApiKeyUri := fmt.Sprintf("yaml:exporters::otlphttp::headers::Authorization:%s", p.AgentCfg.Key)
+	debugUri := fmt.Sprintf("yaml:exporters::debug::verbosity:%s", svc.AgentCfg.debugLevel)
+	endpointUri := fmt.Sprintf("yaml:exporters::otlphttp::endpoint:%s", svc.AgentCfg.Endpoint)
+	ApiKeyUri := fmt.Sprintf("yaml:exporters::otlphttp::headers::Authorization:%s", svc.AgentCfg.Key)
 
 	// Applying configuration to the agent depending on the mode (i.e - host/ docker)
-	if p.Mode == containerMode {
-		p.Configs.ConfigProviderSettings.ResolverSettings.URIs =
+	if svc.Mode == containerMode {
+		svc.Configs.ConfigProviderSettings.ResolverSettings.URIs =
 			[]string{
 				DOCKER_CONFIG_FILE_URI,
 				ApiKeyUri,
@@ -160,7 +160,7 @@ func (p *KmAgentService) ApplyAgentConfig() {
 				endpointUri,
 			}
 	} else {
-		p.Configs.ConfigProviderSettings.ResolverSettings.URIs =
+		svc.Configs.ConfigProviderSettings.ResolverSettings.URIs =
 			[]string{
 				HOST_CONFIG_FILE_URI,
 				ApiKeyUri,
@@ -171,9 +171,9 @@ func (p *KmAgentService) ApplyAgentConfig() {
 
 	// reloads the agent configuration
 
-	if p.AgentCfg.Key != agentParsedData.Key {
-		// agentParsedData.Key = p.AgentCfg.Key
-		p.AgentCfg.Key = agentParsedData.Key
+	if svc.AgentCfg.Key != agentParsedData.Key {
+		// agentParsedData.Key = svc.AgentCfg.Key
+		svc.AgentCfg.Key = agentParsedData.Key
 		file, err := os.Create(AGENT_CONFIG_FILE_URI)
 		if err != nil {
 			logger.Errorf("failed to save agent configuration : %v\n", err)
@@ -187,33 +187,10 @@ func (p *KmAgentService) ApplyAgentConfig() {
 
 		defer enc.Close()
 
-		p.Collector.ReloadConfiguration(context.TODO())
+		svc.Collector.ReloadConfiguration(context.TODO())
 		if err != nil {
 			logger.Errorf("failed to apply agent configuration : %v \n", err)
 		}
 	}
 
-}
-
-func (p *KmAgentService) lookupAndUpdateYamlNode(node *yaml.Node, path []string, newVal string, depth int) bool {
-	if depth >= len(path) {
-		return false
-	}
-	if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
-		return p.lookupAndUpdateYamlNode(node.Content[0], path, newVal, depth)
-	}
-	if node.Kind == yaml.MappingNode {
-		for i := 0; i < len(node.Content); i += 2 {
-			kNode := node.Content[i]
-			valNode := node.Content[i+1]
-			if kNode.Value == path[depth] {
-				if depth == len(path)-1 {
-					valNode.Value = newVal
-					return true
-				}
-				return p.lookupAndUpdateYamlNode(valNode, path, newVal, depth+1)
-			}
-		}
-	}
-	return false
 }
