@@ -24,6 +24,10 @@ case "$1" in
             echo "[STAGE 4]: reloading systemctl daemon"
             systemctl daemon-reload || true
 
+        # cleaning agent configuration kmagent service
+            echo "[STAGE 5]: flushing up the configurations"
+            rm -rf /var/kloudmate && rm -rf /usr/local/bin/kmagent || true
+
         fi
 
         ;;

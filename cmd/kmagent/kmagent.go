@@ -17,6 +17,7 @@ func main() {
 		Name:        "kmagent",
 		DisplayName: "KloudMate Agent",
 		Description: "KloudMate Agent for auto instrumentation",
+		Arguments:   []string{"start"},
 	}
 	prg, err := agent.NewKmAgentService()
 	if err != nil {
