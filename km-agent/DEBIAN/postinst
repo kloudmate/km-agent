@@ -11,7 +11,7 @@ case "$1" in
         if [ -x "/bin/systemctl" ]; then
         # installing the kmagent
             echo "[STAGE 1]: Installing as service"
-            sudo $SERVICE_NAME install 
+            $SERVICE_NAME install 
 
         # reloading the systemctl after installing kmagent service
             echo "[STAGE 2]: reloading systemctl daemon"

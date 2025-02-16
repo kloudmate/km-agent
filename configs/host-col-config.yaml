@@ -1,0 +1,49 @@
+# This config file will be used by the KM-Agent on it's first initialization.
+
+receivers:
+  hostmetrics:
+    collection_interval: 25s
+    scrapers:
+      cpu:
+      disk:
+      processes:
+      process:
+      memory:
+      network:
+      filesystem:
+      load:
+      paging:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+exporters:
+
+  otlphttp:
+    sending_queue:
+      enabled: true
+      num_consumers: 10 # Increase to process more items in parallel
+      queue_size: 10000 # Increase queue size to handle bursts
+    endpoint: ${KM_COLLECTOR_ENDPOINT}
+    headers:
+        Authorization: ${KM_API_KEY}
+
+processors:
+  batch:
+
+extensions:
+  # zpages:
+  #   endpoint: :55679
+
+service:
+  # extensions: [zpages]
+  pipelines:
+    metrics:
+      receivers: [hostmetrics]
+      processors: [batch]
+      exporters: [otlphttp]
+    logs:
+      receivers: [hostmetrics]
+      processors: [batch]
+      exporters: [otlphttp]

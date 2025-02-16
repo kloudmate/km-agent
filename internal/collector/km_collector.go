@@ -129,6 +129,57 @@ func (col *KmCollector) Shutdown() {
 	}
 }
 
+// SetupConfigurationComponents bootstraps the basic providers and loggers
+func (col *KmCollector) SetupConfigurationComponents(ctx context.Context) error {
+
+	factories, err := col.set.Factories()
+	if err != nil {
+		return fmt.Errorf("failed to initialize factories: %w", err)
+	}
+	cfg, err := col.configProvider.Get(ctx, factories)
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
+	if err = cfg.Validate(); err != nil {
+		return fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	col.serviceConfig = &cfg.Service
+
+	conf := confmap.New()
+
+	if err = conf.Marshal(cfg); err != nil {
+		return fmt.Errorf("could not marshal configuration: %w", err)
+	}
+	col.service, err = service.New(ctx, service.Settings{
+		BuildInfo:     col.set.BuildInfo,
+		CollectorConf: conf,
+
+		ReceiversConfigs:    cfg.Receivers,
+		ReceiversFactories:  factories.Receivers,
+		ProcessorsConfigs:   cfg.Processors,
+		ProcessorsFactories: factories.Processors,
+		ExportersConfigs:    cfg.Exporters,
+		ExportersFactories:  factories.Exporters,
+		ConnectorsConfigs:   cfg.Connectors,
+		ConnectorsFactories: factories.Connectors,
+		ExtensionsConfigs:   cfg.Extensions,
+		ExtensionsFactories: factories.Extensions,
+
+		ModuleInfo: extension.ModuleInfo{
+			Receiver:  factories.ReceiverModules,
+			Processor: factories.ProcessorModules,
+			Exporter:  factories.ExporterModules,
+			Extension: factories.ExtensionModules,
+			Connector: factories.ConnectorModules,
+		},
+		AsyncErrorChannel: col.asyncErrorChannel,
+		LoggingOptions:    col.set.LoggingOptions,
+	}, cfg.Service)
+	return nil
+}
+
 // setupConfigurationComponents loads the config, creates the graph, and starts the components. If all the steps succeeds it
 // sets the col.service with the service currently running.
 func (col *KmCollector) setupConfigurationComponents(ctx context.Context) error {
@@ -223,6 +274,10 @@ func (col *KmCollector) reloadConfiguration(ctx context.Context) error {
 	return nil
 }
 
+func (col *KmCollector) ReloadConfiguration(ctx context.Context) error {
+	return col.reloadConfiguration(ctx)
+}
+
 func (col *KmCollector) DryRun(ctx context.Context) error {
 	factories, err := col.set.Factories()
 	if err != nil {
@@ -289,7 +344,7 @@ func (col *KmCollector) Run(ctx context.Context) error {
 	go func() {
 		for {
 			time.Sleep(time.Second * 5)
-			col.service.Logger().Warn("performing configuration reload")
+			// col.service.Logger().Warn("performing configuration reload")
 			// if err := col.reloadConfiguration(ctx); err != nil {
 			// 	col.service.Logger().Warn("performing configuration reload failed")
 			// }
