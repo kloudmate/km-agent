@@ -130,19 +130,19 @@ func (col *KmCollector) Shutdown() {
 }
 
 // SetupConfigurationComponents bootstraps the basic providers and loggers
-func (col *KmCollector) SetupConfigurationComponents(ctx context.Context) {
+func (col *KmCollector) SetupConfigurationComponents(ctx context.Context) error {
 
 	factories, err := col.set.Factories()
 	if err != nil {
-		// return fmt.Errorf("failed to initialize factories: %w", err)
+		return fmt.Errorf("failed to initialize factories: %w", err)
 	}
 	cfg, err := col.configProvider.Get(ctx, factories)
 	if err != nil {
-		// return fmt.Errorf("failed to get config: %w", err)
+		return fmt.Errorf("failed to get config: %w", err)
 	}
 
 	if err = cfg.Validate(); err != nil {
-		// return fmt.Errorf("invalid configuration: %w", err)
+		return fmt.Errorf("invalid configuration: %w", err)
 	}
 
 	col.serviceConfig = &cfg.Service
@@ -150,7 +150,7 @@ func (col *KmCollector) SetupConfigurationComponents(ctx context.Context) {
 	conf := confmap.New()
 
 	if err = conf.Marshal(cfg); err != nil {
-		// return fmt.Errorf("could not marshal configuration: %w", err)
+		return fmt.Errorf("could not marshal configuration: %w", err)
 	}
 	col.service, err = service.New(ctx, service.Settings{
 		BuildInfo:     col.set.BuildInfo,
@@ -177,6 +177,7 @@ func (col *KmCollector) SetupConfigurationComponents(ctx context.Context) {
 		AsyncErrorChannel: col.asyncErrorChannel,
 		LoggingOptions:    col.set.LoggingOptions,
 	}, cfg.Service)
+	return nil
 }
 
 // setupConfigurationComponents loads the config, creates the graph, and starts the components. If all the steps succeeds it

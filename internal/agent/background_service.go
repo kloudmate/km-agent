@@ -105,7 +105,9 @@ func (svc *KmAgentService) Stop(s bgsvc.Service) error {
 func (svc *KmAgentService) ApplyAgentConfig() {
 
 	var agentParsedData agentYaml
-	svc.Collector.SetupConfigurationComponents(context.TODO())
+	if err := svc.Collector.SetupConfigurationComponents(context.TODO()); err != nil {
+		fmt.Printf("failed to setup configuration : %v \n", err)
+	}
 
 	// reading the default agent configuration and loading them...
 	fileData, err := os.ReadFile(AGENT_CONFIG_FILE_URI)
