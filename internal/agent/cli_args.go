@@ -43,7 +43,6 @@ func (svc *KmAgentService) CliArgs() []cli.Flag {
 		&cli.StringFlag{
 			Name:        keyFlag,
 			Aliases:     []string{"k"},
-			Value:       `${KM_API_KEY}`,
 			EnvVars:     []string{"KM_API_KEY"},
 			Usage:       "used for kloudmate otel authentication",
 			Category:    "Agent Configuration",
