@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings" 
 
 	"github.com/kardianos/service"
 	bgsvc "github.com/kardianos/service"
@@ -12,6 +15,17 @@ import (
 )
 
 var logger bgsvc.Logger
+
+
+var CONFIG_FILE_URI string
+
+func init() {
+	if strings.Contains(os.Getenv("OS"), "Windows") {
+		CONFIG_FILE_URI = filepath.Join(os.Getenv("PROGRAMDATA"), "km-agent", "config.yaml") 
+	} else {
+		CONFIG_FILE_URI = "/etc/km-agent/config.yaml"
+	}
+}
 
 func main() {
 	var svcConfig = &bgsvc.Config{
@@ -49,7 +63,69 @@ func main() {
 				Name:  "install",
 				Usage: "Install the service",
 				Action: func(c *cli.Context) error {
-					return service.Control(s, "install")
+					apiKey := os.Getenv("KM_API_KEY")
+
+					if apiKey == "" {
+						return fmt.Errorf("KM_API_KEY environment variable not set")
+					}
+					configContent := fmt.Sprintf(`# This config file will be used by the KM-Agent on its first initialization.
+                    receivers:
+                    hostmetrics:
+                        collection_interval: 25s
+                    scrapers:
+                        cpu:
+                        disk:
+                        processes:
+                        process:
+                        memory:
+                        network:
+                        filesystem:
+                        load:
+                        paging:
+                    otlp:
+                    protocols:
+                        grpc:
+                        http:
+
+                    exporters:
+                    debug:
+                    otlphttp:
+                       endpoint: https://otel.kloudmate.com:4318
+                    headers:
+                       Authorization: "%s"
+                                 `, apiKey)
+
+					
+					configDir := filepath.Dir(CONFIG_FILE_URI)
+					if _, err := os.Stat(configDir); os.IsNotExist(err) {
+						err := os.MkdirAll(configDir, 0755)
+						if err != nil {
+							return fmt.Errorf("failed to create config directory: %w", err)
+						}
+					}
+
+					
+					configFile, err := os.OpenFile(CONFIG_FILE_URI, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+					if err != nil {
+						return fmt.Errorf("failed to create config file: %w", err)
+					}
+
+					
+					_, err = configFile.WriteString(configContent)
+					configFile.Close() 
+
+					if err != nil {
+						return fmt.Errorf("failed to write config: %w", err)
+					}
+
+				
+					err = service.Control(s, "install")
+					if err != nil{
+						fmt.Println("Failed to install the service")
+					} else{
+						fmt.Println("Successfully installed the service")
+					}
+					return err
 				},
 			},
 			{
@@ -64,12 +140,7 @@ func main() {
 				Usage: "Start the service",
 				Action: func(c *cli.Context) error {
 
-					err = s.Run()
-					if err != nil {
-						logger.Error(err)
-						return err
-					}
-					return nil
+					return service.Control(s, "start")
 				},
 			},
 			{
@@ -79,6 +150,13 @@ func main() {
 					return service.Control(s, "stop")
 				},
 			},
+			{
+                Name:  "run",
+                Usage: "Run the service in the foreground",
+                Action: func(c *cli.Context) error {
+                   return s.Run()
+                },
+            },
 		},
 	}
 
