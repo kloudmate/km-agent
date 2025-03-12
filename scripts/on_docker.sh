@@ -32,7 +32,8 @@ docker run -d\
   --name kmagent \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   $VOLUME_ARGS \
+  -e KM_API_KEY=${KM_API_KEY} \
   --privileged \
   --pid=host \
   ghcr.io/kloudmate/km-agent:latest \
-  /kmagent -m=docker -t=${KM_API_KEY} start
+  /kmagent -mode=docker start
