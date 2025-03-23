@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"sync/atomic"
 	"syscall"
-	"time"
 
 	bgsvc "github.com/kardianos/service"
 
@@ -43,6 +42,10 @@ type KmCollector struct {
 	asyncErrorChannel          chan error
 	bc                         *bufferedCore
 	updateConfigProviderLogger func(core zapcore.Core)
+}
+
+func (col *KmCollector) SetSet(s otelcol.CollectorSettings) {
+	col.set = s
 }
 
 // State defines Collector's state.
@@ -83,7 +86,7 @@ func (s State) String() string {
 // Collector represents a server providing the OpenTelemetry Collector service.
 
 // NewCollector creates and returns a new instance of Collector.
-func NewKmCollector(set otelcol.CollectorSettings) (*KmCollector, error) {
+func NewKmCollector(set otelcol.CollectorSettings) (KmCollector, error) {
 	bc := newBufferedCore(zapcore.DebugLevel)
 	cc := &collectorCore{core: bc}
 	options := append([]zap.Option{zap.WithCaller(true)}, set.LoggingOptions...)
@@ -93,12 +96,12 @@ func NewKmCollector(set otelcol.CollectorSettings) (*KmCollector, error) {
 
 	configProvider, err := otelcol.NewConfigProvider(set.ConfigProviderSettings)
 	if err != nil {
-		return nil, err
+		return KmCollector{}, err
 	}
 
 	state := new(atomic.Int64)
 	state.Store(int64(StateStarting))
-	return &KmCollector{
+	return KmCollector{
 		set:          set,
 		state:        state,
 		shutdownChan: make(chan struct{}),
@@ -304,6 +307,12 @@ func newFallbackLogger(options []zap.Option) (*zap.Logger, error) {
 	return zapCfg.Build(options...)
 }
 
+// @ansh-devs
+func (col *KmCollector) SendSighUp() {
+	// signal.Notify(col.signalsChannel, syscall.SIGHUP)
+	col.signalsChannel <- syscall.SIGHUP
+}
+
 // Run starts the collector according to the given configuration, and waits for it to complete.
 // Consecutive calls to Run are not allowed, Run shouldn't be called once a collector is shut down.
 // Sets up the control logic for config reloading and shutdown.
@@ -341,16 +350,16 @@ func (col *KmCollector) Run(ctx context.Context) error {
 	// Control loop: selects between channels for various interrupts - when this loop is broken, the collector exits.
 	// If a configuration reload fails, we return without waiting for graceful shutdown.
 
-	go func() {
-		for {
-			time.Sleep(time.Second * 5)
-			// col.service.Logger().Warn("performing configuration reload")
-			// if err := col.reloadConfiguration(ctx); err != nil {
-			// 	col.service.Logger().Warn("performing configuration reload failed")
-			// }
-		}
+	// go func() {
+	// 	for {
+	// 		time.Sleep(time.Second * 5)
+	// 		// col.service.Logger().Warn("performing configuration reload")
+	// 		// if err := col.reloadConfiguration(ctx); err != nil {
+	// 		// 	col.service.Logger().Warn("performing configuration reload failed")
+	// 		// }
+	// 	}
 
-	}()
+	// }()
 LOOP:
 	for {
 		select {

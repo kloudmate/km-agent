@@ -307,8 +307,6 @@ go.opentelemetry.io/collector/confmap/provider/fileprovider v1.22.0 h1:upFhnU8Ey
 go.opentelemetry.io/collector/confmap/provider/fileprovider v1.22.0/go.mod h1:FhjMWU5nf3IctX27lVZomM5SKMyRywShRsA4/rHoBe8=
 go.opentelemetry.io/collector/confmap/provider/httpprovider v1.22.0 h1:jKLicfZRiA+G/sgso26aM6Dmmva4Dx9Txk2R58+R3e8=
 go.opentelemetry.io/collector/confmap/provider/httpprovider v1.22.0/go.mod h1:nZhEGDufHuZAaeVyFVz15IluXwrnQRCp+U/w7j8Lx9Y=
-go.opentelemetry.io/collector/confmap/provider/httpsprovider v1.21.0 h1:2EEUI2DzA2DvrvCImMWRSNqIHdRJ6+qbgvZL44Zb2ac=
-go.opentelemetry.io/collector/confmap/provider/httpsprovider v1.21.0/go.mod h1:axezjjQWY4kZc5pr/+wOKAuqSYMhea/tWzP5S30h+dc=
 go.opentelemetry.io/collector/confmap/provider/yamlprovider v1.22.0 h1:dkiNwLxBqeNDN5fIwtvr2GoA0I2xZB2SEdQ9ceBbJVs=
 go.opentelemetry.io/collector/confmap/provider/yamlprovider v1.22.0/go.mod h1:P9SxKZvim1C3K1R2j3gI+Qb4/l9MffX2sY5f9ajsk7Y=
 go.opentelemetry.io/collector/connector/forwardconnector v0.115.0 h1:8qpQJa2fSusEYAfnMTFwQi4Om8y1N440G6OkZ+zhap4=
