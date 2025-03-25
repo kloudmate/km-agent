@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -24,10 +25,12 @@ func main() {
 		log.Fatal(err)
 	}
 	s, err := bgsvc.New(prg, svcConfig)
+	errs := make(chan error, 56)
+	logger, err = s.Logger(errs)
 	if err != nil {
 		log.Fatal(err)
 	}
-	logger, err = s.Logger(nil)
+	prg.Svclogger = logger
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -38,6 +41,8 @@ func main() {
 		Flags:    prg.CliArgs(),
 		Commands: prg.CliCommands(s),
 	}
+	prg.InitCollector(app)
+	// prg.ApplyAgentConfig(cli.NewContext(app, nil, nil))
 
 	// show help when no command specified
 	app.Action = func(c *cli.Context) error {
@@ -45,6 +50,11 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Fatal(err)
+		// fmt.Println(string(prg.Collector.ErrBuff.Bytes()))
+		fmt.Println("=====================")
+		fmt.Println(err)
+		// log.Fatal(err)
 	}
+	// defer fmt.Println(string(prg.Collector.ErrBuff.Bytes()))
+
 }

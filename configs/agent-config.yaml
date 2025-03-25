@@ -1,4 +1,4 @@
 key: ${KM_API_KEY}
-debug_level: normal
+debug: normal
 endpoint: https://otel.kloudmate.com:4318
 interval: 10s

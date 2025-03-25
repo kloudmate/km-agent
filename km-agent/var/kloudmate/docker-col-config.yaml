@@ -35,9 +35,9 @@ exporters:
       enabled: true
       num_consumers: 10 # Increase to process more items in parallel
       queue_size: 10000 # Increase queue size to handle bursts
-    endpoint: ${KM_COLLECTOR_ENDPOINT}
+    endpoint: https://otel.kloudmate.com:4318
     headers:
-        Authorization: ${KM_API_KEY}
+        Authorization: ${env:KM_API_KEY}
 
 processors:
   batch:

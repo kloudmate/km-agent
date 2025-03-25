@@ -20,7 +20,7 @@ func (p *KmAgentService) setupAgent() {
 	}
 
 	p.lookupAndUpdateYamlNode(&parsedData, []string{"key"}, p.AgentCfg.Key, 0)
-	p.lookupAndUpdateYamlNode(&parsedData, []string{"debug_level"}, p.AgentCfg.debugLevel, 0)
+	p.lookupAndUpdateYamlNode(&parsedData, []string{"debug"}, p.AgentCfg.debugLevel, 0)
 	p.lookupAndUpdateYamlNode(&parsedData, []string{"endpoint"}, p.AgentCfg.Endpoint, 0)
 	p.lookupAndUpdateYamlNode(&parsedData, []string{"interval"}, p.AgentCfg.Interval, 0)
 

@@ -98,7 +98,7 @@ func (p *KmAgentService) CliCommands(s bgsvc.Service) []*cli.Command {
 			Name:  startCommand,
 			Usage: "Start the service",
 			Action: func(c *cli.Context) error {
-				p.ApplyAgentConfig()
+				// p.ApplyAgentConfig(c)
 				err := s.Run()
 				if err != nil {
 					logger.Error(err)

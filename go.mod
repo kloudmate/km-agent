@@ -9,8 +9,6 @@ require (
 	go.opentelemetry.io/collector/confmap v1.23.0
 	go.opentelemetry.io/collector/confmap/provider/envprovider v1.22.0
 	go.opentelemetry.io/collector/confmap/provider/fileprovider v1.22.0
-	go.opentelemetry.io/collector/confmap/provider/httpprovider v1.22.0
-	go.opentelemetry.io/collector/confmap/provider/httpsprovider v1.21.0
 	go.opentelemetry.io/collector/confmap/provider/yamlprovider v1.22.0
 	go.opentelemetry.io/collector/connector v0.116.0
 	go.opentelemetry.io/collector/connector/forwardconnector v0.115.0
