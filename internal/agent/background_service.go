@@ -39,7 +39,13 @@ type agentYaml struct {
 // Constructor for the KmAgentService with default configurations
 func NewKmAgentService() (s *KmAgentService, err error) {
 	svc := &KmAgentService{}
-	svc.Mode = hostMode
+
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		svc.Mode = containerMode
+	} else {
+		svc.Mode = hostMode
+	}
+
 	// Token:     "",
 	svc.AgentCfg = agentYaml{}
 	svc.Exit = make(chan struct{})
@@ -124,7 +130,9 @@ func (svc *KmAgentService) ApplyAgentConfig(c *cli.Context) {
 	}
 
 	// if empty and not set on env then use the key from the agent configuration
-	if svc.AgentCfg.Key == "" {
+	if key, exists := os.LookupEnv("KM_API_KEY"); exists {
+		svc.AgentCfg.Key = key
+	} else {
 		svc.AgentCfg.Key = agentParsedData.Key
 	}
 
