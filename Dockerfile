@@ -8,6 +8,7 @@ RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o kmagent cmd/kmagent/kmagen
 # -----Secondary Stage-----
 FROM alpine:latest
 COPY --from=BuildStage /app/kmagent .
+COPY ./configs/agent-config.yaml /var/kloudmate/agent-config.yaml
 COPY ./configs/host-col-config.yaml /var/kloudmate/host-col-config.yaml
 COPY ./configs/docker-col-config.yaml /var/kloudmate/docker-col-config.yaml
 
