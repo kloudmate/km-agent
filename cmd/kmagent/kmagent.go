@@ -41,7 +41,7 @@ func main() {
 		Flags:    prg.CliArgs(),
 		Commands: prg.CliCommands(s),
 	}
-	prg.InitCollector(app)
+	// prg.InitCollector(app)
 	// prg.ApplyAgentConfig(cli.NewContext(app, nil, nil))
 
 	// show help when no command specified

@@ -40,12 +40,6 @@ type agentYaml struct {
 func NewKmAgentService() (s *KmAgentService, err error) {
 	svc := &KmAgentService{}
 
-	if _, err := os.Stat("/.dockerenv"); err == nil {
-		svc.Mode = containerMode
-	} else {
-		svc.Mode = hostMode
-	}
-
 	// Token:     "",
 	svc.AgentCfg = agentYaml{}
 	svc.Exit = make(chan struct{})
@@ -86,14 +80,14 @@ func NewKmAgentService() (s *KmAgentService, err error) {
 	return s, nil
 }
 
-func (r *KmAgentService) InitCollector(app *cli.App) (err error) {
-	r.ApplyAgentConfig(cli.NewContext(app, nil, nil))
-	r.Collector, err = collector.NewKmCollector(r.Configs)
-	if err != nil {
-		return err
-	}
-	return nil
-}
+// func (r *KmAgentService) InitCollector(app *cli.App) (err error) {
+// 	r.ApplyAgentConfig(cli.NewContext(app, nil, nil))
+// 	r.Collector, err = collector.NewKmCollector(r.Configs)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
 func (svc *KmAgentService) asyncWork() {
 	if err := svc.Collector.Run(context.Background()); err != nil {
@@ -170,6 +164,7 @@ func (svc *KmAgentService) ApplyAgentConfig(c *cli.Context) {
 	svc.Configs.ConfigProviderSettings.ResolverSettings.DefaultScheme = "yaml"
 
 	if svc.Mode == containerMode {
+		svc.Svclogger.Infof("This is the path of Docker config file: %s", DOCKER_CONFIG_FILE_URI)
 		svc.Configs.ConfigProviderSettings.ResolverSettings.URIs =
 			[]string{
 				"file:" + DOCKER_CONFIG_FILE_URI,
@@ -178,6 +173,7 @@ func (svc *KmAgentService) ApplyAgentConfig(c *cli.Context) {
 				endpointUri,
 			}
 	} else {
+		svc.Svclogger.Infof("This is the path of Host config file: %s", HOST_CONFIG_FILE_URI)
 		svc.Configs.ConfigProviderSettings.ResolverSettings.URIs =
 			[]string{
 				"file:" + HOST_CONFIG_FILE_URI,
