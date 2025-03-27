@@ -8,7 +8,6 @@ import (
 
 	bgsvc "github.com/kardianos/service"
 	"github.com/kloudmate/km-agent/internal/collector"
-	cli "github.com/urfave/cli/v2"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/confmap"
 	"go.opentelemetry.io/collector/confmap/provider/envprovider"
@@ -80,14 +79,14 @@ func NewKmAgentService() (s *KmAgentService, err error) {
 	return s, nil
 }
 
-// func (r *KmAgentService) InitCollector(app *cli.App) (err error) {
-// 	r.ApplyAgentConfig(cli.NewContext(app, nil, nil))
-// 	r.Collector, err = collector.NewKmCollector(r.Configs)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func (r *KmAgentService) InitCollector() (err error) {
+	r.ApplyAgentConfig()
+	r.Collector, err = collector.NewKmCollector(r.Configs)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 func (svc *KmAgentService) asyncWork() {
 	if err := svc.Collector.Run(context.Background()); err != nil {
@@ -97,6 +96,7 @@ func (svc *KmAgentService) asyncWork() {
 
 func (svc *KmAgentService) Start(s bgsvc.Service) error {
 	svc.Svclogger.Infof("Running agent on %s mode \n", svc.Mode)
+	svc.InitCollector()
 	go svc.asyncWork()
 	return nil
 }
@@ -109,7 +109,7 @@ func (svc *KmAgentService) Stop(s bgsvc.Service) error {
 }
 
 // ApplyAgentConfig is used to apply KM paramaters on the collector configuration.
-func (svc *KmAgentService) ApplyAgentConfig(c *cli.Context) {
+func (svc *KmAgentService) ApplyAgentConfig() {
 	svc.AgentCfg.debugLevel = "normal"
 	svc.AgentCfg.Interval = "10s"
 

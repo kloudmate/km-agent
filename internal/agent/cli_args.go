@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"github.com/kloudmate/km-agent/internal/collector"
 	cli "github.com/urfave/cli/v2"
 
 	bgsvc "github.com/kardianos/service"
@@ -99,8 +98,6 @@ func (p *KmAgentService) CliCommands(s bgsvc.Service) []*cli.Command {
 			Name:  startCommand,
 			Usage: "Start the service",
 			Action: func(c *cli.Context) error {
-				p.ApplyAgentConfig(c)
-				p.Collector, _ = collector.NewKmCollector(p.Configs)
 				err := s.Run()
 				if err != nil {
 					logger.Error(err)
