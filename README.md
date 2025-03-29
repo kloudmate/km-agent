@@ -1,9 +1,12 @@
-# km-agent
+# KM-Agent
 KloudMate Agent for OpenTelemetry auto instrumentation
 
 Purpose of KloudMate Agent is to auto instrument host system with OTel Collector. This is a wrapper on top of OTel Collector for ease of deployment and management.
 
-Right now, user has to go through various documents to understand and configure OTel Collector depending on components to be monitored. This is a fairly complex process for someone new to OpenTelemetry. There is a steep learning curve which becomes a barrier to adopting OpenTelemetry. This custom KM Agent will solve two problems: 
+![comparision_otel_kloudmate](/docs/agent_otel_comparision.png)
+
+Right now, user has to go through various documents to understand and configure otel collector depending on components to be monitored. This is fairly complex process for someone new to OpenTelemetry. There is steep learning curve which becomes a barrier to adopting OpenTelemetry. This custom KM Agent will solve two problems:
+
 
 1. Ease of installation using automated installation script (Bash script/Windows Installer).
 2. Remote configuration of the collector. User can configure the agent from a web interface without having to login into the host system.
@@ -20,19 +23,18 @@ Bash script should have various configurable arguments to configure the agent ap
 ### Agent
 Agent is installed as service on the host system/docker container/demonset on a k8s. It is done during installation process. The agent is responsible for managing the lifecycle of the Collector. The Agent is not an implementation of Collector, instead, it runs and manages lifecycle of existig OTel Collector.
 
-It is primarily responsible for watching remote configuration (via REST endpoint) and pass on the configuration to Collector when changes has been detected. It has other functionalities such as sending heartbeat metric to external API which can be use to monitor the agent status, various logs for monitoring purpose etc.
+![agent_lifecycle](/docs/lifecycle.png)
 
-Each agent should be uniquely identifyable so we can build dashboard for the user to monitor the agents and configure them using a web interface.
+It is also primarily responsible for watching remote configuration (via REST endpoint) and pass on the configuration to Collector when changes has been detected. It has other functionalities such as synthetic monitoring that can be used to monitor the agent's status, various logs for monitoring purpose etc.
 
-The agent can be installed in any of the following environments
-* Docker
-* Kubernetes 
-* Linux
-* Windows
+Each agent is uniquely identifyable so it can be used to build dashboard for the user to monitor the agents and configure them using a web interface.
+
+![deployable_environments](/docs/environments.png)
+
+In future releases the agent can be installed in any of the following environments as well:
 * Mac
 * ECS
 * Azure k8s
-* etc..
 
 **Docker**
 
@@ -57,7 +59,7 @@ Installation via Windows installer
 
 Thank you for your interest in contributing to our project! We welcome contributions that improve the quality, usability, and functionality of this open-source initiative. Before you start, please review the following guidelines to ensure a smooth collaboration.
 
-## Contribution Guidelines
+![welcome_contributions](/docs/contributions.png)
 
 1. **Understand the Project**
    - Familiarize yourself with the purpose, scope, and goals of the project.
