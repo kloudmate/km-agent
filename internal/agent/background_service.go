@@ -97,6 +97,9 @@ func (svc *KmAgentService) asyncWork() {
 
 func (svc *KmAgentService) Start(s bgsvc.Service) (err error) {
 	svc.Svclogger.Infof("Running agent on %s mode \n", svc.Mode)
+	if svc.Mode == containerMode {
+		svc.setupAgent()
+	}
 	svc.ApplyAgentConfig(cli.NewContext(nil, nil, nil))
 	svc.Collector, err = collector.NewKmCollector(svc.Configs)
 	if err != nil {
