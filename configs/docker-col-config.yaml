@@ -15,13 +15,31 @@ receivers:
     collection_interval: 25s
     scrapers:
       cpu:
+         metrics:
+          system.cpu.utilization:
+            enabled: true
       disk:
       processes:
       process:
+       metrics:
+          process.cpu.utilization:
+            enabled: true
+          process.memory.utilization:
+            enabled: true
+       mute_process_all_errors: true
       memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
       network:
       filesystem:
+         metrics:
+          system.filesystem.usage:
+            enabled: true
+          system.filesystem.utilization:
+            enabled: true
       load:
+         cpu_average: true
       paging:
 
   otlp:
