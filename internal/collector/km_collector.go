@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	//"go.opentelemetry.io/collector/component"
 	"os"
 	"os/signal"
 	"sync/atomic"
@@ -17,7 +18,6 @@ import (
 
 	"github.com/kloudmate/km-agent/internal/collector/grpclog"
 	"go.opentelemetry.io/collector/confmap"
-	"go.opentelemetry.io/collector/extension"
 	"go.opentelemetry.io/collector/otelcol"
 	"go.opentelemetry.io/collector/service"
 )
@@ -28,7 +28,7 @@ var log bgsvc.Logger
 type KmCollector struct {
 	set otelcol.CollectorSettings
 
-	configProvider otelcol.ConfigProvider
+	configProvider *otelcol.ConfigProvider
 
 	serviceConfig *service.Config
 	service       *service.Service
@@ -169,14 +169,15 @@ func (col *KmCollector) SetupConfigurationComponents(ctx context.Context) error 
 		ConnectorsFactories: factories.Connectors,
 		ExtensionsConfigs:   cfg.Extensions,
 		ExtensionsFactories: factories.Extensions,
+		ModuleInfos:         service.ModuleInfos{},
 
-		ModuleInfo: extension.ModuleInfo{
-			Receiver:  factories.ReceiverModules,
-			Processor: factories.ProcessorModules,
-			Exporter:  factories.ExporterModules,
-			Extension: factories.ExtensionModules,
-			Connector: factories.ConnectorModules,
-		},
+		// ModuleInfo: extension.ModuleInfo{
+		// 	Receiver:  factories.ReceiverModules,
+		// 	Processor: factories.ProcessorModules,
+		// 	Exporter:  factories.ExporterModules,
+		// 	Extension: factories.ExtensionModules,
+		// 	Connector: factories.ConnectorModules,
+		// },
 		AsyncErrorChannel: col.asyncErrorChannel,
 		LoggingOptions:    col.set.LoggingOptions,
 	}, cfg.Service)
@@ -224,12 +225,12 @@ func (col *KmCollector) setupConfigurationComponents(ctx context.Context) error 
 		ExtensionsConfigs:   cfg.Extensions,
 		ExtensionsFactories: factories.Extensions,
 
-		ModuleInfo: extension.ModuleInfo{
-			Receiver:  factories.ReceiverModules,
-			Processor: factories.ProcessorModules,
-			Exporter:  factories.ExporterModules,
-			Extension: factories.ExtensionModules,
-			Connector: factories.ConnectorModules,
+		ModuleInfos: service.ModuleInfos{
+			// Receiver:  factories.ReceiverModules,
+			// Processor: factories.ProcessorModules,
+			// Exporter:  factories.ExporterModules,
+			// Extension: factories.ExtensionModules,
+			// Connector: factories.ConnectorModules,
 		},
 		AsyncErrorChannel: col.asyncErrorChannel,
 		LoggingOptions:    col.set.LoggingOptions,
