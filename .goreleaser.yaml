@@ -1,0 +1,77 @@
+project_name: km-agent
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: "{{ .ProjectName }}"
+    main: ./cmd/kmagent/main.go
+    binary: "{{ .ProjectName }}"
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'checksums.txt'
+
+dockers:
+  - image_templates:
+    - "ghcr.io/kloudmate/{{.ProjectName}}:{{.Version}}"
+    - "ghcr.io/kloudmate/{{.ProjectName}}:latest"
+    dockerfile: Dockerfile
+    use: buildx
+    goos: linux
+    goarch: amd64
+    build_flag_templates:
+    - "--platform=linux/amd64"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+  
+
+docker_manifests:
+  - name_template: ghcr.io/kloudmate/{{.ProjectName}}:{{.Version}}
+    image_templates:
+    - ghcr.io/kloudmate/{{.ProjectName}}:{{.Version}}
+    - ghcr.io/kloudmate/{{.ProjectName}}:{{.Version}}-arm64
+  - name_template: ghcr.io/kloudmate/{{.ProjectName}}:latest
+    image_templates:
+    - ghcr.io/kloudmate/{{.ProjectName}}:{{.Version}}
+    - ghcr.io/kloudmate/{{.ProjectName}}:{{.Version}}-arm64
+
+# We don't need releaser to generate a changelog since semantic-release does this job
+changelog:
+  skip: true
+
+release:
+  footer: >-
+
+    ---
+
+    [Kloudmate](https://kloudmate.com)
