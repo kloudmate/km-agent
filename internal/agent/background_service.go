@@ -20,6 +20,10 @@ import (
 
 var logger bgsvc.Logger
 
+type AppConfig struct {
+	OtelConfigFile string
+}
+
 type KmAgentService struct {
 	Collector collector.KmCollector
 	Configs   otelcol.CollectorSettings
@@ -27,6 +31,7 @@ type KmAgentService struct {
 	AgentCfg  agentYaml
 	Exit      chan struct{}
 	Svclogger bgsvc.Logger
+	AppConfig AppConfig
 }
 
 type agentYaml struct {
@@ -55,20 +60,18 @@ func NewKmAgentService() (s *KmAgentService, err error) {
 	// uris := []string{"file:" + HOST_CONFIG_FILE_URI, debugUri}
 
 	// default configurations for the collector
+	fmt.Println(svc.AppConfig.OtelConfigFile)
 	svc.Configs = otelcol.CollectorSettings{
-
 		BuildInfo: info,
 		Factories: components,
 		ConfigProviderSettings: otelcol.ConfigProviderSettings{
 			ResolverSettings: confmap.ResolverSettings{
-				DefaultScheme: "file",
-				// URIs:          uris,
+				DefaultScheme: "env",
+				URIs:          []string{svc.AppConfig.OtelConfigFile},
 				ProviderFactories: []confmap.ProviderFactory{
 					envprovider.NewFactory(),
 					fileprovider.NewFactory(),
 					yamlprovider.NewFactory(),
-					// httpprovider.NewFactory(),
-					// httpsprovider.NewFactory(),
 				},
 			},
 		},
@@ -98,13 +101,15 @@ func (svc *KmAgentService) asyncWork() {
 func (svc *KmAgentService) Start(s bgsvc.Service) (err error) {
 	svc.Svclogger.Infof("Running agent on %s mode \n", svc.Mode)
 	if svc.Mode == containerMode {
+		svc.Svclogger.Infof("setup container agent")
 		svc.setupAgent()
 	}
-	svc.ApplyAgentConfig(cli.NewContext(nil, nil, nil))
+	//svc.ApplyAgentConfig(cli.NewContext(nil, nil, nil))
 	svc.Collector, err = collector.NewKmCollector(svc.Configs)
 	if err != nil {
 		return err
 	}
+	svc.Svclogger.Infof("sync Work")
 	go svc.asyncWork()
 	return nil
 }

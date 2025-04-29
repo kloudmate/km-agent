@@ -74,16 +74,28 @@ func (svc *KmAgentService) CliArgs() []cli.Flag {
 			Category:    "For Debugging Purposes",
 			Destination: &svc.AgentCfg.debugLevel,
 		},
+		&cli.StringFlag{
+			Name:        "config",
+			Aliases:     []string{"C"},
+			Usage:       "Collector configuration file path",
+			Destination: &svc.AppConfig.OtelConfigFile,
+		},
 	}
 }
 
 func (p *KmAgentService) CliCommands(s bgsvc.Service) []*cli.Command {
 	return []*cli.Command{
 		{
+			Name:  "run",
+			Usage: "Run the program",
+			Action: func(c *cli.Context) error {
+				return p.Start(s)
+			},
+		},
+		{
 			Name:  installCommand,
 			Usage: "Install the service",
 			Action: func(c *cli.Context) error {
-				p.setupAgent()
 				return bgsvc.Control(s, installCommand)
 			},
 		},

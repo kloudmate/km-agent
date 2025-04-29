@@ -8,10 +8,10 @@ setup-config:
 	@rsync -a configs/docker-col-config.yaml /var/kloudmate/docker-col-config.yaml
 
 build:
-	@go build -o builds/bin/kmagent cmd/kmagent/kmagent.go
+	@go build -o builds/bin/kmagent cmd/kmagent/main.go
 
 build-debian-binary:
-	@go build -o km-agent/usr/local/bin/kmagent cmd/kmagent/kmagent.go
+	@go build -o km-agent/usr/local/bin/kmagent cmd/kmagent/main.go
 
 build-debian: build-debian-binary
 	@dpkg-deb --build --nocheck km-agent

@@ -2,8 +2,8 @@
 
 receivers:
   docker_stats:
-    collection_interval: 10s
-    timeout: 20s
+    collection_interval: 30s
+    timeout: 10s
     metrics:
       container.cpu.usage.system:
         enabled: true
