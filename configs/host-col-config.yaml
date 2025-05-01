@@ -58,9 +58,9 @@ service:
   pipelines:
     metrics:
       receivers: [hostmetrics]
-      processors: [batch]
+      processors: [batch, resourcedetection, resource]
       exporters: [debug, otlphttp]
     logs:
       receivers: [hostmetrics]
-      processors: [batch]
+      processors: [batch,  resourcedetection, resource]
       exporters: [otlphttp]

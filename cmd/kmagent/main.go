@@ -34,8 +34,8 @@ type Program struct {
 	cliConfig CLIConfig
 
 	// Core components
-	otelAgent *agent.Agent
-	logger    *zap.SugaredLogger
+	kmAgent *agent.Agent
+	logger  *zap.SugaredLogger
 
 	// Application lifecycle
 	ctx        context.Context
@@ -59,7 +59,7 @@ func (p *Program) run() {
 			// stop
 			continue
 		}
-		err = p.otelAgent.StartAgent(p.ctx)
+		err = p.kmAgent.StartAgent(p.ctx)
 		if err != nil {
 			p.logger.Error("Error starting agent: %v", err)
 		}
@@ -67,7 +67,7 @@ func (p *Program) run() {
 	}
 	p.logger.Info("In Run loop")
 	//
-	//if err := p.otelAgent.StartAgent(p.ctx); err != nil {
+	//if err := p.kmAgent.StartAgent(p.ctx); err != nil {
 	//	return fmt.Errorf("failed to start agent: %v", err)
 	//}
 	//
@@ -76,7 +76,7 @@ func (p *Program) run() {
 	//p.logger.Infof("Received signal: %v", sig)
 	//
 	//// Shutdown
-	//if err := p.otelAgent.Shutdown(p.ctx); err != nil {
+	//if err := p.kmAgent.Shutdown(p.ctx); err != nil {
 	//	p.logger.Errorf("Error during shutdown: %v", err)
 	//	return err
 	//}
@@ -116,7 +116,7 @@ func (p *Program) Initialize(c *cli.Context) error {
 	}
 
 	// Create agent
-	p.otelAgent, err = agent.New(p.cfg, p.logger)
+	p.kmAgent, err = agent.New(p.cfg, p.logger)
 	if err != nil {
 		return fmt.Errorf("failed to create agent: %v", err)
 	}
@@ -133,7 +133,7 @@ func (p *Program) Initialize(c *cli.Context) error {
 //	defer p.wg.Done()
 //	p.logger.Info("Service is running")
 //	// Start the agent
-//	if err := p.otelAgent.StartAgent(p.ctx); err != nil {
+//	if err := p.kmAgent.StartAgent(p.ctx); err != nil {
 //		p.errCh <- fmt.Errorf("failed to start agent: %v", err)
 //		return
 //	}
@@ -262,6 +262,8 @@ func main() {
 			Name:  "run",
 			Usage: "Run the agent as a standalone application",
 			Action: func(c *cli.Context) error {
+				os.Setenv("KM_COLLECTOR_ENDPOINT", program.cliConfig.ExporterEndpoint)
+				os.Setenv("KM_API_KEY", program.cliConfig.APIKey)
 				if err := program.Initialize(c); err != nil {
 					return err
 				}

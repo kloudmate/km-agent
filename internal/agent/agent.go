@@ -3,21 +3,23 @@ package agent
 import (
 	"context"
 	"fmt"
+	"gopkg.in/yaml.v3"
+	"os"
 	"sync"
 	"time"
 
-	"go.uber.org/zap"
-
-	"github.com/kloudmate/km-agent/internal/collector"
 	"github.com/kloudmate/km-agent/internal/config"
 	"github.com/kloudmate/km-agent/internal/updater"
+	"go.opentelemetry.io/collector/otelcol"
+	"go.uber.org/zap"
 )
 
 // Agent represents the OpenTelemetry agent
 type Agent struct {
 	cfg            *config.Config
 	logger         *zap.SugaredLogger
-	collector      *collector.Collector
+	collector      *otelcol.Collector
+	colSettings    otelcol.CollectorSettings
 	updater        *updater.ConfigUpdater
 	shutdownSignal chan struct{}
 	wg             sync.WaitGroup
@@ -28,7 +30,7 @@ type Agent struct {
 // New creates a new Agent instance
 func New(cfg *config.Config, logger *zap.SugaredLogger) (*Agent, error) {
 	// Create collector
-	otelCollector, err := collector.NewCollector(cfg, logger)
+	otelCollector, err := NewCollector(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create collector: %w", err)
 	}
@@ -56,7 +58,7 @@ func (a *Agent) StartAgent(ctx context.Context) error {
 	a.mu.Unlock()
 
 	// Start the collector
-	if err := a.collector.Start(ctx); err != nil {
+	if err := a.StartCollector(ctx); err != nil {
 		return fmt.Errorf("failed to start collector: %w", err)
 	}
 
@@ -96,11 +98,45 @@ func (a *Agent) Shutdown(ctx context.Context) error {
 	}
 
 	// Shutdown the collector
-	if err := a.collector.Shutdown(ctx); err != nil {
-		return fmt.Errorf("failed to shutdown collector: %w", err)
+	a.collector.Shutdown()
+	a.logger.Info("Agent shut down successfully")
+	return nil
+}
+
+func (a *Agent) StartCollector(ctx context.Context) error {
+	err := a.collector.Run(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *Agent) StopCollector() {
+	a.collector.Shutdown()
+}
+
+func (a *Agent) UpdateConfig(ctx context.Context, newConfig map[string]interface{}) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	// Convert config to YAML and write to file
+	configYAML, err := yaml.Marshal(newConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal new config to YAML: %w", err)
 	}
 
-	a.logger.Info("Agent shut down successfully")
+	// Create a temporary file
+	tempFile := a.cfg.ConfigPath + ".new"
+	if err := os.WriteFile(tempFile, configYAML, 0644); err != nil {
+		return fmt.Errorf("failed to write new config to temporary file: %w", err)
+	}
+
+	// Rename the temporary file to the actual config file (atomic operation)
+	if err := os.Rename(tempFile, a.cfg.ConfigPath); err != nil {
+		return fmt.Errorf("failed to replace config file: %w", err)
+	}
+
+	a.logger.Info("Successfully updated collector configuration")
 	return nil
 }
 
@@ -131,7 +167,7 @@ func (a *Agent) runConfigUpdateChecker(ctx context.Context) {
 				a.logger.Info("New configuration received")
 
 				// Update the collector configuration
-				if err := a.collector.UpdateConfig(ctx, newConfig); err != nil {
+				if err := a.UpdateConfig(ctx, newConfig); err != nil {
 					a.logger.Errorf("Failed to update collector configuration: %v", err)
 					continue
 				}
@@ -141,13 +177,10 @@ func (a *Agent) runConfigUpdateChecker(ctx context.Context) {
 					a.logger.Info("Restart required, restarting collector")
 
 					// Shutdown current collector
-					if err := a.collector.Shutdown(ctx); err != nil {
-						a.logger.Errorf("Failed to shutdown collector for restart: %v", err)
-						continue
-					}
+					a.StopCollector()
 
 					// Start collector with new config
-					if err := a.collector.Start(ctx); err != nil {
+					if err := a.StartCollector(ctx); err != nil {
 						a.logger.Errorf("Failed to restart collector: %v", err)
 						continue
 					}
