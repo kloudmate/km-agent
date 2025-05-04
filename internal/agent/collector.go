@@ -18,7 +18,7 @@ func NewCollector(c *config.Config) (*otelcol.Collector, error) {
 		Version:     "0.124.0",
 	}
 
-	fmt.Println("config file ", c.ConfigPath)
+	fmt.Println("config file ", c.OtelConfigPath)
 
 	set := otelcol.CollectorSettings{
 		BuildInfo:               info,
@@ -27,7 +27,7 @@ func NewCollector(c *config.Config) (*otelcol.Collector, error) {
 		ConfigProviderSettings: otelcol.ConfigProviderSettings{
 			ResolverSettings: confmap.ResolverSettings{
 				DefaultScheme: "env",
-				URIs:          []string{c.ConfigPath},
+				URIs:          []string{c.OtelConfigPath},
 				ProviderFactories: []confmap.ProviderFactory{
 					envprovider.NewFactory(),
 					fileprovider.NewFactory(),

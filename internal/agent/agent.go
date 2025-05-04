@@ -52,21 +52,26 @@ func (a *Agent) StartAgent(ctx context.Context) error {
 	a.mu.Lock()
 	if a.isRunning {
 		a.mu.Unlock()
-		return fmt.Errorf("agent is already running")
+		return fmt.Errorf("collector already running")
 	}
 	a.isRunning = true
 	a.mu.Unlock()
 
-	// Start the collector
-	if err := a.StartCollector(ctx); err != nil {
-		return fmt.Errorf("failed to start collector: %w", err)
-	}
+	a.wg.Add(2)
+	go func() {
+		defer a.wg.Done()
+		if err := a.StartCollector(ctx); err != nil {
+			a.mu.Lock()
+			a.isRunning = false
+			a.mu.Unlock()
+			a.logger.Errorf("Failed to start collector: %v", err)
+		}
+	}()
+	go func() {
+		defer a.wg.Done()
+		a.runConfigUpdateChecker(ctx)
+	}()
 
-	// Start config update checker in a separate goroutine
-	a.wg.Add(1)
-	go a.runConfigUpdateChecker(ctx)
-
-	a.logger.Info("Agent started successfully")
 	return nil
 }
 
@@ -126,13 +131,13 @@ func (a *Agent) UpdateConfig(ctx context.Context, newConfig map[string]interface
 	}
 
 	// Create a temporary file
-	tempFile := a.cfg.ConfigPath + ".new"
+	tempFile := a.cfg.OtelConfigPath + ".new"
 	if err := os.WriteFile(tempFile, configYAML, 0644); err != nil {
 		return fmt.Errorf("failed to write new config to temporary file: %w", err)
 	}
 
 	// Rename the temporary file to the actual config file (atomic operation)
-	if err := os.Rename(tempFile, a.cfg.ConfigPath); err != nil {
+	if err := os.Rename(tempFile, a.cfg.OtelConfigPath); err != nil {
 		return fmt.Errorf("failed to replace config file: %w", err)
 	}
 
@@ -142,15 +147,13 @@ func (a *Agent) UpdateConfig(ctx context.Context, newConfig map[string]interface
 
 // runConfigUpdateChecker periodically checks for configuration updates
 func (a *Agent) runConfigUpdateChecker(ctx context.Context) {
-	defer a.wg.Done()
-
 	// Skip if no config update URL is configured
-	if a.cfg.Agent.ConfigUpdateURL == "" {
+	if a.cfg.ConfigUpdateURL == "" {
 		a.logger.Info("Config update URL not configured, skipping config update checks")
 		return
 	}
 
-	ticker := time.NewTicker(time.Duration(a.cfg.Agent.ConfigCheckInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(a.cfg.ConfigCheckInterval) * time.Second)
 	defer ticker.Stop()
 
 	for {

@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# This is the post-remove script that will be run after the package is removed
+echo "[kmagent] removing agent..."
+# Stop the service (in case it's still running)
+systemctl stop kmagent || true
+
+# Remove the service file (if it exists)
+rm -f /etc/systemd/system/kmagent.service
+
+# Reload systemd to reflect the removal of the service
+systemctl daemon-reload
+
+# Optionally, reset the systemd state
+systemctl reset-failed kmagent || true
+
+# Clean up other configuration files if needed (uncomment if needed)
+# rm -rf /etc/kmagent
+
+# Exit cleanly
+exit 0

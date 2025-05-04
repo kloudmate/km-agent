@@ -1,0 +1,3 @@
+config: ./configs/host-col-config.yaml
+exporter-endpoint: http://otel.kmpoc.com:4318
+api-key: sk_wN8SIwEZe851nLuGirKxP7Gn

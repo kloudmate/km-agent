@@ -33,9 +33,9 @@ type ConfigUpdateResponse struct {
 // NewConfigUpdater creates a new config updater
 func NewConfigUpdater(cfg *config.Config, logger *zap.SugaredLogger) *ConfigUpdater {
 	// Determine config path
-	configPath := cfg.ConfigPath
+	configPath := cfg.OtelConfigPath
 	if configPath == "" {
-		if cfg.Agent.DockerMode {
+		if cfg.DockerMode {
 			configPath = config.GetDockerConfigPath()
 		} else {
 			configPath = config.GetDefaultConfigPath()
@@ -53,43 +53,22 @@ func NewConfigUpdater(cfg *config.Config, logger *zap.SugaredLogger) *ConfigUpda
 // CheckForUpdates checks for configuration updates from the remote API
 func (u *ConfigUpdater) CheckForUpdates(ctx context.Context) (bool, map[string]interface{}, error) {
 	// If no config update URL is configured, return nil
-	if u.cfg.Agent.ConfigUpdateURL == "" {
+	if u.cfg.ConfigUpdateURL == "" {
 		return false, nil, nil
 	}
 
 	// Create the request
-	req, err := http.NewRequestWithContext(ctx, "GET", u.cfg.Agent.ConfigUpdateURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", u.cfg.ConfigUpdateURL, nil)
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	// Add API key if configured
-	if u.cfg.Agent.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+u.cfg.Agent.APIKey)
+	if u.cfg.APIKey != "" {
+		req.Header.Set("Authorization", u.cfg.APIKey)
 	}
 
-	// Execute the request with retry logic
-	var resp *http.Response
-	var respErr error
-
-	// Retry 3 times with exponential backoff
-	for attempt := 0; attempt < 3; attempt++ {
-		resp, respErr = u.client.Do(req)
-		if respErr == nil {
-			break
-		}
-
-		// Exponential backoff: 1s, 2s, 4s
-		backoffTime := time.Duration(1<<attempt) * time.Second
-		u.logger.Warnf("Request failed (attempt %d/3): %v, retrying in %v", attempt+1, respErr, backoffTime)
-
-		select {
-		case <-time.After(backoffTime):
-			// Continue with retry
-		case <-ctx.Done():
-			return false, nil, ctx.Err()
-		}
-	}
+	resp, respErr := u.client.Do(req)
 
 	if respErr != nil {
 		return false, nil, fmt.Errorf("failed to fetch config updates after retries: %w", respErr)

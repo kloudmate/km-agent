@@ -1,0 +1,33 @@
+#!/bin/sh
+set -e
+
+APP_NAME="kmagent"
+
+CONFIG_PATH="/etc/${APP_NAME}/agent.yaml"
+
+if [ -z "${KM_API_KEY}" ]; then
+    echo "[ERROR] Missing required environment variable"
+    echo "[ERROR] Please ensure KM_API_KEY is set"
+    exit 1
+fi
+
+# Generate the config.yaml
+echo "[kmagent] Generating config file at $CONFIG_PATH..."
+
+cat > "$CONFIG_PATH" <<EOF
+config: ${KM_COLLECTOR_CONFIG}
+exporter-endpoint: "${KM_COLLECTOR_ENDPOINT}"
+api-key: "${KM_API_KEY}"
+config-check-interval: ${KM_CONFIG_CHECK_INTERVAL}
+update-endpoint: "${KM_UPDATE_ENDPOINT}"
+docker-mode: ${KM_DOCKER_MODE}
+docker-endpoint: "${KM_DOCKER_ENDPOINT}"
+EOF
+
+chmod 600 "$CONFIG_PATH"
+echo "[kmagent] Config file created."
+
+# Register and start the service
+systemctl daemon-reload
+systemctl enable "$APP_NAME"
+systemctl start "$APP_NAME"

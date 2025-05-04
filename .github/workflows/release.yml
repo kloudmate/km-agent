@@ -1,38 +1,100 @@
-name: km-agent-releaser
+name: Cross-platform Release
 
 on:
   push:
     tags:
-      - "*"
-
-permissions:
-  contents: write
-  # will be required in future if we need to push image to docker.
-  # packages: write
-  # issues: write
+      - 'v*'
 
 jobs:
-  goreleaser:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build Go binary
+        run: |
+          mkdir -p dist/windows
+          go build -o dist/windows/myapp.exe ./cmd/myapp
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build Inno Setup Installer
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss'
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: windows-artifacts
+          path: dist/windows/*
+
+  build-linux:
     runs-on: ubuntu-latest
     steps:
-      - name: Action_Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v5
         with:
-          fetch-depth: 0
-      
-      - name: Set_Up_Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: stable
+          go-version: '1.22'
 
-      - name: Run Releaser
-        uses: goreleaser/goreleaser-action@v6
+      - name: Build Linux binary
+        run: |
+          mkdir -p dist/linux/usr/bin
+          go build -o dist/linux/usr/bin/myapp ./cmd/myapp
+
+      - name: Build .deb package
+        run: |
+          mkdir -p dist/deb/DEBIAN
+          cp -r build/linux/debian/control dist/deb/DEBIAN/
+          cp -r dist/linux/usr dist/deb/
+          dpkg-deb --build dist/deb dist/myapp.deb
+
+      - name: Build .rpm package
+        run: |
+          mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+          cp build/linux/rpm/myapp.spec ~/rpmbuild/SPECS/
+          cp dist/linux/usr/bin/myapp ~/rpmbuild/SOURCES/
+          rpmbuild -bb ~/rpmbuild/SPECS/myapp.spec
+
+      - uses: actions/upload-artifact@v3
         with:
-          # using default `goreleaser` whereas `goreleaser-pro` also available.
-          distribution: goreleaser 
-          version: "~> v1"
-          workdir: "cmd/kmagent"
-          args: release --clean
+          name: linux-artifacts
+          path: |
+            dist/myapp.deb
+            ~/rpmbuild/RPMS/**/myapp*.rpm
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build macOS binary
+        run: |
+          mkdir -p dist/macos
+          go build -o dist/macos/myapp ./cmd/myapp
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: macos-artifacts
+          path: dist/macos/myapp
+
+  release:
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          path: dist
+
+      - name: Flatten artifacts
+        run: find dist -type f -exec mv {} dist/ \;
+
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
         env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-          # GORELEASER_KEY: ${{secrets.GORELEASER_KEY}} applicable only and only if `goreleaser-pro` is used.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

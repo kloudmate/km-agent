@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/urfave/cli/v2/altsrc"
 	"os"
 	"os/signal"
 	"sync"
@@ -16,23 +17,10 @@ import (
 	"github.com/kloudmate/km-agent/internal/config"
 )
 
-// CLIConfig holds all CLI-related configurations
-type CLIConfig struct {
-	ConfigPath          string
-	ExporterEndpoint    string
-	APIKey              string
-	ConfigCheckInterval int
-	DockerMode          bool
-}
-
 // Program represents the main application state and configuration
 type Program struct {
 	// Configuration
 	cfg *config.Config
-
-	// CLI Configuration
-	cliConfig CLIConfig
-
 	// Core components
 	kmAgent *agent.Agent
 	logger  *zap.SugaredLogger
@@ -44,15 +32,12 @@ type Program struct {
 	quitCh     chan struct{}
 	errCh      chan error
 	wg         *sync.WaitGroup
-
-	// CLI app
-	app *cli.App
 }
 
 func (p *Program) run() {
 	// Initialize the agent
 	defer p.wg.Done()
-	p.logger.Info("Service is running, Docker mode: ", p.cfg.Agent.DockerMode)
+	p.logger.Info("Service is running, Docker mode: ", p.cfg.DockerMode)
 	for err := range p.errCh {
 		if err != nil {
 			p.logger.Errorf("Error: %v", err)
@@ -110,7 +95,7 @@ func (p *Program) Initialize(c *cli.Context) error {
 	var err error
 
 	// Load configuration
-	p.cfg, err = config.LoadConfig(c)
+	err = p.cfg.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %v", err)
 	}
@@ -179,53 +164,73 @@ func main() {
 		sigChan: make(chan os.Signal, 1),
 		quitCh:  make(chan struct{}),
 		errCh:   make(chan error),
+		cfg:     &config.Config{},
 		wg:      wg,
 	}
 
-	// Create CLI app
-	program.app = &cli.App{
-		Name:  "kmagent",
-		Usage: "KloudMate OpenTelemetry collector agent",
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:        "config",
-				Aliases:     []string{"c"},
-				Usage:       "Path to the collector configuration file",
-				EnvVars:     []string{"KM_AGENT_CONFIG"},
-				Destination: &program.cliConfig.ConfigPath,
-			},
-			&cli.StringFlag{
-				Name:        "exporter-endpoint",
-				Usage:       "OpenTelemetry exporter endpoint",
-				EnvVars:     []string{"KM_COLLECTOR_ENDPOINT"},
-				Destination: &program.cliConfig.ExporterEndpoint,
-			},
-			&cli.StringFlag{
-				Name:        "api-key",
-				Usage:       "API key for authentication",
-				EnvVars:     []string{"KM_API_KEY"},
-				Destination: &program.cliConfig.APIKey,
-			},
-			&cli.IntFlag{
-				Name:        "config-check-interval",
-				Usage:       "Interval in seconds to check for config updates",
-				Value:       300, // 5 minutes default
-				EnvVars:     []string{"KM_CONFIG_CHECK_INTERVAL"},
-				Destination: &program.cliConfig.ConfigCheckInterval,
-			},
-			&cli.BoolFlag{
-				Name:        "docker-mode",
-				Usage:       "Run in Docker mode with specialized configuration",
-				EnvVars:     []string{"KM_AGENT_MODE"},
-				Destination: &program.cliConfig.DockerMode,
-			},
+	flags := []cli.Flag{
+		&cli.StringFlag{
+			Name:    "agent-config",
+			Usage:   "Path to the agent configuration file",
+			EnvVars: []string{"KM_AGENT_CONFIG"},
 		},
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "config",
+			Usage:       "Path to the collector configuration file",
+			EnvVars:     []string{"KM_COLLECTOR_CONFIG"},
+			Destination: &program.cfg.OtelConfigPath,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "exporter-endpoint",
+			Usage:       "OpenTelemetry exporter endpoint",
+			EnvVars:     []string{"KM_COLLECTOR_ENDPOINT"},
+			Destination: &program.cfg.ExporterEndpoint,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "api-key",
+			Usage:       "API key for authentication",
+			EnvVars:     []string{"KM_API_KEY"},
+			Destination: &program.cfg.APIKey,
+		}),
+		altsrc.NewIntFlag(&cli.IntFlag{
+			Name:        "config-check-interval",
+			Usage:       "Interval in seconds to check for config updates",
+			Value:       300, // 5 minutes default
+			EnvVars:     []string{"KM_CONFIG_CHECK_INTERVAL"},
+			Destination: &program.cfg.ConfigCheckInterval,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "update-endpoint",
+			Usage:       "API key for authentication",
+			EnvVars:     []string{"KM_UPDATE_ENDPOINT"},
+			Destination: &program.cfg.ConfigUpdateURL,
+		}),
+		altsrc.NewBoolFlag(&cli.BoolFlag{
+			Name:        "docker-mode",
+			Usage:       "Run in Docker mode with specialized configuration",
+			EnvVars:     []string{"KM_DOCKER_MODE"},
+			Destination: &program.cfg.DockerMode,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "docker-endpoint",
+			Usage:       "API key for authentication",
+			EnvVars:     []string{"KM_DOCKER_ENDPOINT"},
+			Destination: &program.cfg.DockerEndpoint,
+		}),
+	}
+
+	// Create CLI app
+	app := &cli.App{
+		Name:   "kmagent",
+		Usage:  "KloudMate OpenTelemetry collector agent",
+		Flags:  flags,
+		Before: altsrc.InitInputSourceWithContext(flags, altsrc.NewYamlSourceFromFlagFunc("agent-config")),
 	}
 
 	svc := makeService(program)
 
 	// Setup commands
-	program.app.Commands = []*cli.Command{
+	app.Commands = []*cli.Command{
 		{
 			Name:  "install",
 			Usage: "Install the agent as a system service",
@@ -262,8 +267,6 @@ func main() {
 			Name:  "run",
 			Usage: "Run the agent as a standalone application",
 			Action: func(c *cli.Context) error {
-				os.Setenv("KM_COLLECTOR_ENDPOINT", program.cliConfig.ExporterEndpoint)
-				os.Setenv("KM_API_KEY", program.cliConfig.APIKey)
 				if err := program.Initialize(c); err != nil {
 					return err
 				}
@@ -277,12 +280,12 @@ func main() {
 	}
 
 	// Default action shows help
-	program.app.Action = func(c *cli.Context) error {
+	app.Action = func(c *cli.Context) error {
 		return cli.ShowAppHelp(c)
 	}
 
 	// Run the CLI app
-	if err := program.app.Run(os.Args); err != nil {
+	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

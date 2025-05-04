@@ -1,0 +1,8 @@
+Package: kmagent
+Version: 1.0.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: KloudMate
+Website: https://kloudmate.com
+Description: Opentelemetry Collector for KloudMate platform
