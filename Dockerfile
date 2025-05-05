@@ -6,8 +6,7 @@ RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o kmagent cmd/kmagent/main.g
 
 FROM alpine:latest
 COPY --from=buildstage /app/kmagent ./kmagent
-COPY ./configs/agent-config.yaml /var/kloudmate/agent-config.yaml
-COPY ./configs/docker-col-config.yaml /var/kloudmate/docker-col-config.yaml
+COPY ./configs/docker-col-config.yaml ./config.yaml
 
 RUN chmod +x kmagent
-ENTRYPOINT ["./kmagent", "--docker-mode", "--config", "/var/kloudmate/docker-col-config.yaml", "run"]
+ENTRYPOINT ["./kmagent", "--docker-mode", "--config", "config.yaml", "run"]

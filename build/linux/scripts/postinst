@@ -1,33 +1,88 @@
 #!/bin/sh
-set -e
+# Use sh for better portability if run outside RPM scriptlets
+
+set -e # Exit immediately if a command exits with a non-zero status.
 
 APP_NAME="kmagent"
-
 CONFIG_PATH="/etc/${APP_NAME}/agent.yaml"
+CONFIG_DIR=$(dirname "$CONFIG_PATH") # Get the directory path
 
+# --- Parameter Validation ---
+# Check for truly mandatory parameters first
 if [ -z "${KM_API_KEY}" ]; then
-    echo "[ERROR] Missing required environment variable"
-    echo "[ERROR] Please ensure KM_API_KEY is set"
+    echo "[ERROR] Missing required environment variable: KM_API_KEY" >&2
+    exit 1
+fi
+# Add checks for any other *absolutely required* variables here
+# Example: An exporter endpoint is usually required
+if [ -z "${KM_COLLECTOR_ENDPOINT}" ]; then
+    echo "[ERROR] Missing required environment variable: KM_COLLECTOR_ENDPOINT" >&2
     exit 1
 fi
 
-# Generate the config.yaml
+# --- Ensure Config Directory Exists ---
+# Although the RPM should create this via %files/%dir, adding
+# mkdir here makes the script more robust if run standalone.
+# Use -p to avoid error if it already exists.
+mkdir -p "$CONFIG_DIR"
+if [ $? -ne 0 ]; then
+    echo "[ERROR] Failed to create directory $CONFIG_DIR" >&2
+    # Attempting to continue might be okay if directory already exists,
+    # but failing here is safer if mkdir fails for other reasons (e.g., permissions)
+    exit 1
+fi
+
+# --- Generate the config.yaml ---
 echo "[kmagent] Generating config file at $CONFIG_PATH..."
 
-cat > "$CONFIG_PATH" <<EOF
-config: ${KM_COLLECTOR_CONFIG}
-exporter-endpoint: "${KM_COLLECTOR_ENDPOINT}"
-api-key: "${KM_API_KEY}"
-config-check-interval: ${KM_CONFIG_CHECK_INTERVAL}
-update-endpoint: "${KM_UPDATE_ENDPOINT}"
-docker-mode: ${KM_DOCKER_MODE}
-docker-endpoint: "${KM_DOCKER_ENDPOINT}"
-EOF
+# Start by overwriting the file (>) with the first mandatory item(s).
+# Use printf for safer handling of potential special characters in values.
+# Quote YAML strings appropriately.
+printf 'api-key: "%s"\n' "${KM_API_KEY}" > "$CONFIG_PATH"
+printf 'exporter-endpoint: "%s"\n' "${KM_COLLECTOR_ENDPOINT}" >> "$CONFIG_PATH"
 
-chmod 600 "$CONFIG_PATH"
+# --- Append Optional Lines Conditionally (>>) ---
+
+# Check KM_COLLECTOR_CONFIG
+if [ -n "${KM_COLLECTOR_CONFIG}" ]; then
+    # Assuming the value itself is complex YAML/JSON or doesn't need quotes
+    printf 'config: %s\n' "${KM_COLLECTOR_CONFIG}" >> "$CONFIG_PATH"
+fi
+
+# Check KM_CONFIG_CHECK_INTERVAL
+if [ -n "${KM_CONFIG_CHECK_INTERVAL}" ]; then
+    # Assuming this is a number, no quotes needed in YAML
+    printf 'config-check-interval: %s\n' "${KM_CONFIG_CHECK_INTERVAL}" >> "$CONFIG_PATH"
+fi
+
+# Check KM_UPDATE_ENDPOINT
+if [ -n "${KM_UPDATE_ENDPOINT}" ]; then
+    printf 'update-endpoint: "%s"\n' "${KM_UPDATE_ENDPOINT}" >> "$CONFIG_PATH"
+fi
+
+# Check KM_DOCKER_MODE
+if [ -n "${KM_DOCKER_MODE}" ]; then
+    # Assuming boolean or simple string, might not need quotes depending on value
+    printf 'docker-mode: %s\n' "${KM_DOCKER_MODE}" >> "$CONFIG_PATH"
+fi
+
+# Check KM_DOCKER_ENDPOINT
+if [ -n "${KM_DOCKER_ENDPOINT}" ]; then
+    printf 'docker-endpoint: "%s"\n' "${KM_DOCKER_ENDPOINT}" >> "$CONFIG_PATH"
+fi
+
+# --- Set Permissions and Finish ---
+chmod 600 "$CONFIG_PATH" # Keep strict permissions for file with potential secrets
 echo "[kmagent] Config file created."
 
-# Register and start the service
-systemctl daemon-reload
-systemctl enable "$APP_NAME"
-systemctl start "$APP_NAME"
+# --- Service Management ---
+# These lines should typically be run in the RPM %post scriptlet *after*
+# this configuration script successfully completes, not within this script itself.
+# If this script fails, the service management commands should not run.
+#
+# echo "[kmagent] Reloading systemd daemon and managing service..."
+# systemctl daemon-reload
+# systemctl enable "$APP_NAME"
+# systemctl start "$APP_NAME"
+
+exit 0 # Explicitly exit with success

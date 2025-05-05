@@ -49,10 +49,10 @@ package-linux-deb: build
 	cp $(SCRIPT_DIR)/postrm $(BUILD_DIR)/linux/deb/DEBIAN/
 
 	# Ensure scripts are executable
-	chmod 755 build/linux/deb/DEBIAN/preinst || true
-	chmod 755 build/linux/deb/DEBIAN/postinst || true
-	chmod 755 build/linux/deb/DEBIAN/prerm || true
-	chmod 755 build/linux/deb/DEBIAN/postrm || true
+	chmod 755 $(BUILD_DIR)/linux/deb/DEBIAN/preinst || true
+	chmod 755 $(BUILD_DIR)/linux/deb/DEBIAN/postinst || true
+	chmod 755 $(BUILD_DIR)/linux/deb/DEBIAN/prerm || true
+	chmod 755 $(BUILD_DIR)/linux/deb/DEBIAN/postrm || true
 
 	dpkg-deb --build $(BUILD_DIR)/linux/deb $(BUILD_DIR)/$(APP_NAME)_$(VERSION)_amd64.deb
 

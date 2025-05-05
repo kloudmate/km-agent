@@ -1,21 +1,20 @@
 # This config file will be used by the KM-Agent on it's first initialization in docker mode.
 
 receivers:
+  filelog:
+    include:
+      - /var/log/**/*.log
+    exclude:
+      - /var/log/pods/kmagent*/**/*.log
+    include_file_name_resolved: true
+    include_file_path: true
+    include_file_path_resolved: true
+    max_log_size: "1MiB"
+
   docker_stats:
     endpoint: "unix:///var/run/docker.sock"
     collection_interval: 30s
     timeout: 10s
-    metrics: # Fine-tune which specific docker stats metrics are enabled (defaults are usually good)
-      container.cpu.utilization:
-        enabled: true
-      container.memory.usage.total:
-        enabled: true
-      container.memory.percent:
-        enabled: true
-      container.network.io.usage.tx_bytes:
-        enabled: true
-      container.network.io.usage.rx_bytes:
-        enabled: true
 
   hostmetrics:
     root_path: /hostfs
@@ -50,15 +49,8 @@ processors:
     send_batch_size: 10000
     timeout: 30s
   resourcedetection:
-    detectors: [env, system]
-    system:
-      resource_attributes:
-        host.name:
-          enabled: true
-        host.id:
-          enabled: true
-        os.type:
-          enabled: false
+    detectors: [env, system, docker]
+    override: false
   resource:
     attributes:
       - key: service.name
@@ -77,6 +69,6 @@ service:
       processors: [resourcedetection, resource, batch]
       exporters: [otlphttp]
     logs:
-      receivers: []
+      receivers: [filelog]
       processors: [resourcedetection, resource, batch]
       exporters: [otlphttp]
