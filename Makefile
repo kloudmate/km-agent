@@ -77,12 +77,9 @@ package-linux-rpm: build-linux-amd64
 	cp build/linux/kmagent.service $(BUILD_DIR)/rpm/SOURCES/
 	cp build/linux/rpm/kmagent.spec $(BUILD_DIR)/rpm/SPECS/
 
-
-#	cp $(SCRIPT_DIR)/preinst  $(BUILD_DIR)/rpm/SOURCES/preinst
 	cp $(SCRIPT_DIR)/postinst $(BUILD_DIR)/rpm/SOURCES/postinst
 	cp configs/host-col-config.yaml $(BUILD_DIR)/rpm/SOURCES/config.yaml
-#	cp $(SCRIPT_DIR)/prerm   $(BUILD_DIR)/rpm/SOURCES/prerm
-#	cp $(SCRIPT_DIR)/postrm  $(BUILD_DIR)/rpm/SOURCES/postrm
+
 
 	rpmbuild --define "_topdir $(PWD)/$(BUILD_DIR)/rpm" -bb $(BUILD_DIR)/rpm/SPECS/kmagent.spec
 

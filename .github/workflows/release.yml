@@ -1,100 +1,79 @@
-name: Cross-platform Release
+name: Build and Upload Release Assets
 
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types: [created, edited] # Runs when a release is created or edited
+
+permissions:
+  contents: write # Needed to write release assets
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-
-      - name: Build Go binary
-        run: |
-          mkdir -p dist/windows
-          go build -o dist/windows/myapp.exe ./cmd/myapp
-
-      - name: Install Inno Setup
-        run: choco install innosetup -y
-
-      - name: Build Inno Setup Installer
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss'
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: windows-artifacts
-          path: dist/windows/*
-
-  build-linux:
+  build-assets:
+    name: Build and Upload Assets
+    # Prevent running on prereleases unless intended
+    # if: github.event.release.prerelease == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v5
+      # Check out the specific Git reference (tag) associated with the release
+      - name: Check out code
+        uses: actions/checkout@v4
         with:
-          go-version: '1.22'
+          ref: ${{ github.event.release.tag_name }} # Check out the code AT THE TAG
 
-      - name: Build Linux binary
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install Linux packaging tools
         run: |
-          mkdir -p dist/linux/usr/bin
-          go build -o dist/linux/usr/bin/myapp ./cmd/myapp
+          sudo apt-get update
+          sudo apt-get install -y rpm
 
-      - name: Build .deb package
+      # Extract version from the release tag name
+      - name: Determine Version
+        id: get_version
         run: |
-          mkdir -p dist/deb/DEBIAN
-          cp -r build/linux/debian/control dist/deb/DEBIAN/
-          cp -r dist/linux/usr dist/deb/
-          dpkg-deb --build dist/deb dist/myapp.deb
+          VERSION_NUMBER=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
+          echo "Using release tag version: $VERSION_NUMBER"
+          echo "VERSION=$VERSION_NUMBER" >> $GITHUB_ENV
 
-      - name: Build .rpm package
-        run: |
-          mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-          cp build/linux/rpm/myapp.spec ~/rpmbuild/SPECS/
-          cp dist/linux/usr/bin/myapp ~/rpmbuild/SOURCES/
-          rpmbuild -bb ~/rpmbuild/SPECS/myapp.spec
+      - name: Build Linux .deb package
+        run: make VERSION=${{ env.VERSION }} package-linux-deb
 
-      - uses: actions/upload-artifact@v3
-        with:
-          name: linux-artifacts
-          path: |
-            dist/myapp.deb
-            ~/rpmbuild/RPMS/**/myapp*.rpm
+      - name: Build Linux .rpm package
+        run: make VERSION=${{ env.VERSION }} package-linux-rpm
 
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
+      - name: Build Windows Installer package (using Docker via make)
+        run: make VERSION=${{ env.VERSION }} package-windows
 
-      - name: Build macOS binary
-        run: |
-          mkdir -p dist/macos
-          go build -o dist/macos/myapp ./cmd/myapp
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: macos-artifacts
-          path: dist/macos/myapp
-
-  release:
-    needs: [build-windows, build-linux, build-macos]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v3
-        with:
-          path: dist
-
-      - name: Flatten artifacts
-        run: find dist -type f -exec mv {} dist/ \;
-
-      - uses: softprops/action-gh-release@v1
-        with:
-          files: dist/*
+      # Use a different action to upload assets to the *existing* release
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }} # URL for uploading assets to the triggering release
+          asset_path: ./dist/kmagent_${{ env.VERSION }}_amd64.deb
+          asset_name: kmagent_${{ env.VERSION }}_amd64.deb
+          asset_content_type: application/vnd.debian.binary-package
+
+      - name: Upload RPM Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./dist/rpm/RPMS/x86_64/kmagent-${{ env.VERSION }}-1.x86_64.rpm # Adjust name/path pattern!
+          asset_name: kmagent-${{ env.VERSION }}-1.x86_64.rpm # Adjust name!
+          asset_content_type: application/x-rpm
+
+      - name: Upload Windows Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./dist/win/kmagent-${{ env.VERSION }}-setup.exe # Adjust name pattern!
+          asset_name: kmagent-${{ env.VERSION }}-setup.exe # Adjust name!
+          asset_content_type: application/vnd.microsoft.portable-executable
