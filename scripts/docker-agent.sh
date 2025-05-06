@@ -2,6 +2,8 @@
 
 set -e
 
+DOCKER_SOCK_PATH="${DOCKER_SOCK_PATH:-/var/run/docker.sock}"
+
 # Function to install Docker
 install_docker() {
     echo "🚀 Checking if Docker is installed..."
@@ -92,6 +94,23 @@ if [ -z "$KM_API_KEY" ] || [ -z "$KM_COLLECTOR_ENDPOINT" ]; then
     exit 1
 fi
 
+# Prompt for additional directories to monitor
+ADDITIONAL_VOLUMES=""
+
+read -p "📂 Do you want to monitor additional directories? (y/n): " monitor_extra
+if [[ "$monitor_extra" =~ ^[Yy]$ ]]; then
+    while true; do
+        read -p "📁 Enter the full path of the directory to monitor (or leave empty to finish): " dir
+        if [ -z "$dir" ]; then
+            break
+        elif [ -d "$dir" ]; then
+            ADDITIONAL_VOLUMES+=" -v $dir:$dir:ro"
+        else
+            echo "❌ Directory '$dir' does not exist. Try again."
+        fi
+    done
+fi
+
 # Docker image name
 IMAGE_NAME="ghcr.io/kloudmate/km-agent:latest"
 
@@ -111,13 +130,20 @@ fi
 echo "🚀 Running the 'km-agent' container..."
 sudo docker run -d \
   --privileged \
+  --pid=host \
   --userns=host \
+  --user 0 \
   --name km-agent \
   -e KM_COLLECTOR_ENDPOINT="$KM_COLLECTOR_ENDPOINT" \
   -e KM_API_KEY="$KM_API_KEY" \
   -v /:/hostfs:ro \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v /etc/passwd:/etc/passwd:ro \
+  -v "$DOCKER_SOCK_PATH":"$DOCKER_SOCK_PATH" \
+  -v /proc:/hostfs/proc:ro \
+  -v /sys:/hostfs/sys:ro \
+  -v /var/log:/var/log \
+  -v /var/lib/docker/containers:/var/lib/docker/container \
+  $ADDITIONAL_VOLUMES \
   $IMAGE_NAME
 
 echo "🎉 Setup complete! 'km-agent' is now running."
+
