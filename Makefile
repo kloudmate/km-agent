@@ -8,28 +8,42 @@ SCRIPT_DIR := ./build/linux/scripts
 
 GOOS_LIST := linux
 GOARCH := amd64
+LD_FLAGS="-s -w"
 
-.PHONY: clean build build-debian build-debian-binary run setup-config
+ISS_FILE := ./build/windows/installer.iss
+WINDOWS_BUILD_DIR := $(BUILD_DIR)/win
+ISS_FILE_PATH := $(WINDOWS_BUILD_DIR)/installer.iss
+WINDOWS_EXE_HOST_PATH := $(WINDOWS_BUILD_DIR)/$(APP_NAME).exe
+
+# --- Docker Specific ---
+INNO_IMAGE := amake/innosetup:64bit-bookworm # Use the desired amake/innosetup tag
+CONTAINER_WORKDIR := /work
+
+# Get current user/group ID for Docker volume permissions (Linux/macOS)
+# For Windows (Git Bash/WSL), this usually works. For native Windows Docker, permissions might differ.
+CURRENT_UID := $(shell id -u)
+CURRENT_GID := $(shell id -g)
+
+# Docker run arguments for Inno Setup build
+DOCKER_RUN_INNO_ARGS := --rm -v $(PWD):$(CONTAINER_WORKDIR) -w $(CONTAINER_WORKDIR) --user $(CURRENT_UID):$(CURRENT_GID) $(INNO_IMAGE)
+
+
+.PHONY: clean build
 
 clean:
 	rm -rf $(BUILD_DIR)
 
-build:
-	@echo "Building for all platforms..."
-	@for GOOS in $(GOOS_LIST); do \
-		OUT_DIR=$(BUILD_DIR)/$$GOOS/$(GOARCH); \
-		mkdir -p $$OUT_DIR; \
-		GOOS=$$GOOS GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o $$OUT_DIR/$(APP_NAME) $(SRC_DIR); \
-	done
 
-setup-config:
-	@echo Setting Up default configuration.
-	@mkdir -p /etc/kloudmate
-	@rsync -a configs/agent-config.yaml /etc/kmagent/agent.yaml
-	@rsync -a configs/host-col-config.yaml /etc/kmagent/config.yaml
+build-linux-amd64:
+	@echo ">>> Building $(APP_NAME) for Linux AMD64..."
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags=${LD_FLAGS} -o $(BUILD_DIR)/linux/amd64/$(APP_NAME) $(SRC_DIR);
 
+build-windows:
+	@echo ">>> Building $(APP_NAME) for Windows (native)..."
+	GOOS=windows CGO_ENABLED=0 go build -ldflags=${LD_FLAGS} -o $(BUILD_DIR)/win/$(APP_NAME).exe $(SRC_DIR);
+	@echo ">>> Windows executable built at $(WINDOWS_EXE_HOST_PATH)"
 
-package-linux-deb: build
+package-linux-deb: build-linux-amd64
 	@echo "Packaging .deb..."
 	mkdir -p $(BUILD_DIR)/linux/deb/DEBIAN
 	mkdir -p $(BUILD_DIR)/linux/deb/usr/bin
@@ -56,7 +70,7 @@ package-linux-deb: build
 
 	dpkg-deb --build $(BUILD_DIR)/linux/deb $(BUILD_DIR)/$(APP_NAME)_$(VERSION)_amd64.deb
 
-package-linux-rpm: build
+package-linux-rpm: build-linux-amd64
 	@echo "Packaging .rpm (requires rpmbuild)..."
 	mkdir -p $(BUILD_DIR)/rpm/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 	cp $(BUILD_DIR)/linux/$(GOARCH)/$(APP_NAME) $(BUILD_DIR)/rpm/SOURCES/
@@ -71,3 +85,24 @@ package-linux-rpm: build
 #	cp $(SCRIPT_DIR)/postrm  $(BUILD_DIR)/rpm/SOURCES/postrm
 
 	rpmbuild --define "_topdir $(PWD)/$(BUILD_DIR)/rpm" -bb $(BUILD_DIR)/rpm/SPECS/kmagent.spec
+
+# --- Windows Installer Packaging ---
+package-windows: build-windows
+
+build-installer:build-windows
+	cp $(ISS_FILE) $(WINDOWS_BUILD_DIR)/installer.iss
+	@echo ">>> Compiling Windows Installer using Docker ($(INNO_IMAGE))..."
+	# Run the Inno Setup compiler (iscc) inside the amake/innosetup container
+	docker run $(DOCKER_RUN_INNO_ARGS) \
+    		"$(ISS_FILE_PATH)"
+
+
+
+
+		# Add flags to iscc if needed, e.g., /OOutputdir for output path
+		# Example: iscc /O$(BUILD_DIR)/win $(ISS_FILE)
+	@echo ">>> Installer compilation finished."
+	@echo ">>> NOTE: Output setup file is likely in ./Output directory (or as specified in ISS file)."
+
+package-windows: build-installer
+	@echo ">>> Windows installer package created in $(WINDOWS_BUILD_DIR)."
