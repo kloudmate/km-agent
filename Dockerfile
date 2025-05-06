@@ -1,14 +1,12 @@
-FROM golang:alpine as BuildStage
+FROM golang:alpine AS buildstage
 RUN mkdir /app
 COPY . /app
 WORKDIR /app
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o kmagent cmd/kmagent/kmagent.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o kmagent cmd/kmagent/main.go
 
 FROM alpine:latest
-COPY --from=BuildStage /app/kmagent ./kmagent
-COPY ./configs/agent-config.yaml /var/kloudmate/agent-config.yaml
-COPY ./configs/host-col-config.yaml /var/kloudmate/host-col-config.yaml
-COPY ./configs/docker-col-config.yaml /var/kloudmate/docker-col-config.yaml
+COPY --from=buildstage /app/kmagent ./kmagent
+COPY ./configs/docker-col-config.yaml ./config.yaml
 
 RUN chmod +x kmagent
-ENTRYPOINT sh -c './kmagent -mode=docker start'
+ENTRYPOINT ["./kmagent", "--docker-mode", "--config", "config.yaml", "run"]

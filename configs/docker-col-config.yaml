@@ -1,47 +1,34 @@
 # This config file will be used by the KM-Agent on it's first initialization in docker mode.
 
 receivers:
+  filelog:
+    include:
+      - /var/log/**/*.log
+    exclude:
+      - /var/log/pods/kmagent*/**/*.log
+    include_file_name_resolved: true
+    include_file_path: true
+    include_file_path_resolved: true
+    max_log_size: "1MiB"
+
   docker_stats:
-    collection_interval: 10s
-    timeout: 20s
-    metrics:
-      container.cpu.usage.system:
-        enabled: true
-      container.memory.total_rss:
-        enabled: true
+    endpoint: "unix:///var/run/docker.sock"
+    collection_interval: 30s
+    timeout: 10s
 
   hostmetrics:
     root_path: /hostfs
-    collection_interval: 25s
+    collection_interval: 30s
     scrapers:
       cpu:
-         metrics:
-          system.cpu.utilization:
-            enabled: true
-      disk:
-      processes:
-      process:
-       metrics:
-          process.cpu.utilization:
-            enabled: true
-          process.memory.utilization:
-            enabled: true
-       mute_process_all_errors: true
       memory:
-        metrics:
-          system.memory.utilization:
-            enabled: true
+      disk:
       network:
       filesystem:
-         metrics:
-          system.filesystem.usage:
-            enabled: true
-          system.filesystem.utilization:
-            enabled: true
+        include_fs_types:
+          match_type: strict
+          fs_types: [ext4, btrfs, xfs, tmpfs, devtmpfs]
       load:
-         cpu_average: true
-      paging:
-
   otlp:
     protocols:
       grpc:
@@ -55,23 +42,33 @@ exporters:
       queue_size: 10000 # Increase queue size to handle bursts
     endpoint: ${env:KM_COLLECTOR_ENDPOINT}
     headers:
-        Authorization: ${env:KM_API_KEY}
+      Authorization: ${env:KM_API_KEY}
 
 processors:
   batch:
+    send_batch_size: 10000
+    timeout: 30s
+  resourcedetection:
+    detectors: [env, system, docker]
+    override: false
+  resource:
+    attributes:
+      - key: service.name
+        action: insert
+        from_attribute: host.name
 
 extensions:
-  # zpages:
-  #   endpoint: :55679
+# zpages:
+#   endpoint: :55679
 
 service:
   # extensions: [zpages]
   pipelines:
     metrics:
       receivers: [hostmetrics, docker_stats]
-      processors: [batch]
+      processors: [resourcedetection, resource, batch]
       exporters: [otlphttp]
     logs:
-      receivers: [hostmetrics]
-      processors: [batch]
+      receivers: [filelog]
+      processors: [resourcedetection, resource, batch]
       exporters: [otlphttp]
