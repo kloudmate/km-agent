@@ -91,6 +91,8 @@ package-windows: build-windows
 
 build-installer:build-windows
 	cp $(ISS_FILE) $(WINDOWS_BUILD_DIR)/installer.iss
+	mkdir -p $(WINDOWS_BUILD_DIR)
+	chmod 777 $(WINDOWS_BUILD_DIR)
 	@echo ">>> Compiling Windows Installer using Docker ($(INNO_IMAGE))..."
 	# Run the Inno Setup compiler (iscc) inside the amake/innosetup container
 	docker run $(DOCKER_RUN_INNO_ARGS) \
