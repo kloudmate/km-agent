@@ -47,6 +47,11 @@ jobs:
       - name: Build Windows Installer package (using Docker via make)
         run: make VERSION=${{ env.VERSION }} package-windows
 
+      - name: List build artifacts # For debugging verification
+        run: |
+          ls -l dist/
+          ls -l dist/rpm/RPMS/x86_64/ # Adjust arch if needed
+          ls -l dist/win/
       # Use a different action to upload assets to the *existing* release
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1

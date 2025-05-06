@@ -3,7 +3,6 @@
 ; And custom code added for kmagent specific requirements.
 
 #define MyAppName "kmagent"
-#define MyAppVersion "1.0"
 #define MyAppPublisher "KloudMate"
 #define MyAppURL "https://kloudmate.com"
 #define MyAppExeName "kmagent.exe"

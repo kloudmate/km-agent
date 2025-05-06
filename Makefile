@@ -96,7 +96,7 @@ build-installer:build-windows
 	@echo ">>> Compiling Windows Installer using Docker ($(INNO_IMAGE))..."
 	# Run the Inno Setup compiler (iscc) inside the amake/innosetup container
 	docker run $(DOCKER_RUN_INNO_ARGS) \
-    		"$(ISS_FILE_PATH)"
+    		/dMyAppVersion=$(VERSION) "$(ISS_FILE_PATH)"
 
 		# Add flags to iscc if needed, e.g., /OOutputdir for output path
 		# Example: iscc /O$(BUILD_DIR)/win $(ISS_FILE)
