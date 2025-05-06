@@ -29,3 +29,5 @@ go.work.sum
 .env
 .idea/
 .vscode
+dist/
+config.yaml

@@ -2,24 +2,25 @@
 
 receivers:
   hostmetrics:
-    collection_interval: 25s
+    collection_interval: 30s
     scrapers:
       cpu:
-      disk:
-      processes:
-      process:
-      memory:
-      network:
-      filesystem:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
       load:
-      paging:
+        cpu_average: true
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
   otlp:
     protocols:
       grpc:
       http:
 
 exporters:
-
+  debug:
   otlphttp:
     sending_queue:
       enabled: true
@@ -31,7 +32,23 @@ exporters:
 
 processors:
   batch:
-
+    send_batch_size: 10000
+    timeout: 10s
+  resourcedetection:
+    detectors: [system]
+    system:
+      resource_attributes:
+        host.name:
+          enabled: true
+        host.id:
+          enabled: true
+        os.type:
+          enabled: false
+  resource:
+    attributes:
+      - key: service.name
+        action: insert
+        from_attribute: host.name
 extensions:
   # zpages:
   #   endpoint: :55679
@@ -41,9 +58,9 @@ service:
   pipelines:
     metrics:
       receivers: [hostmetrics]
-      processors: [batch]
-      exporters: [otlphttp]
+      processors: [resourcedetection, resource, batch]
+      exporters: [debug, otlphttp]
     logs:
       receivers: [hostmetrics]
-      processors: [batch]
+      processors: [resourcedetection, resource, batch]
       exporters: [otlphttp]
