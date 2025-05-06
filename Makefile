@@ -23,13 +23,12 @@ CONTAINER_WORKDIR := /work
 # For Windows (Git Bash/WSL), this usually works. For native Windows Docker, permissions might differ.
 CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
+
 # Define user flag, default to host user
 DOCKER_USER_FLAG := --user $(CURRENT_UID):$(CURRENT_GID)
-ifeq ($(ACT),true)
-	DOCKER_USER_FLAG :=
-endif
+
 # Docker run arguments for Inno Setup build
-DOCKER_RUN_INNO_ARGS := --rm -v $(PWD):$(CONTAINER_WORKDIR) -w $(CONTAINER_WORKDIR) $(DOCKER_USER_FLAG) $(INNO_IMAGE)
+DOCKER_RUN_INNO_ARGS := --rm -v $(PWD):$(CONTAINER_WORKDIR) -w $(CONTAINER_WORKDIR) $(INNO_IMAGE)
 
 
 .PHONY: clean build
