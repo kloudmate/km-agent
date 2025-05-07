@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"github.com/urfave/cli/v2/altsrc"
 	"os"
-	"os/signal"
 	"sync"
-	"syscall"
+	"time"
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
@@ -28,71 +27,66 @@ type Program struct {
 	// Application lifecycle
 	ctx        context.Context
 	cancelFunc context.CancelFunc
-	sigChan    chan os.Signal
-	quitCh     chan struct{}
-	errCh      chan error
-	wg         *sync.WaitGroup
+	//sigChan    chan os.Signal
+	//quitCh     chan struct{}
+	//errCh      chan error
+	wg *sync.WaitGroup
 }
 
 func (p *Program) run() {
 	// Initialize the agent
 	defer p.wg.Done()
 	p.logger.Info("Service is running, Docker mode: ", p.cfg.DockerMode)
-	for err := range p.errCh {
-		if err != nil {
-			p.logger.Errorf("Error: %v", err)
-			// stop
-			continue
-		}
-		err = p.kmAgent.StartAgent(p.ctx)
-		if err != nil {
-			p.logger.Error("Error starting agent: %v", err)
-		}
-
+	if err := p.kmAgent.StartAgent(p.ctx); err != nil {
+		p.logger.Errorf("Error initially starting agent: %v. The agent might not be running.", err)
+		p.cancelFunc()
+		return
 	}
-	p.logger.Info("In Run loop")
-	//
-	//if err := p.kmAgent.StartAgent(p.ctx); err != nil {
-	//	return fmt.Errorf("failed to start agent: %v", err)
-	//}
-	//
-	//// Wait for shutdown signal
-	//sig := <-p.sigChan
-	//p.logger.Infof("Received signal: %v", sig)
-	//
-	//// Shutdown
-	//if err := p.kmAgent.Shutdown(p.ctx); err != nil {
-	//	p.logger.Errorf("Error during shutdown: %v", err)
-	//	return err
-	//}
-	//
-	//p.logger.Info("Agent successfully shut down")
-	//return nil
-
+	<-p.ctx.Done()
+	p.logger.Info("Program run method exiting due to context cancellation.")
 }
 
 func (p *Program) Start(s service.Service) error {
 	p.logger.Info("Starting service")
 	p.wg.Add(1)
 	go p.run()
-	p.errCh <- nil
-	p.logger.Info("Service started")
+	p.logger.Info("Service goroutine started")
 	return nil
 }
 
 func (p *Program) Stop(s service.Service) error {
-	p.logger.Info("Stopping service")
-	close(p.quitCh)
-	close(p.sigChan)
-	close(p.errCh)
-
+	p.logger.Info("Stopping service...")
+	// 1. Signal all dependent components to stop
+	if p.cancelFunc != nil {
+		p.logger.Info("Cancelling program context...")
+		p.cancelFunc()
+	}
+	// 2. Shutdown the agent gracefully
+	if p.kmAgent != nil {
+		p.logger.Info("Shutting down KloudMate agent...")
+		// Provide a new context for shutdown, or use a timeout context
+		// If p.ctx is used, it's already canceled, which is fine for agent's Shutdown.
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second) // Example timeout
+		defer shutdownCancel()
+		if err := p.kmAgent.Shutdown(shutdownCtx); err != nil {
+			p.logger.Errorf("Error during agent shutdown: %v", err)
+		} else {
+			p.logger.Info("KloudMate agent shut down successfully.")
+		}
+	}
+	// 3. Wait for the main program goroutine (p.run) to finish
+	p.logger.Info("Waiting for program run goroutine to complete...")
 	p.wg.Wait()
-	p.logger.Info("Service stopped")
+
+	p.logger.Info("Service stopped successfully.")
 	return nil
 }
 
 func (p *Program) Initialize(c *cli.Context) error {
 	var err error
+	p.logger.Info("Initializing program...")
+
+	p.ctx, p.cancelFunc = context.WithCancel(context.Background())
 
 	// Load configuration
 	err = p.cfg.LoadConfig()
@@ -106,27 +100,10 @@ func (p *Program) Initialize(c *cli.Context) error {
 		return fmt.Errorf("failed to create agent: %v", err)
 	}
 
-	// Setup context and signal handling
-	p.ctx, p.cancelFunc = context.WithCancel(context.Background())
-	signal.Notify(p.sigChan, syscall.SIGINT, syscall.SIGTERM)
+	p.logger.Info("Program initialized successfully.")
 
 	return nil
 }
-
-// Run starts the program and blocks until shutdown
-//func (p *Program) Run() {
-//	defer p.wg.Done()
-//	p.logger.Info("Service is running")
-//	// Start the agent
-//	if err := p.kmAgent.StartAgent(p.ctx); err != nil {
-//		p.errCh <- fmt.Errorf("failed to start agent: %v", err)
-//		return
-//	}
-//
-//	// Wait for shutdown signal
-//	sig := <-p.sigChan
-//	p.logger.Infof("Received signal: %v", sig)
-//}
 
 // Shutdown gracefully shuts down the program
 func (p *Program) Shutdown() {
@@ -136,7 +113,7 @@ func (p *Program) Shutdown() {
 	p.wg.Wait()
 }
 
-func makeService(p *Program) service.Service {
+func makeService(p *Program) (service.Service, error) {
 	svcConfig := &service.Config{
 		Name:        "kmagent",
 		DisplayName: "KloudMate Agent",
@@ -144,9 +121,10 @@ func makeService(p *Program) service.Service {
 	}
 	svc, err := service.New(p, svcConfig)
 	if err != nil {
-		p.logger.Error("Error creating service: %v", err)
+		// p.logger.Errorf("Error creating service: %v", err) // Log is fine
+		return nil, fmt.Errorf("error creating service: %w", err) // Return error
 	}
-	return svc
+	return svc, nil
 }
 
 func main() {
@@ -156,16 +134,16 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to create logger: %v\n", err)
 		os.Exit(1)
 	}
+	defer logger.Sync()
+
+	sugar := logger.Sugar()
 
 	wg := &sync.WaitGroup{}
 	// Create program instance
 	program := &Program{
-		logger:  logger.Sugar(),
-		sigChan: make(chan os.Signal, 1),
-		quitCh:  make(chan struct{}),
-		errCh:   make(chan error),
-		cfg:     &config.Config{},
-		wg:      wg,
+		logger: sugar,
+		cfg:    &config.Config{},
+		wg:     wg,
 	}
 
 	flags := []cli.Flag{
@@ -195,7 +173,7 @@ func main() {
 		altsrc.NewIntFlag(&cli.IntFlag{
 			Name:        "config-check-interval",
 			Usage:       "Interval in seconds to check for config updates",
-			Value:       300, // 5 minutes default
+			Value:       30,
 			EnvVars:     []string{"KM_CONFIG_CHECK_INTERVAL"},
 			Destination: &program.cfg.ConfigCheckInterval,
 		}),
@@ -227,53 +205,25 @@ func main() {
 		Before: altsrc.InitInputSourceWithContext(flags, altsrc.NewYamlSourceFromFlagFunc("agent-config")),
 	}
 
-	svc := makeService(program)
-
 	// Setup commands
 	app.Commands = []*cli.Command{
 		{
-			Name:  "install",
-			Usage: "Install the agent as a system service",
-			Action: func(c *cli.Context) error {
-				program.logger.Info("Installing agent as a system service...")
-				return svc.Install()
-			},
-		},
-		{
-			Name:  "uninstall",
-			Usage: "Uninstall the agent service",
-			Action: func(c *cli.Context) error {
-				program.logger.Info("Uninstalling agent service...")
-				return svc.Uninstall()
-			},
-		},
-		{
 			Name:  "start",
-			Usage: "Start the agent service",
-			Action: func(c *cli.Context) error {
-				program.logger.Info("Starting agent service...")
-				return svc.Start()
-			},
-		},
-		{
-			Name:  "stop",
-			Usage: "Stop the agent service",
-			Action: func(c *cli.Context) error {
-				program.logger.Info("Stopping agent service...")
-				return svc.Stop()
-			},
-		},
-		{
-			Name:  "run",
-			Usage: "Run the agent as a standalone application",
+			Usage: "Start the agent",
 			Action: func(c *cli.Context) error {
 				if err := program.Initialize(c); err != nil {
+					program.logger.Errorf("Failed to initialize program: %v", err)
 					return err
 				}
-				err = svc.Run()
+				svc, err := makeService(program)
 				if err != nil {
-					program.logger.Fatal(err)
+					program.logger.Fatalf("Failed to create service: %v", err) // Fatal as we can't run
 				}
+				program.logger.Info("Attempting to run service...")
+				if err := svc.Run(); err != nil {
+					program.logger.Fatalf("Failed to run service: %v", err) // Fatal on run error
+				}
+				program.logger.Info("Service run finished.")
 				return nil
 			},
 		},
@@ -286,7 +236,7 @@ func main() {
 
 	// Run the CLI app
 	if err := app.Run(os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		sugar.Errorf("Application run failed: %v", err)
 		os.Exit(1)
 	}
 }

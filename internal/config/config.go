@@ -41,6 +41,7 @@ func GetDockerConfigPath() string {
 }
 
 // LoadConfig loads the configuration from CLI flags, environment variables, and config file
+// TODO It should load config from server as well
 func (c *Config) LoadConfig() error {
 
 	os.Setenv("KM_COLLECTOR_ENDPOINT", c.ExporterEndpoint)
@@ -80,6 +81,14 @@ func (c *Config) LoadConfig() error {
 	}
 
 	return nil
+}
+
+func (c *Config) Hostname() string {
+	n, e := os.Hostname()
+	if e != nil {
+		n = ""
+	}
+	return n
 }
 
 // UpdateConfigFile TODO it should update the config json from api with relevant details and save to fs

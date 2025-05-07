@@ -15,7 +15,7 @@ func NewCollector(c *config.Config) (*otelcol.Collector, error) {
 	info := component.BuildInfo{
 		Command:     "kmagent",
 		Description: "KloudMate Agent for OpenTelemetry",
-		Version:     "0.124.0",
+		Version:     "1.0.0",
 	}
 
 	fmt.Println("config file ", c.OtelConfigPath)
@@ -23,7 +23,7 @@ func NewCollector(c *config.Config) (*otelcol.Collector, error) {
 	set := otelcol.CollectorSettings{
 		BuildInfo:               info,
 		Factories:               components,
-		DisableGracefulShutdown: false,
+		DisableGracefulShutdown: true,
 		ConfigProviderSettings: otelcol.ConfigProviderSettings{
 			ResolverSettings: confmap.ResolverSettings{
 				DefaultScheme: "env",

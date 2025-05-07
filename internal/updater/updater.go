@@ -1,6 +1,7 @@
 package updater
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"go.uber.org/zap"
@@ -58,7 +60,18 @@ func (u *ConfigUpdater) CheckForUpdates(ctx context.Context) (bool, map[string]i
 	}
 
 	// Create the request
-	req, err := http.NewRequestWithContext(ctx, "GET", u.cfg.ConfigUpdateURL, nil)
+	data := map[string]interface{}{
+		"is_docker": u.cfg.DockerMode,
+		"hostname":  u.cfg.Hostname(),
+		"os":        runtime.GOOS,
+		"arch":      runtime.GOARCH,
+	}
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		panic(err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", u.cfg.ConfigUpdateURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to create request: %w", err)
 	}

@@ -3,7 +3,7 @@ Description=KloudMate agent for OpenTelemetry
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/kmagent --agent-config /etc/kmagent/agent.yaml run
+ExecStart=/usr/bin/kmagent --agent-config /etc/kmagent/agent.yaml start
 Restart=on-failure
 User=root
 

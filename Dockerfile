@@ -9,4 +9,4 @@ COPY --from=buildstage /app/kmagent ./kmagent
 COPY ./configs/docker-col-config.yaml ./config.yaml
 
 RUN chmod +x kmagent
-ENTRYPOINT ["./kmagent", "--docker-mode", "--config", "config.yaml", "run"]
+ENTRYPOINT ["./kmagent", "--docker-mode", "--config", "config.yaml", "start"]

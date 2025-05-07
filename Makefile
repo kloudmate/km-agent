@@ -36,6 +36,9 @@ DOCKER_RUN_INNO_ARGS := --rm -v $(PWD):$(CONTAINER_WORKDIR) -w $(CONTAINER_WORKD
 clean:
 	rm -rf $(BUILD_DIR)
 
+build:
+	@echo ">>> Building $(APP_NAME) for Linux AMD64..."
+	GOOS=linux GOARCH=amd64 go build -o $(BUILD_DIR)/linux/amd64/$(APP_NAME) $(SRC_DIR);
 
 build-linux-amd64:
 	@echo ">>> Building $(APP_NAME) for Linux AMD64..."

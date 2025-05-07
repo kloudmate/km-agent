@@ -3,10 +3,12 @@ package agent
 import (
 	"context"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/kloudmate/km-agent/internal/config"
 	"github.com/kloudmate/km-agent/internal/updater"
@@ -19,76 +21,54 @@ type Agent struct {
 	cfg            *config.Config
 	logger         *zap.SugaredLogger
 	collector      *otelcol.Collector
-	colSettings    otelcol.CollectorSettings
 	updater        *updater.ConfigUpdater
 	shutdownSignal chan struct{}
 	wg             sync.WaitGroup
-	mu             sync.Mutex
-	isRunning      bool
+	collectorMu    sync.Mutex
+	isRunning      atomic.Bool
 }
 
 // New creates a new Agent instance
 func New(cfg *config.Config, logger *zap.SugaredLogger) (*Agent, error) {
-	// Create collector
-	otelCollector, err := NewCollector(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create collector: %w", err)
-	}
-
-	// Create config updater
 	configUpdater := updater.NewConfigUpdater(cfg, logger)
-
 	return &Agent{
 		cfg:            cfg,
 		logger:         logger,
-		collector:      otelCollector,
 		updater:        configUpdater,
 		shutdownSignal: make(chan struct{}),
 	}, nil
 }
 
-// StartAgent starts the agent
+// StartAgent starts the agent's core components.
 func (a *Agent) StartAgent(ctx context.Context) error {
-	a.mu.Lock()
-	if a.isRunning {
-		a.mu.Unlock()
-		return fmt.Errorf("collector already running")
+	if !a.isRunning.CompareAndSwap(false, true) {
+		return fmt.Errorf("agent already running")
 	}
-	a.isRunning = true
-	a.mu.Unlock()
-
 	a.wg.Add(2)
 	go func() {
 		defer a.wg.Done()
-		if err := a.StartCollector(ctx); err != nil {
-			a.mu.Lock()
-			a.isRunning = false
-			a.mu.Unlock()
-			a.logger.Errorf("Failed to start collector: %v", err)
+		if err := a.manageCollectorLifecycle(ctx); err != nil {
+			a.logger.Errorf("Initial collector run failed: %v", err)
 		}
 	}()
 	go func() {
 		defer a.wg.Done()
 		a.runConfigUpdateChecker(ctx)
 	}()
-
+	a.logger.Info("Agent start sequence initiated.")
 	return nil
 }
 
 // Shutdown gracefully shuts down the agent
 func (a *Agent) Shutdown(ctx context.Context) error {
-	a.mu.Lock()
-	if !a.isRunning {
-		a.mu.Unlock()
+	if !a.isRunning.CompareAndSwap(true, false) {
+		a.logger.Info("Agent shutdown called, but agent is not marked as running.")
 		return nil
 	}
-	a.isRunning = false
-	a.mu.Unlock()
-
-	// Signal the update checker to stop
 	close(a.shutdownSignal)
+	a.logger.Info("Stopping current collector instance (if any).")
+	a.stopCollectorInstance()
 
-	// Wait for goroutines to finish
 	waitCh := make(chan struct{})
 	go func() {
 		a.wg.Wait()
@@ -97,107 +77,121 @@ func (a *Agent) Shutdown(ctx context.Context) error {
 
 	select {
 	case <-waitCh:
-		// All goroutines finished
+		a.logger.Info("All agent goroutines completed.")
 	case <-ctx.Done():
+		a.logger.Errorf("Agent shutdown timed out: %v", ctx.Err())
 		return ctx.Err()
 	}
-
-	// Shutdown the collector
-	a.collector.Shutdown()
-	a.logger.Info("Agent shut down successfully")
 	return nil
 }
 
-func (a *Agent) StartCollector(ctx context.Context) error {
-	err := a.collector.Run(ctx)
-	if err != nil {
-		return err
+func (a *Agent) manageCollectorLifecycle(ctx context.Context) error {
+	if !a.isRunning.Load() {
+		a.logger.Info("Agent is shutting down, not starting new collector.")
+		return nil
 	}
-	return nil
+
+	collector, err := NewCollector(a.cfg)
+	if err != nil {
+		return fmt.Errorf("failed to create new collector instance: %w", err)
+	}
+	a.collectorMu.Lock()
+	a.collector = collector
+	a.collectorMu.Unlock()
+	a.logger.Info("Collector instance created. Starting its run loop...")
+
+	runErr := collector.Run(ctx)
+	a.logger.Infof("Collector run loop finished. Error: %v", runErr)
+	a.collectorMu.Lock()
+	if a.collector == collector {
+		a.collector = nil
+		a.logger.Debug("Collector instance cleared.")
+	}
+	a.collectorMu.Unlock()
+
+	return runErr
 }
 
-func (a *Agent) StopCollector() {
-	a.collector.Shutdown()
+func (a *Agent) stopCollectorInstance() {
+	a.collectorMu.Lock()
+	collector := a.collector
+	a.collector = nil
+	a.collectorMu.Unlock()
+
+	if collector != nil {
+		a.logger.Info("Initiating shutdown for active collector instance...")
+		collector.Shutdown()
+		a.logger.Info("Collector shutdown signal sent.")
+	}
 }
 
-func (a *Agent) UpdateConfig(ctx context.Context, newConfig map[string]interface{}) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	// Convert config to YAML and write to file
+func (a *Agent) UpdateConfig(_ context.Context, newConfig map[string]interface{}) error {
 	configYAML, err := yaml.Marshal(newConfig)
 	if err != nil {
 		return fmt.Errorf("failed to marshal new config to YAML: %w", err)
 	}
-
-	// Create a temporary file
 	tempFile := a.cfg.OtelConfigPath + ".new"
 	if err := os.WriteFile(tempFile, configYAML, 0644); err != nil {
 		return fmt.Errorf("failed to write new config to temporary file: %w", err)
 	}
-
-	// Rename the temporary file to the actual config file (atomic operation)
 	if err := os.Rename(tempFile, a.cfg.OtelConfigPath); err != nil {
 		return fmt.Errorf("failed to replace config file: %w", err)
 	}
-
 	a.logger.Info("Successfully updated collector configuration")
 	return nil
 }
 
-// runConfigUpdateChecker periodically checks for configuration updates
 func (a *Agent) runConfigUpdateChecker(ctx context.Context) {
-	// Skip if no config update URL is configured
 	if a.cfg.ConfigUpdateURL == "" {
 		a.logger.Info("Config update URL not configured, skipping config update checks")
 		return
 	}
-
 	ticker := time.NewTicker(time.Duration(a.cfg.ConfigCheckInterval) * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			a.logger.Debug("Checking for configuration updates")
-			restartRequired, newConfig, err := a.updater.CheckForUpdates(ctx)
-			if err != nil {
-				a.logger.Errorf("Failed to check for config updates: %v", err)
-				continue
+			if err := a.performConfigCheck(ctx); err != nil {
+				a.logger.Errorf("Periodic config check failed: %v", err)
 			}
-
-			if newConfig != nil {
-				a.logger.Info("New configuration received")
-
-				// Update the collector configuration
-				if err := a.UpdateConfig(ctx, newConfig); err != nil {
-					a.logger.Errorf("Failed to update collector configuration: %v", err)
-					continue
-				}
-
-				// If restart is required, restart the collector
-				if restartRequired {
-					a.logger.Info("Restart required, restarting collector")
-
-					// Shutdown current collector
-					a.StopCollector()
-
-					// Start collector with new config
-					if err := a.StartCollector(ctx); err != nil {
-						a.logger.Errorf("Failed to restart collector: %v", err)
-						continue
-					}
-
-					a.logger.Info("Collector restarted successfully")
-				}
-			}
-
 		case <-a.shutdownSignal:
-			a.logger.Debug("Config update checker stopping")
+			a.logger.Info("Config update checker stopping due to shutdown.")
 			return
 		case <-ctx.Done():
-			a.logger.Debug("Config update checker context canceled")
+			a.logger.Info("Config update checker stopping due to context cancellation.")
 			return
 		}
 	}
+}
+
+func (a *Agent) performConfigCheck(ctx context.Context) error {
+	a.logger.Info("Checking for configuration updates...")
+	restart, newConfig, err := a.updater.CheckForUpdates(ctx)
+	if err != nil {
+		return fmt.Errorf("updater.CheckForUpdates failed: %w", err)
+	}
+	if newConfig != nil {
+		if err := a.UpdateConfig(ctx, newConfig); err != nil {
+			return fmt.Errorf("failed to update config file: %w", err)
+		}
+	}
+	if restart {
+		a.logger.Info("Configuration change requires collector restart.")
+		if !a.isRunning.Load() {
+			a.logger.Info("Agent is shutting down, skipping restart.")
+			return nil
+		}
+		a.stopCollectorInstance()
+		a.wg.Add(1)
+		go func() {
+			defer a.wg.Done()
+			if err := a.manageCollectorLifecycle(ctx); err != nil {
+				a.logger.Errorf("Collector restart failed: %v", err)
+			} else {
+				a.logger.Info("Collector restarted successfully.")
+			}
+		}()
+	}
+	return nil
 }

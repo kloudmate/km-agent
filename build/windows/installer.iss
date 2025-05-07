@@ -175,7 +175,7 @@ begin
   Result := False; // Assume failure
   ServicePath := ExpandConstant('{app}\kmagent.exe');
   ConfigPath := ExpandConstant('{commonappdata}\kmagent\agent.yaml');
-  BinPath := Format('"%s --agent-config \"%s\" run"', [ServicePath, ConfigPath]);
+  BinPath := Format('"%s --agent-config \"%s\" start"', [ServicePath, ConfigPath]);
 
   if ServiceExists('kmagent') then
   begin
