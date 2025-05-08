@@ -44,6 +44,15 @@ func (a *Agent) StartAgent(ctx context.Context) error {
 	if !a.isRunning.CompareAndSwap(false, true) {
 		return fmt.Errorf("agent already running")
 	}
+
+	setupComplete := false
+	defer func() {
+		if !setupComplete {
+			a.isRunning.Store(false)
+			a.logger.Warn("Agent startup failed, reset running state")
+		}
+	}()
+
 	a.wg.Add(2)
 	go func() {
 		defer a.wg.Done()
@@ -56,6 +65,7 @@ func (a *Agent) StartAgent(ctx context.Context) error {
 		a.runConfigUpdateChecker(ctx)
 	}()
 	a.logger.Info("Agent start sequence initiated.")
+	setupComplete = true
 	return nil
 }
 
@@ -99,6 +109,7 @@ func (a *Agent) manageCollectorLifecycle(ctx context.Context) error {
 	a.collector = collector
 	a.collectorMu.Unlock()
 	a.logger.Info("Collector instance created. Starting its run loop...")
+	defer a.collectorMu.Unlock()
 
 	runErr := collector.Run(ctx)
 	a.logger.Infof("Collector run loop finished. Error: %v", runErr)
@@ -109,6 +120,15 @@ func (a *Agent) manageCollectorLifecycle(ctx context.Context) error {
 	}
 	a.collectorMu.Unlock()
 
+	// ensuring cleanup if this func returns early
+	defer func() {
+		a.collectorMu.Lock()
+		defer a.collectorMu.Unlock()
+		if a.collector == collector {
+			a.collector = nil
+			a.logger.Debug("Collector instance cleared.")
+		}
+	}()
 	return runErr
 }
 
@@ -166,6 +186,8 @@ func (a *Agent) runConfigUpdateChecker(ctx context.Context) {
 }
 
 func (a *Agent) performConfigCheck(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	a.logger.Info("Checking for configuration updates...")
 	restart, newConfig, err := a.updater.CheckForUpdates(ctx)
 	if err != nil {

@@ -71,7 +71,10 @@ func (u *ConfigUpdater) CheckForUpdates(ctx context.Context) (bool, map[string]i
 		panic(err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", u.cfg.ConfigUpdateURL, bytes.NewBuffer(jsonData))
+	reqCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel() // Ensure context resources are freed
+
+	req, err := http.NewRequestWithContext(reqCtx, "GET", u.cfg.ConfigUpdateURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -137,5 +140,14 @@ func (u *ConfigUpdater) ApplyConfig(newConfig map[string]interface{}) error {
 	}
 
 	u.logger.Info("Successfully updated configuration at ", u.configPath)
+
+	defer func() {
+		if err != nil {
+			// Clean up temp file on error
+			if removeErr := os.Remove(tempFile); removeErr != nil {
+				u.logger.Warnf("Failed to clean up temporary file %s: %v", tempFile, removeErr)
+			}
+		}
+	}()
 	return nil
 }
