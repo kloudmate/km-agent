@@ -1,4 +1,4 @@
-package agent
+package shared
 
 import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/attributesprocessor"
@@ -52,7 +52,7 @@ import (
 )
 
 // responsible for injecting all the extensions, receivers, processors, exporters to the collectors
-func components() (otelcol.Factories, error) {
+func Components() (otelcol.Factories, error) {
 	var err error
 	factories := otelcol.Factories{}
 
