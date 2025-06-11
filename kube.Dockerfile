@@ -2,7 +2,7 @@ FROM golang:alpine AS buildstage
 RUN mkdir /app
 COPY . /app
 WORKDIR /app
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o kmagent cmd/kmagent/main.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o kmagent cmd/kube-kmagent/kube_main.go
 
 FROM alpine:latest
 COPY --from=buildstage /app/kmagent ./kmagent
