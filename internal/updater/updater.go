@@ -61,10 +61,14 @@ func (u *ConfigUpdater) CheckForUpdates(ctx context.Context) (bool, map[string]i
 
 	// Create the request
 	data := map[string]interface{}{
-		"is_docker": u.cfg.DockerMode,
-		"hostname":  u.cfg.Hostname(),
-		"os":        runtime.GOOS,
-		"arch":      runtime.GOARCH,
+		"is_docker":          u.cfg.DockerMode,
+		"hostname":           u.cfg.Hostname(),
+		"platform":           runtime.GOOS,
+		"architecture":       runtime.GOARCH,
+		"agent_version":      u.cfg.Version,
+		"agent_status":       u.cfg.AgentStatus,
+		"collector_status":   u.cfg.CollectorStatus,
+		"last_error_message": u.cfg.LastErrorMessage,
 	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {

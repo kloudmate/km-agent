@@ -16,6 +16,8 @@ import (
 	"github.com/kloudmate/km-agent/internal/config"
 )
 
+var version = "0.1.0" // Version of the application
+
 // Program represents the main application state and configuration
 type Program struct {
 	// Configuration
@@ -30,7 +32,8 @@ type Program struct {
 	//sigChan    chan os.Signal
 	//quitCh     chan struct{}
 	//errCh      chan error
-	wg *sync.WaitGroup
+	wg      *sync.WaitGroup
+	version string
 }
 
 func (p *Program) run() {
@@ -141,9 +144,10 @@ func main() {
 	wg := &sync.WaitGroup{}
 	// Create program instance
 	program := &Program{
-		logger: sugar,
-		cfg:    &config.Config{},
-		wg:     wg,
+		logger:  sugar,
+		cfg:     &config.Config{},
+		wg:      wg,
+		version: version,
 	}
 
 	flags := []cli.Flag{
@@ -161,6 +165,7 @@ func main() {
 		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:        "exporter-endpoint",
 			Usage:       "OpenTelemetry exporter endpoint",
+			Value:       "https://otel.kloudmate.com:4318",
 			EnvVars:     []string{"KM_COLLECTOR_ENDPOINT"},
 			Destination: &program.cfg.ExporterEndpoint,
 		}),
@@ -180,6 +185,7 @@ func main() {
 		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:        "update-endpoint",
 			Usage:       "API key for authentication",
+			Value:       "https://api.kloudmate.com/agents/config-check",
 			EnvVars:     []string{"KM_UPDATE_ENDPOINT"},
 			Destination: &program.cfg.ConfigUpdateURL,
 		}),
