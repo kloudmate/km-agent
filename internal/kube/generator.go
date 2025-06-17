@@ -24,8 +24,8 @@ func GenerateCollectorConfig(kcfg *KubeAgentConfig) (map[string]any, error) {
 	receivers := map[string]interface{}{}
 	processors := map[string]interface{}{}
 	exporters := map[string]interface{}{
-		"logging": map[string]interface{}{
-			"loglevel": "info",
+		"debug": map[string]interface{}{
+			"verbosity": "basic",
 		},
 	}
 	pipelines := map[string]interface{}{}
@@ -50,7 +50,7 @@ func GenerateCollectorConfig(kcfg *KubeAgentConfig) (map[string]any, error) {
 		pipelines["node_metrics"] = map[string]interface{}{
 			"receivers":  []string{"hostmetrics"},
 			"processors": []string{},
-			"exporters":  []string{"logging"},
+			"exporters":  []string{"debug"},
 		}
 	}
 
@@ -120,7 +120,7 @@ func GenerateCollectorConfig(kcfg *KubeAgentConfig) (map[string]any, error) {
 		pipelines["pod_metrics"] = map[string]interface{}{
 			"receivers":  []string{"kubeletstats"},
 			"processors": []string{"k8sattributes", "filter/pod_ns"},
-			"exporters":  []string{"logging"},
+			"exporters":  []string{"debug"},
 		}
 	}
 
@@ -133,7 +133,7 @@ func GenerateCollectorConfig(kcfg *KubeAgentConfig) (map[string]any, error) {
 		pipelines["cluster_metrics"] = map[string]interface{}{
 			"receivers":  []string{"k8s_cluster"},
 			"processors": []string{},
-			"exporters":  []string{"logging"},
+			"exporters":  []string{"debug"},
 		}
 	}
 
@@ -167,7 +167,7 @@ func GenerateCollectorConfig(kcfg *KubeAgentConfig) (map[string]any, error) {
 			pipelines["logs"] = map[string]interface{}{
 				"receivers":  []string{"filelog"},
 				"processors": []string{"k8sattributes/logs"},
-				"exporters":  []string{"logging"},
+				"exporters":  []string{"debug"},
 			}
 		}
 	}

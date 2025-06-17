@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: kloudmate-agent
-  namespace: monitoring
+  namespace: default
   labels:
     app: kloudmate-agent
 spec:
@@ -14,26 +14,32 @@ spec:
       labels:
         app: kloudmate-agent
     spec:
-      serviceAccountName: kloudmate-agent
+      serviceAccountName: km-svc-account
       containers:
         - name: kloudmate-agent
-          image: ghcr.io/kloudmate/km-agent-kube:latest
-          imagePullPolicy: Always
+          image: anshdevs/km-agent-kube
+          # imagePullPolicy: Always
           # args:
             # - "--config=/etc/kloudmate-agent/config.yaml"
+
           volumeMounts:
-            - name: config
-              mountPath: /etc/kloudmate-agent
+            - name: agent-config-volume
+              mountPath: "/var/kloudmate/agent-config.yaml"
+              readOnly: true              
+              subPath: "agent-config.yaml"
+              # mounting logs dir
             - name: varlog
               mountPath: /var/log
               readOnly: true
+              # mounting host fs
             - name: rootfs
               mountPath: /host
               readOnly: true
+
       volumes:
-        - name: config
+        - name: agent-config-volume
           configMap:
-            name: kloudmate-agent-config
+            name: km-agent-configmap
         - name: varlog
           hostPath:
             path: /var/log

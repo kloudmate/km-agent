@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	DefaultAgentConfigPath = "/etc/kloudmate/agent-config.yaml"
+	DefaultAgentConfigPath = "/var/kloudmate/agent-config.yaml"
 
 	EnvAPIKey              = "KM_API_KEY"
 	EnvAgentConfig         = "KM_AGENT_CONFIG"

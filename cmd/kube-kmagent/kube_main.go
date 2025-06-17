@@ -12,6 +12,7 @@ import (
 )
 
 func main() {
+	fmt.Println("Doing something")
 	ctx := context.Background()
 
 	agent, err := kube.NewKubeAgent()

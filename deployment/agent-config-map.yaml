@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: km-agent-configmap # Name of your ConfigMap
+  namespace: default            # Replace with your actual namespace if different
+data:
+  # The key here will become the filename inside the mountPath.
+  # We name it exactly "agent.config.yaml" so it appears as such.
+  agent-config.yaml: |
+
+    key: ${KM_API_KEY}
+    debug: normal
+    endpoint: https://otel.kloudmate.com:4318
+    interval: 10s
+
+
+    monitoring:
+      cluster_name: "default"
+      
+      # Basic collection settings
+      collection_interval: 30s
+      
+      # Cluster monitoring
+      cluster:
+        enabled: true
+        metrics:
+          - cpu_usage
+          - memory_usage
+          - storage_usage
+          - node_count
+          - pod_count
+          - api_server_health
+          
+      # Node monitoring  
+      nodes:
+        enabled: true
+        # Monitor all nodes or specific ones
+        monitor_all: true
+        # Or specify specific nodes
+        specific_nodes: []
+        # Example: ["worker-node-1", "worker-node-2", "master-node-1"]
+        metrics:
+          - cpu_percent
+          - memory_percent
+          - disk_percent
+          - network_io
+          - disk_io
+          - status
+          - ready_condition
+          
+      # Pod monitoring
+      pods:
+        enabled: true
+        # Monitor all namespaces or specific ones
+        monitor_all_namespaces: false
+        namespaces: 
+          include: ["kube-system", "default", "monitoring"]
+          exclude: ["kube-public"]
+        # Or set monitor_all_namespaces: true to monitor everything
+        
+        # Monitor specific named pods across namespaces
+        specific_pods:
+          # Example:
+          # - name: "nginx-deployment"
+          #   namespace: "default"
+            
+        metrics:
+          - cpu_usage
+          - memory_usage
+          - restart_count
+          - status
+          - ready_status
+          
+      # Named resource monitoring
+      named_resources:
+        enabled: true
+        
+        # Specific deployments to monitor
+        # deployments:
+          # - name: "nginx-deployment"
+          #   namespace: "default"
+            
+        # Specific services to monitor  
+        # services:
+          # - name: "nginx-service"
+          #   namespace: "default"
+            
+        # Specific configmaps to monitor
+        configmaps:
+          - name: "app-config"
+            namespace: "default"
+          # - name: "nginx-config"
+          #   namespace: "default"
+            
+        # Specific secrets to monitor (metadata only, not content)
+        secrets:
+          - name: "app-secrets"
+            namespace: "default"
+          # - name: "tls-secrets"
+          #   namespace: "ingress"
+            
+        # Persistent volumes to monitor
+        persistent_volumes:
+          # - name: "mysql-pv"
+            
+        metrics:
+          - resource_status
+          - resource_age
+          - last_updated
+          - replica_count # for deployments
+          - endpoint_count # for services
+          
+      # Infrastructure logs
+      logs:
+        enabled: true
+        sources:
+          - kubelet_logs
+          - container_logs
+          - system_events
