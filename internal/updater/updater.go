@@ -78,7 +78,7 @@ func (u *ConfigUpdater) CheckForUpdates(ctx context.Context) (bool, map[string]i
 	reqCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel() // Ensure context resources are freed
 
-	req, err := http.NewRequestWithContext(reqCtx, "GET", u.cfg.ConfigUpdateURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(reqCtx, "POST", u.cfg.ConfigUpdateURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to create request: %w", err)
 	}

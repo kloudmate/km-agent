@@ -21,6 +21,10 @@ type Config struct {
 	ConfigCheckInterval int
 	DockerMode          bool
 	DockerEndpoint      string
+	Version	            string
+	AgentStatus         string
+	CollectorStatus     string
+	LastErrorMessage    string
 }
 
 // GetDefaultConfigPath returns the default configuration file path based on OS
