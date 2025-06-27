@@ -1,4 +1,4 @@
-package kube
+package k8sagent
 
 import (
 	"context"
@@ -9,7 +9,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (km *KubeAgent) FilterValidResources(ctx context.Context, logger *zap.SugaredLogger) {
+// FilterValidResources cross verifies the resources that are present in agent-config
+// with those that exist in the cluster such that if resources do not exist in the cluster then they will be excluded
+// from the otel-col config
+func (km *K8sAgent) FilterValidResources(ctx context.Context, logger *zap.SugaredLogger) {
 	valid := *km.Cfg // clone original
 
 	// Filter nodes

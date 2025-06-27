@@ -1,14 +1,15 @@
-package kube
+package k8sagent
 
 import (
 	"errors"
 	"fmt"
 
+	"github.com/kloudmate/km-agent/internal/config"
 	"gopkg.in/yaml.v3"
 )
 
-func ParseKMAgentConfig(data []byte) (*KubeAgentConfig, error) {
-	var cfg KubeAgentConfig
+func ParseKMAgentConfig(data []byte) (*config.K8sAgentConfig, error) {
+	var cfg config.K8sAgentConfig
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse KMAgent config: %w", err)
 	}
@@ -16,7 +17,7 @@ func ParseKMAgentConfig(data []byte) (*KubeAgentConfig, error) {
 }
 
 // GenerateCollectorConfig generates the otel config from the agentconfig provided to it.
-func GenerateCollectorConfig(kcfg *KubeAgentConfig) (map[string]any, error) {
+func GenerateCollectorConfig(kcfg *config.K8sAgentConfig) (map[string]any, error) {
 	if kcfg == nil {
 		return nil, errors.New("nil config passed")
 	}

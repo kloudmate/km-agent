@@ -1,4 +1,4 @@
-package kube
+package config
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	DefaultAgentConfigPath = "/var/kloudmate/agent-config.yaml"
+	DefaultAgentConfigPath = "/etc/kmagent/agent.yaml"
 
 	EnvAPIKey              = "KM_API_KEY"
 	EnvAgentConfig         = "KM_AGENT_CONFIG"
@@ -19,7 +19,7 @@ const (
 	EnvUpdateEndpoint      = "KM_UPDATE_ENDPOINT"
 )
 
-type KubeAgentConfig struct {
+type K8sAgentConfig struct {
 	AgentConfigPath     string
 	ExporterEndpoint    string
 	ConfigUpdateURL     string
@@ -97,7 +97,7 @@ type KubeAgentConfig struct {
 	} `yaml:"monitoring"`
 }
 
-func writeTempOtelConfig(yamlBytes []byte) (string, error) {
+func WriteTempOtelConfig(yamlBytes []byte) (string, error) {
 	tmpFile, err := os.CreateTemp("", "otel-config-*.yaml")
 	if err != nil {
 		return "", err
@@ -112,8 +112,8 @@ func writeTempOtelConfig(yamlBytes []byte) (string, error) {
 	return tmpFile.Name(), nil
 }
 
-// LoadKubeAgentConfig loads and parses the agent config from the default path for kube agent.
-func LoadKubeAgentConfig() (*KubeAgentConfig, error) {
+// LoadK8sAgentConfig loads and parses the agent config from the default path for kube agent.
+func LoadK8sAgentConfig() (*K8sAgentConfig, error) {
 	agentConfig := ""
 
 	// Set AgentConfig from environment variable if available
@@ -142,7 +142,7 @@ func LoadKubeAgentConfig() (*KubeAgentConfig, error) {
 	}
 
 	// Parse YAML into struct
-	var cfg KubeAgentConfig
+	var cfg K8sAgentConfig
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse agent config YAML: %w", err)
 	}

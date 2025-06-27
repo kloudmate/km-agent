@@ -1,4 +1,4 @@
-package kube
+package k8sagent
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func initKubeClient(logger *zap.SugaredLogger) (*kubernetes.Clientset, error) {
+func initK8sClient(logger *zap.SugaredLogger) (*kubernetes.Clientset, error) {
 	// Try kubeconfig (out-of-cluster)
 	if kubeconfig := os.Getenv("KUBECONFIG"); kubeconfig != "" {
 		cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfig)

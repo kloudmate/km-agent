@@ -1,4 +1,4 @@
-package kube
+package k8sagent
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 
 	"context"
 
+	"github.com/kloudmate/km-agent/internal/config"
 	"github.com/kloudmate/km-agent/internal/shared"
 	"github.com/kloudmate/km-agent/internal/updater"
 	"go.opentelemetry.io/collector/otelcol"
@@ -14,17 +15,17 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-type KubeAgent struct {
-	Cfg         *KubeAgentConfig
+type K8sAgent struct {
+	Cfg         *config.K8sAgentConfig
 	Logger      *zap.SugaredLogger
 	Collector   *otelcol.Collector
 	K8sClient   *kubernetes.Clientset
-	Updater     *updater.ConfigUpdater
+	Updater     *updater.K8sConfigUpdater
 	Errs        (chan error)
 	collectorMu sync.Mutex
 }
 
-func NewKubeAgent() (*KubeAgent, error) {
+func NewK8sAgent() (*K8sAgent, error) {
 	// ---------- Logging ----------
 	zapLogger, err := zap.NewProduction()
 	if err != nil {
@@ -34,30 +35,28 @@ func NewKubeAgent() (*KubeAgent, error) {
 	logger.Infow("bootstrapping kube agent")
 
 	// ---------- Load YAML config ----------
-	cfg, err := LoadKubeAgentConfig()
+	cfg, err := config.LoadK8sAgentConfig()
 	if err != nil {
 		logger.Errorw("failed to load agent config", "err", err)
 		return nil, err
 	}
 
 	// ---------- Initialize Kubernetes client ----------
-	k8sClient, err := initKubeClient(logger)
+	k8sClient, err := initK8sClient(logger)
 	if err != nil {
 		logger.Errorw("failed to create k8s client", "err", err)
 		return nil, err
 	}
 
-	/* ---------- config updater ----------
-	TODO: implementation of KubeAgentConfig rather than config.Config for updater
-	updaterCfg := updater.NewConfigUpdater(cfg, logger)
-	*/
+	// TODO: implementation of K8sAgentConfig rather than config.Config for updater
+	updaterCfg := updater.NewK8sConfigUpdater(cfg, logger)
 
 	// ---------- Create Kube agent ----------
-	agent := &KubeAgent{
+	agent := &K8sAgent{
 		Cfg:       cfg,
 		Logger:    logger,
 		K8sClient: k8sClient,
-		Updater:   &updater.ConfigUpdater{},
+		Updater:   updaterCfg,
 		Errs:      make(chan error),
 	}
 
@@ -65,7 +64,7 @@ func NewKubeAgent() (*KubeAgent, error) {
 	return agent, nil
 }
 
-func (km *KubeAgent) setupCollector(configPath string) error {
+func (km *K8sAgent) setupCollector(configPath string) error {
 	collectorSettings := shared.CollectorInfoFactory(configPath)
 
 	app, err := otelcol.NewCollector(collectorSettings)
@@ -87,13 +86,13 @@ func (km *KubeAgent) setupCollector(configPath string) error {
 	return app.Run(ctx)
 }
 
-func (km *KubeAgent) StartOTelWithGeneratedConfig(config interface{}) error {
-	yamlBytes, err := yaml.Marshal(config)
+func (km *K8sAgent) StartOTelWithGeneratedConfig(cfg interface{}) error {
+	yamlBytes, err := yaml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("marshal error: %w", err)
 	}
 
-	tmpPath, err := writeTempOtelConfig(yamlBytes)
+	tmpPath, err := config.WriteTempOtelConfig(yamlBytes)
 	if err != nil {
 		return fmt.Errorf("temp config write error: %w", err)
 	}

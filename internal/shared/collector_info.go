@@ -36,5 +36,6 @@ func CollectorInfoFactory(cfgPath string) otelcol.CollectorSettings {
 				},
 			},
 		},
+		SkipSettingGRPCLogger: true, // Prevents gRPC from setting its own logger, uses zap instead
 	}
 }
