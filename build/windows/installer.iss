@@ -263,7 +263,7 @@ begin
   ConfigLines := TStringList.Create;
   try
     ConfigLines.Add(Format('api-key: "%s"', [StoredAPIKey]));
-    ConfigLines.Add(Format('exporter-endpoint: "%s"', [StoredCollectorEndpoint]));
+    ConfigLines.Add(Format('collector-endpoint: "%s"', [StoredCollectorEndpoint]));
 
     Log('Generated config content:');
     Log(ConfigLines.Text);

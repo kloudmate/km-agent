@@ -39,7 +39,7 @@ echo "[kmagent] Generating config file at $CONFIG_PATH..."
 # Use printf for safer handling of potential special characters in values.
 # Quote YAML strings appropriately.
 printf 'api-key: "%s"\n' "${KM_API_KEY}" > "$CONFIG_PATH"
-printf 'exporter-endpoint: "%s"\n' "${KM_COLLECTOR_ENDPOINT}" >> "$CONFIG_PATH"
+printf 'collector-endpoint: "%s"\n' "${KM_COLLECTOR_ENDPOINT}" >> "$CONFIG_PATH"
 
 # --- Append Optional Lines Conditionally (>>) ---
 

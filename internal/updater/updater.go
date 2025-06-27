@@ -26,6 +26,13 @@ type ConfigUpdater struct {
 	configPath string
 }
 
+type UpdateCheckerParams struct {
+	Version            string
+	AgentStatus        string
+	CollectorStatus    string
+	CollectorLastError string
+}
+
 // ConfigUpdateResponse represents the response from the config update API
 type ConfigUpdateResponse struct {
 	RestartRequired bool                   `json:"restart_required"`
@@ -53,11 +60,7 @@ func NewConfigUpdater(cfg *config.Config, logger *zap.SugaredLogger) *ConfigUpda
 }
 
 // CheckForUpdates checks for configuration updates from the remote API
-func (u *ConfigUpdater) CheckForUpdates(ctx context.Context) (bool, map[string]interface{}, error) {
-	// If no config update URL is configured, return nil
-	if u.cfg.ConfigUpdateURL == "" {
-		return false, nil, nil
-	}
+func (u *ConfigUpdater) CheckForUpdates(ctx context.Context, p UpdateCheckerParams) (bool, map[string]interface{}, error) {
 
 	// Create the request
 	data := map[string]interface{}{
@@ -65,10 +68,10 @@ func (u *ConfigUpdater) CheckForUpdates(ctx context.Context) (bool, map[string]i
 		"hostname":           u.cfg.Hostname(),
 		"platform":           runtime.GOOS,
 		"architecture":       runtime.GOARCH,
-		"agent_version":      u.cfg.Version,
-		"agent_status":       u.cfg.AgentStatus,
-		"collector_status":   u.cfg.CollectorStatus,
-		"last_error_message": u.cfg.LastErrorMessage,
+		"agent_version":      p.Version,
+		"agent_status":       p.AgentStatus,
+		"collector_status":   p.CollectorStatus,
+		"last_error_message": p.CollectorLastError,
 	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -78,11 +81,12 @@ func (u *ConfigUpdater) CheckForUpdates(ctx context.Context) (bool, map[string]i
 	reqCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel() // Ensure context resources are freed
 
-	req, err := http.NewRequestWithContext(reqCtx, "GET", u.cfg.ConfigUpdateURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(reqCtx, "POST", u.cfg.ConfigUpdateURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	req.Header.Set("Content-Type", "application/json")
 	// Add API key if configured
 	if u.cfg.APIKey != "" {
 		req.Header.Set("Authorization", u.cfg.APIKey)
@@ -107,14 +111,6 @@ func (u *ConfigUpdater) CheckForUpdates(ctx context.Context) (bool, map[string]i
 		return false, nil, fmt.Errorf("failed to decode config update response: %w", err)
 	}
 
-	// If there's a new config, write it to disk
-	if updateResp.Config != nil {
-		if err := u.ApplyConfig(updateResp.Config); err != nil {
-			return false, nil, fmt.Errorf("failed to apply new config: %w", err)
-		}
-	}
-
-	// Return the update info
 	return updateResp.RestartRequired, updateResp.Config, nil
 }
 

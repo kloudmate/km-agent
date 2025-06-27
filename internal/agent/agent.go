@@ -26,17 +26,33 @@ type Agent struct {
 	wg             sync.WaitGroup
 	collectorMu    sync.Mutex
 	isRunning      atomic.Bool
+	collectorError string
+	version        string
+}
+
+type Option func(a *Agent)
+
+func WithVersion(v string) Option {
+	return func(a *Agent) {
+		a.version = v
+	}
 }
 
 // New creates a new Agent instance
-func New(cfg *config.Config, logger *zap.SugaredLogger) (*Agent, error) {
+func New(cfg *config.Config, logger *zap.SugaredLogger, opts ...Option) (*Agent, error) {
 	configUpdater := updater.NewConfigUpdater(cfg, logger)
-	return &Agent{
+	a := Agent{
 		cfg:            cfg,
 		logger:         logger,
 		updater:        configUpdater,
 		shutdownSignal: make(chan struct{}),
-	}, nil
+	}
+
+	for _, o := range opts {
+		o(&a)
+	}
+
+	return &a, nil
 }
 
 // StartAgent starts the agent's core components.
@@ -96,39 +112,51 @@ func (a *Agent) Shutdown(ctx context.Context) error {
 }
 
 func (a *Agent) manageCollectorLifecycle(ctx context.Context) error {
+	// Initial check to exit early and avoid unnecessary work.
 	if !a.isRunning.Load() {
 		a.logger.Info("Agent is shutting down, not starting new collector.")
 		return nil
 	}
 
+	// Create the collector instance.
 	collector, err := NewCollector(a.cfg)
 	if err != nil {
 		return fmt.Errorf("failed to create new collector instance: %w", err)
 	}
-	a.collectorMu.Lock()
-	a.collector = collector
-	a.collectorMu.Unlock()
-	a.logger.Info("Collector instance created. Starting its run loop...")
-	defer a.collectorMu.Unlock()
 
-	runErr := collector.Run(ctx)
-	a.logger.Infof("Collector run loop finished. Error: %v", runErr)
-	a.collectorMu.Lock()
-	if a.collector == collector {
-		a.collector = nil
-		a.logger.Debug("Collector instance cleared.")
-	}
-	a.collectorMu.Unlock()
-
-	// ensuring cleanup if this func returns early
+	// This deferred function will run when manageCollectorLifecycle exits for any reason.
+	// It ensures the collector reference is cleaned up safely.
 	defer func() {
 		a.collectorMu.Lock()
 		defer a.collectorMu.Unlock()
+		// This check is crucial: only clear the reference if it's the one we managed.
+		// This prevents a race condition if another collector was started in the meantime.
 		if a.collector == collector {
 			a.collector = nil
-			a.logger.Debug("Collector instance cleared.")
+			a.logger.Debug("Collector instance cleared from agent.")
 		}
 	}()
+
+	// Atomically check the running state and assign the new collector.
+	a.collectorMu.Lock()
+	if !a.isRunning.Load() {
+		// The agent was shut down between the initial check and now. Abort.
+		a.collectorMu.Unlock()
+		a.logger.Info("Agent shutdown initiated, aborting collector start.")
+		return nil // Or a specific error if desired, like context.Canceled
+	}
+	a.collector = collector
+	a.collectorMu.Unlock()
+
+	a.logger.Info("Collector instance created. Starting its run loop...")
+	runErr := collector.Run(ctx)
+	if runErr != nil {
+		a.collectorError = runErr.Error()
+	} else {
+		a.collectorError = ""
+	}
+	a.logger.Infof("Collector run loop finished. Error: %v", runErr)
+
 	return runErr
 }
 
@@ -145,6 +173,7 @@ func (a *Agent) stopCollectorInstance() {
 	}
 }
 
+// UpdateConfig takes new config and create new otel config file and update existing config file.
 func (a *Agent) UpdateConfig(_ context.Context, newConfig map[string]interface{}) error {
 	configYAML, err := yaml.Marshal(newConfig)
 	if err != nil {
@@ -161,6 +190,7 @@ func (a *Agent) UpdateConfig(_ context.Context, newConfig map[string]interface{}
 	return nil
 }
 
+// runConfigUpdateChecker run ticker for performConfigCheck
 func (a *Agent) runConfigUpdateChecker(ctx context.Context) {
 	if a.cfg.ConfigUpdateURL == "" {
 		a.logger.Info("Config update URL not configured, skipping config update checks")
@@ -185,20 +215,35 @@ func (a *Agent) runConfigUpdateChecker(ctx context.Context) {
 	}
 }
 
+// performConfigCheck checks remote server for new config and restart collector if required
 func (a *Agent) performConfigCheck(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	a.logger.Info("Checking for configuration updates...")
-	restart, newConfig, err := a.updater.CheckForUpdates(ctx)
+	params := updater.UpdateCheckerParams{
+		Version:     a.version,
+		AgentStatus: "Stopped",
+	}
+
+	if a.isRunning.Load() {
+		params.AgentStatus = "Running"
+	}
+	if a.collector != nil {
+		params.CollectorStatus = "Running"
+	} else {
+		params.CollectorStatus = "Stopped"
+		params.CollectorLastError = a.collectorError
+	}
+
+	restart, newConfig, err := a.updater.CheckForUpdates(ctx, params)
 	if err != nil {
 		return fmt.Errorf("updater.CheckForUpdates failed: %w", err)
 	}
-	if newConfig != nil {
+	if newConfig != nil && restart {
 		if err := a.UpdateConfig(ctx, newConfig); err != nil {
+			a.collectorError = err.Error()
 			return fmt.Errorf("failed to update config file: %w", err)
 		}
-	}
-	if restart {
 		a.logger.Info("Configuration change requires collector restart.")
 		if !a.isRunning.Load() {
 			a.logger.Info("Agent is shutting down, skipping restart.")
@@ -209,11 +254,14 @@ func (a *Agent) performConfigCheck(ctx context.Context) error {
 		go func() {
 			defer a.wg.Done()
 			if err := a.manageCollectorLifecycle(ctx); err != nil {
-				a.logger.Errorf("Collector restart failed: %v", err)
+				a.collectorError = err.Error()
 			} else {
 				a.logger.Info("Collector restarted successfully.")
+				a.collectorError = ""
 			}
 		}()
+	} else {
+		fmt.Println("No config change required")
 	}
 	return nil
 }

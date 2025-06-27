@@ -98,7 +98,7 @@ func (p *Program) Initialize(c *cli.Context) error {
 	}
 
 	// Create agent
-	p.kmAgent, err = agent.New(p.cfg, p.logger)
+	p.kmAgent, err = agent.New(p.cfg, p.logger, agent.WithVersion(p.version))
 	if err != nil {
 		return fmt.Errorf("failed to create agent: %v", err)
 	}
@@ -163,7 +163,7 @@ func main() {
 			Destination: &program.cfg.OtelConfigPath,
 		}),
 		altsrc.NewStringFlag(&cli.StringFlag{
-			Name:        "exporter-endpoint",
+			Name:        "collector-endpoint",
 			Usage:       "OpenTelemetry exporter endpoint",
 			Value:       "https://otel.kloudmate.com:4318",
 			EnvVars:     []string{"KM_COLLECTOR_ENDPOINT"},
@@ -178,7 +178,7 @@ func main() {
 		altsrc.NewIntFlag(&cli.IntFlag{
 			Name:        "config-check-interval",
 			Usage:       "Interval in seconds to check for config updates",
-			Value:       30,
+			Value:       10,
 			EnvVars:     []string{"KM_CONFIG_CHECK_INTERVAL"},
 			Destination: &program.cfg.ConfigCheckInterval,
 		}),

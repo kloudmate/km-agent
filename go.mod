@@ -45,7 +45,6 @@ require (
 	go.opentelemetry.io/collector/processor v1.31.0
 	go.opentelemetry.io/collector/processor/batchprocessor v0.125.0
 	go.opentelemetry.io/collector/receiver v1.31.0
-	go.opentelemetry.io/collector/receiver/nopreceiver v0.125.0
 	go.opentelemetry.io/collector/receiver/otlpreceiver v0.125.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -219,7 +218,6 @@ require (
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/nginx/nginx-prometheus-exporter v1.4.1 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
-	github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage v0.125.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/ecsutil v0.125.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/internal/common v0.125.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.125.0 // indirect
