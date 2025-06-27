@@ -216,24 +216,31 @@ func (a *Agent) runConfigUpdateChecker(ctx context.Context) {
 }
 
 // performConfigCheck checks remote server for new config and restart collector if required
-func (a *Agent) performConfigCheck(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+func (a *Agent) performConfigCheck(agentCtx context.Context) error {
+	ctx, cancel := context.WithTimeout(agentCtx, 10*time.Second)
 	defer cancel()
-	a.logger.Info("Checking for configuration updates...")
-	params := updater.UpdateCheckerParams{
-		Version:     a.version,
-		AgentStatus: "Stopped",
-	}
 
-	if a.isRunning.Load() {
-		params.AgentStatus = "Running"
+	a.logger.Info("Checking for configuration updates...")
+
+	a.collectorMu.Lock()
+	params := updater.UpdateCheckerParams{
+		Version: a.version,
 	}
 	if a.collector != nil {
 		params.CollectorStatus = "Running"
 	} else {
 		params.CollectorStatus = "Stopped"
-		params.CollectorLastError = a.collectorError
+		params.CollectorLastError = a.collectorError // Safe to read now
 	}
+	a.collectorMu.Unlock()
+
+	if a.isRunning.Load() {
+		params.AgentStatus = "Running"
+	} else {
+		params.AgentStatus = "Stopped"
+	}
+
+	a.logger.Debugf("Checking for updates with params: %+v", params)
 
 	restart, newConfig, err := a.updater.CheckForUpdates(ctx, params)
 	if err != nil {
@@ -249,11 +256,17 @@ func (a *Agent) performConfigCheck(ctx context.Context) error {
 			a.logger.Info("Agent is shutting down, skipping restart.")
 			return nil
 		}
+
+		if !a.isRunning.Load() {
+			a.logger.Info("Agent is shutting down, skipping restart.")
+			return nil
+		}
+
 		a.stopCollectorInstance()
 		a.wg.Add(1)
 		go func() {
 			defer a.wg.Done()
-			if err := a.manageCollectorLifecycle(ctx); err != nil {
+			if err := a.manageCollectorLifecycle(agentCtx); err != nil {
 				a.collectorError = err.Error()
 			} else {
 				a.logger.Info("Collector restarted successfully.")
@@ -261,7 +274,7 @@ func (a *Agent) performConfigCheck(ctx context.Context) error {
 			}
 		}()
 	} else {
-		fmt.Println("No config change required")
+		a.logger.Info("No configuration change or restart required.")
 	}
 	return nil
 }

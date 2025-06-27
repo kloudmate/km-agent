@@ -178,7 +178,7 @@ func main() {
 		altsrc.NewIntFlag(&cli.IntFlag{
 			Name:        "config-check-interval",
 			Usage:       "Interval in seconds to check for config updates",
-			Value:       10,
+			Value:       30,
 			EnvVars:     []string{"KM_CONFIG_CHECK_INTERVAL"},
 			Destination: &program.cfg.ConfigCheckInterval,
 		}),
