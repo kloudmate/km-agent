@@ -109,7 +109,6 @@ func (a *Agent) manageCollectorLifecycle(ctx context.Context) error {
 	a.collector = collector
 	a.collectorMu.Unlock()
 	a.logger.Info("Collector instance created. Starting its run loop...")
-	defer a.collectorMu.Unlock()
 
 	runErr := collector.Run(ctx)
 	a.logger.Infof("Collector run loop finished. Error: %v", runErr)
