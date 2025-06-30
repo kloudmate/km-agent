@@ -1,0 +1,32 @@
+name: Publish Scripts
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  publish:
+    name: Upload to S3
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Configure AWS Credentials Action for GitHub Actions
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-region: us-east-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Copy file to S3
+        run: |
+          # Replace 'path/to/your/file.txt' with the path to your file in the repo
+          # Replace 'your-s3-bucket-name' with your S3 bucket's name
+          # The last part is the destination path/filename in the bucket
+          aws s3 cp scripts/install_docker.sh s3://${{ secrets.BUCKET_NAME }}/scripts/install_docker.sh
+      - name: Invalidate CloudFront Cache
+        run: |
+          # This command invalidates the cache for the specific file uploaded.
+          # For invalidating everything, use "/*" instead of "/assets/file.txt"
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CDN_DISTRIBUTION_ID }} \
+            --paths "/scripts/*.sh"

@@ -26,9 +26,9 @@ type Config struct {
 // GetDefaultConfigPath returns the default configuration file path based on OS
 func GetDefaultConfigPath() string {
 	if runtime.GOOS == "windows" {
-		return filepath.Join(os.Getenv("ProgramData"), "km-agent", "config.yaml")
+		return filepath.Join(os.Getenv("ProgramData"), "kmagent", "config.yaml")
 	} else if runtime.GOOS == "darwin" {
-		return "/Library/Application Support/km-agent/config.yaml"
+		return "/Library/Application Support/kmagent/config.yaml"
 	} else {
 		// Linux/Unix
 		return "/etc/kmagent/config.yaml"
