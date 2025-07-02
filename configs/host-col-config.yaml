@@ -1,0 +1,66 @@
+# This config file will be used by the KM-Agent on it's first initialization.
+
+receivers:
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      load:
+        cpu_average: true
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+exporters:
+  debug:
+  otlphttp:
+    sending_queue:
+      enabled: true
+      num_consumers: 10 # Increase to process more items in parallel
+      queue_size: 10000 # Increase queue size to handle bursts
+    endpoint: ${env:KM_COLLECTOR_ENDPOINT}
+    headers:
+        Authorization: ${env:KM_API_KEY}
+
+processors:
+  batch:
+    send_batch_size: 10000
+    timeout: 10s
+  resourcedetection:
+    detectors: [system]
+    system:
+      resource_attributes:
+        host.name:
+          enabled: true
+        host.id:
+          enabled: true
+        os.type:
+          enabled: false
+  resource:
+    attributes:
+      - key: service.name
+        action: insert
+        from_attribute: host.name
+extensions:
+  # zpages:
+  #   endpoint: :55679
+
+service:
+  # extensions: [zpages]
+  pipelines:
+    metrics:
+      receivers: [hostmetrics]
+      processors: [resourcedetection, resource, batch]
+      exporters: [debug, otlphttp]
+    logs:
+      receivers: [hostmetrics]
+      processors: [resourcedetection, resource, batch]
+      exporters: [otlphttp]

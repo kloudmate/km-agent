@@ -1,0 +1,74 @@
+# This config file will be used by the KM-Agent on it's first initialization in docker mode.
+
+receivers:
+  filelog:
+    include:
+      - /var/log/**/*.log
+    exclude:
+      - /var/log/pods/kmagent*/**/*.log
+    include_file_name_resolved: true
+    include_file_path: true
+    include_file_path_resolved: true
+    max_log_size: "1MiB"
+
+  docker_stats:
+    endpoint: "unix:///var/run/docker.sock"
+    collection_interval: 30s
+    timeout: 10s
+
+  hostmetrics:
+    root_path: /hostfs
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      memory:
+      disk:
+      network:
+      filesystem:
+        include_fs_types:
+          match_type: strict
+          fs_types: [ext4, btrfs, xfs, tmpfs, devtmpfs]
+      load:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+exporters:
+  otlphttp:
+    sending_queue:
+      enabled: true
+      num_consumers: 10 # Increase to process more items in parallel
+      queue_size: 10000 # Increase queue size to handle bursts
+    endpoint: ${env:KM_COLLECTOR_ENDPOINT}
+    headers:
+      Authorization: ${env:KM_API_KEY}
+
+processors:
+  batch:
+    send_batch_size: 10000
+    timeout: 30s
+  resourcedetection:
+    detectors: [env, system, docker]
+    override: false
+  resource:
+    attributes:
+      - key: service.name
+        action: insert
+        from_attribute: host.name
+
+extensions:
+# zpages:
+#   endpoint: :55679
+
+service:
+  # extensions: [zpages]
+  pipelines:
+    metrics:
+      receivers: [hostmetrics, docker_stats]
+      processors: [resourcedetection, resource, batch]
+      exporters: [otlphttp]
+    logs:
+      receivers: [filelog]
+      processors: [resourcedetection, resource, batch]
+      exporters: [otlphttp]

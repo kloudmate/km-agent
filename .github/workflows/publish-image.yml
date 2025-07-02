@@ -1,0 +1,15 @@
+name: Docker Image Bulid For GHCR
+
+on:
+  push
+
+jobs:
+  build_and_pub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build & Push Image
+        run: |
+          docker login --username kloudmate --password ${{ secrets.GHCR_PAT }} ghcr.io
+          docker build . --tag ghcr.io/kloudmate/km-agent:latest
+          docker push ghcr.io/kloudmate/km-agent:latest

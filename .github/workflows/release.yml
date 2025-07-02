@@ -1,0 +1,84 @@
+name: Build and Upload Release Assets
+
+on:
+  release:
+    types: [created, edited] # Runs when a release is created or edited
+
+permissions:
+  contents: write # Needed to write release assets
+
+jobs:
+  build-assets:
+    name: Build and Upload Assets
+    # Prevent running on prereleases unless intended
+    # if: github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the specific Git reference (tag) associated with the release
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }} # Check out the code AT THE TAG
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install Linux packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+
+      # Extract version from the release tag name
+      - name: Determine Version
+        id: get_version
+        run: |
+          VERSION_NUMBER=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
+          echo "Using release tag version: $VERSION_NUMBER"
+          echo "VERSION=$VERSION_NUMBER" >> $GITHUB_ENV
+
+      - name: Build Linux .deb package
+        run: make VERSION=${{ env.VERSION }} package-linux-deb
+
+      - name: Build Linux .rpm package
+        run: make VERSION=${{ env.VERSION }} package-linux-rpm
+
+      - name: Build Windows Installer package (using Docker via make)
+        run: make VERSION=${{ env.VERSION }} package-windows
+
+      - name: List build artifacts # For debugging verification
+        run: |
+          ls -l dist/
+          ls -l dist/rpm/RPMS/x86_64/ # Adjust arch if needed
+          ls -l dist/win/
+      # Use a different action to upload assets to the *existing* release
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }} # URL for uploading assets to the triggering release
+          asset_path: ./dist/kmagent_${{ env.VERSION }}_amd64.deb
+          asset_name: kmagent_${{ env.VERSION }}_amd64.deb
+          asset_content_type: application/vnd.debian.binary-package
+
+      - name: Upload RPM Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./dist/rpm/RPMS/x86_64/kmagent-${{ env.VERSION }}-1.x86_64.rpm # Adjust name/path pattern!
+          asset_name: kmagent-${{ env.VERSION }}-1.x86_64.rpm # Adjust name!
+          asset_content_type: application/x-rpm
+
+      - name: Upload Windows Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./dist/win/kmagent-${{ env.VERSION }}-setup.exe # Adjust name pattern!
+          asset_name: kmagent-${{ env.VERSION }}-setup.exe # Adjust name!
+          asset_content_type: application/vnd.microsoft.portable-executable
