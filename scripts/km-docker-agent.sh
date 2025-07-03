@@ -96,6 +96,7 @@ fi
 
 # Prompt for additional directories to monitor
 ADDITIONAL_VOLUMES=""
+LOG_DIRECTORY="/var/log"
 
 read -p "📂 Do you want to monitor additional directories? (y/n): " monitor_extra
 if [[ "$monitor_extra" =~ ^[Yy]$ ]]; then
@@ -111,11 +112,30 @@ if [[ "$monitor_extra" =~ ^[Yy]$ ]]; then
     done
 fi
 
+# Function to create hard links for logs
+create_hard_links() {
+    for mount_path in "$@"; do
+        if [ -d "$mount_path" ]; then
+            for logfile in "$mount_path"/*.log; do
+                [ -e "$logfile" ] || continue  # Skip if no .log files
+                base_name=$(basename "$logfile")
+                dest_link="$LOG_DIRECTORY/$base_name"
+
+                # Remove existing symlink or file if it exists
+                [ -L "$dest_link" ] || [ -e "$dest_link" ] && rm -f "$dest_link"
+
+                # Create hard link
+                ln "$logfile" "$dest_link"
+                echo "✅ Hard link created for $logfile at $dest_link"
+            done
+        fi
+    done
+}
+
 # Docker image name
 IMAGE_NAME="ghcr.io/kloudmate/km-agent:latest"
 
 # --- Main Logic ---
-
 install_docker
 
 echo "📥 Pulling Docker image: $IMAGE_NAME..."
@@ -125,6 +145,14 @@ echo "🛑 Stopping and removing any existing 'km-agent' container..."
 if [ "$(sudo docker ps -aq -f name=km-agent)" ]; then
     sudo docker stop km-agent
     sudo docker rm km-agent
+fi
+
+
+# --- Create Hard Links for Additional Volumes ---
+if [ -n "$ADDITIONAL_VOLUMES" ]; then
+    echo "🔄 Creating hard links for logs from additional volumes..."
+    create_hard_links $ADDITIONAL_VOLUMES
+    echo "✅ Hard links created for additional log directories."
 fi
 
 echo "🚀 Running the 'km-agent' container..."
@@ -146,4 +174,5 @@ sudo docker run -d \
   $IMAGE_NAME
 
 echo "🎉 Setup complete! 'km-agent' is now running."
+
 
