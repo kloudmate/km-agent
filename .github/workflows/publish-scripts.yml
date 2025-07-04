@@ -24,6 +24,7 @@ jobs:
           # The last part is the destination path/filename in the bucket
           aws s3 cp scripts/install_docker.sh s3://${{ secrets.BUCKET_NAME }}/scripts/install_docker.sh
           aws s3 cp scripts/install_linux.sh s3://${{ secrets.BUCKET_NAME }}/scripts/install_linux.sh
+          aws s3 cp scripts/uninstall_linux.sh s3://${{ secrets.BUCKET_NAME }}/scripts/uninstall_linux.sh
       - name: Invalidate CloudFront Cache
         run: |
           # This command invalidates the cache for the specific file uploaded.
