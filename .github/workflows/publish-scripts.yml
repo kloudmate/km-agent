@@ -23,6 +23,7 @@ jobs:
           # Replace 'your-s3-bucket-name' with your S3 bucket's name
           # The last part is the destination path/filename in the bucket
           aws s3 cp scripts/install_docker.sh s3://${{ secrets.BUCKET_NAME }}/scripts/install_docker.sh
+          aws s3 cp scripts/install_linux.sh s3://${{ secrets.BUCKET_NAME }}/scripts/install_linux.sh
       - name: Invalidate CloudFront Cache
         run: |
           # This command invalidates the cache for the specific file uploaded.
