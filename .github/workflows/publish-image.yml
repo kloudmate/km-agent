@@ -1,7 +1,8 @@
 name: Docker Image Bulid For GHCR
 
 on:
-  push
+  release:
+    types: [created]
 
 jobs:
   build_and_pub:
