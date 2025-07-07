@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -44,14 +43,14 @@ func main() {
 		// Ensure logger is synced before exit to flush any buffered logs.
 		if syncErr := agent.Logger.Sync(); syncErr != nil && syncErr.Error() != "sync /dev/stdout: invalid argument" {
 			// Ignore "invalid argument" error for stdout/stderr
-			fmt.Fprintf(os.Stderr, "Failed to sync logger: %v\n", syncErr)
+			agent.Logger.Errorf(os.Stderr, "Failed to sync logger: %v\n", syncErr)
 		}
 	}()
 
 	for sig := range agent.Errs {
-		agent.Logger.Errorf("status : %v \n Gracefully shutting down", sig)
+		agent.Logger.Infof("status : %v \n Gracefully shutting down", sig)
 
-		// Deregister the km-agent from kloudmate api if required / turn of health checks
+		// Deregister the km-agent from kloudmate api if required / turn of health checks any other cleanup task
 		os.Exit(0)
 	}
 }
@@ -63,7 +62,7 @@ func handleSignals(cancelFunc context.CancelFunc) {
 
 	go func() {
 		sig := <-sigChan
-		log.Printf("Received signal %s, initiating shutdown...", sig)
+		agent.Logger.Warnf("Received signal %s, initiating shutdown...", sig)
 		cancelFunc() // Cancel the main context to trigger graceful shutdown
 	}()
 }

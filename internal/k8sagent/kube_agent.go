@@ -37,7 +37,7 @@ func NewK8sAgent() (*K8sAgent, error) {
 	// ---------- Load YAML config ----------
 	cfg, err := config.LoadK8sAgentConfig()
 	if err != nil {
-		logger.Errorw("failed to load agent config", "err", err)
+		logger.Fatalw("failed to load agent config", "err", err)
 		return nil, err
 	}
 
@@ -48,7 +48,6 @@ func NewK8sAgent() (*K8sAgent, error) {
 		return nil, err
 	}
 
-	// TODO: implementation of K8sAgentConfig rather than config.Config for updater
 	updaterCfg := updater.NewK8sConfigUpdater(cfg, logger)
 
 	// ---------- Create Kube agent ----------
@@ -60,7 +59,7 @@ func NewK8sAgent() (*K8sAgent, error) {
 		Errs:      make(chan error),
 	}
 
-	logger.Infow("kube agent initialized successfully")
+	logger.Infoln("kube agent initialized successfully")
 	return agent, nil
 }
 

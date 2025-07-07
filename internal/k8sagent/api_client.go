@@ -17,6 +17,7 @@ func initK8sClient(logger *zap.SugaredLogger) (*kubernetes.Clientset, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to build config from KUBECONFIG: %w", err)
 		}
+		logger.Infof("loaded cluster info from KUBECONFIG env")
 		return kubernetes.NewForConfig(cfg)
 	}
 
@@ -25,5 +26,6 @@ func initK8sClient(logger *zap.SugaredLogger) (*kubernetes.Clientset, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load in-cluster config: %w", err)
 	}
+	logger.Infof("loaded cluster info from In-Cluster service account")
 	return kubernetes.NewForConfig(cfg)
 }

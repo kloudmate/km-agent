@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -132,7 +131,7 @@ func LoadK8sAgentConfig() (*K8sAgentConfig, error) {
 		return nil, fmt.Errorf("error accessing agent config: %w", err)
 	}
 	if info.IsDir() {
-		return nil, errors.New("agent config path is a directory, expected a file")
+		return nil, fmt.Errorf("agent config path is a directory, expected a file")
 	}
 
 	// Read file contents
@@ -166,11 +165,19 @@ func LoadK8sAgentConfig() (*K8sAgentConfig, error) {
 	if envConfigCheckInterval := os.Getenv(EnvConfigCheckInterval); envConfigCheckInterval != "" {
 		duration, err := time.ParseDuration(envConfigCheckInterval)
 		if err != nil {
-			fmt.Errorf("failed to parse config check interval from env falling back to 10s (deafault): %w", err)
+			fmt.Print(fmt.Errorf("failed to parse config check interval from env falling back to 10s (deafault): %w", err))
 			duration = time.Duration(time.Second * 10)
 		}
 		cfg.ConfigCheckInterval = duration
 	}
 
 	return &cfg, nil
+}
+
+func (c *K8sAgentConfig) Hostname() string {
+	n, e := os.Hostname()
+	if e != nil {
+		n = ""
+	}
+	return n
 }

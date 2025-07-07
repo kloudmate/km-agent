@@ -26,13 +26,20 @@ type K8sConfigUpdater struct {
 	configPath string
 }
 
+type K8sUpdateCheckerParams struct {
+	Version            string
+	AgentStatus        string
+	CollectorStatus    string
+	CollectorLastError string
+}
+
 // ConfigUpdateResponse represents the response from the config update API
 type K8sConfigUpdateResponse struct {
 	RestartRequired bool                   `json:"restart_required"`
 	Config          map[string]interface{} `json:"config"`
 }
 
-// NewConfigUpdater creates a new config updater
+// NewK8sConfigUpdater creates a new config updater
 func NewK8sConfigUpdater(cfg *config.K8sAgentConfig, logger *zap.SugaredLogger) *K8sConfigUpdater {
 	// Determine config path
 	configPath := "/etc/kmagent/agent.yaml"
@@ -46,18 +53,18 @@ func NewK8sConfigUpdater(cfg *config.K8sAgentConfig, logger *zap.SugaredLogger) 
 }
 
 // CheckForUpdates checks for configuration updates from the remote API
-func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context) (bool, map[string]interface{}, error) {
-	// If no config update URL is configured, return nil
-	if u.cfg.ConfigUpdateURL == "" {
-		return false, nil, nil
-	}
+func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p UpdateCheckerParams) (bool, map[string]interface{}, error) {
 
 	// Create the request
 	data := map[string]interface{}{
-		"is_docker": "",
-		"hostname":  "",
-		"os":        runtime.GOOS,
-		"arch":      runtime.GOARCH,
+		"is_docker":          false,
+		"hostname":           u.cfg.Hostname(),
+		"platform":           runtime.GOOS,
+		"architecture":       runtime.GOARCH,
+		"agent_version":      p.Version,
+		"agent_status":       p.AgentStatus,
+		"collector_status":   p.CollectorStatus,
+		"last_error_message": p.CollectorLastError,
 	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -67,11 +74,12 @@ func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context) (bool, map[strin
 	reqCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel() // Ensure context resources are freed
 
-	req, err := http.NewRequestWithContext(reqCtx, "GET", u.cfg.ConfigUpdateURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(reqCtx, "POST", u.cfg.ConfigUpdateURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	req.Header.Set("Content-Type", "application/json")
 	// Add API key if configured
 	if u.cfg.APIKey != "" {
 		req.Header.Set("Authorization", u.cfg.APIKey)
@@ -96,14 +104,6 @@ func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context) (bool, map[strin
 		return false, nil, fmt.Errorf("failed to decode config update response: %w", err)
 	}
 
-	// If there's a new config, write it to disk
-	if updateResp.Config != nil {
-		if err := u.ApplyConfig(updateResp.Config); err != nil {
-			return false, nil, fmt.Errorf("failed to apply new config: %w", err)
-		}
-	}
-
-	// Return the update info
 	return updateResp.RestartRequired, updateResp.Config, nil
 }
 
