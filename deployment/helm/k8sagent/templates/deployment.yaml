@@ -16,7 +16,7 @@ spec:
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
-        - name: {{ .Chart.Name }}
+        - name: kloudmate-k8sagent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- with .Values.args }}

@@ -38,6 +38,9 @@ rbac:
 configMap:
   name: "km-agent-configmap"
 
+InstrumentationCrd:
+  name: instrumentation-crd
+
 # This is for setting Kubernetes Annotations to a Pod.
 # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
 podAnnotations: {}
@@ -62,3 +65,10 @@ volumeMounts: []
 # - name: foo
 #   mountPath: "/etc/foo"
 #   readOnly: true
+
+# ----------- Operator ------------
+opentelemetry-operator:
+  enabled: true # install the operator as part of this chart
+  admissionWebhooks:
+    certManager:
+      enabled: false
