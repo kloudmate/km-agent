@@ -1,0 +1,9 @@
+dependencies:
+- name: cert-manager
+  repository: https://charts.jetstack.io
+  version: v1.18.2
+- name: opentelemetry-operator
+  repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+  version: 0.90.0
+digest: sha256:726aa255872f4e373e4e3f43fcf52c1b14ab531b224615e670932146da983702
+generated: "2025-07-11T21:21:52.9412298+05:30"

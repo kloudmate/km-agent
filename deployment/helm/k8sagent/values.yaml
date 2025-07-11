@@ -67,7 +67,7 @@ volumeMounts: []
 #   readOnly: true
 
 # ----------- Operator ------------
-opentelemetryOperator:
+opentelemetry-operator:
 
   enabled: true # install the operator as part of this chart
   admissionWebhooks:
@@ -117,7 +117,7 @@ opentelemetryOperator:
   manager:
     createCollector: false
 
-certManager:
+cert-manager:
   enabled: true
   crds:
     enabled: false
