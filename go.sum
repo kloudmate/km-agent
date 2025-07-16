@@ -756,6 +756,8 @@ github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusrem
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusremotewriteexporter v0.128.0/go.mod h1:zQVlNw9clA3l+9Z+kaYIFPRTkuUV2ZDEGxjkFoo9Woc=
 github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.125.0 h1:tWZKZa8OctSYW3H53tPsE3TZs5koho+1WOtuePw3/6s=
 github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.125.0/go.mod h1:9sqOk3tB/ss8mPe55CcQDk7P/uhbDkuYDq4DCUCh7eI=
+github.com/open-telemetry/opentelemetry-collector-contrib/extension/k8sleaderelector v0.125.0 h1:LrfhepVwztj345nxOs+8BOAUyB7RwAu+oUkqgdr1M/w=
+github.com/open-telemetry/opentelemetry-collector-contrib/extension/k8sleaderelector v0.125.0/go.mod h1:woRathH7BO67zsoS9AWQ7SROlc3v434e2xOdi7uhzig=
 github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage v0.125.0 h1:cT04h6LstyuEKyonbMnz8Tz8U0+0vuPUxeNXBKmO2dc=
 github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage v0.125.0/go.mod h1:GeOnmgaagn8/jNZlAsn4Pr6oDdS0xzGDkh6wh1ojMv4=
 github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage v0.125.0 h1:HTfQ4AprvcIFAwmPxcphifLn79IoOgukosWMajdGMfI=
@@ -780,6 +782,8 @@ github.com/open-telemetry/opentelemetry-collector-contrib/internal/kubelet v0.12
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/kubelet v0.128.0/go.mod h1:LD4VSr7Gbx5YS1bNPqIqLraTRNTeAye9l6f0RY0hjfM=
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/metadataproviders v0.125.0 h1:2vxJgxIvDcsupqJ4L1xbMOQ7j9STUzyLGs6BWb9nRs8=
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/metadataproviders v0.125.0/go.mod h1:Kb/9yGjJVzv47IdnaCKDimKywodUMLoIcEI/k/IFlp8=
+github.com/open-telemetry/opentelemetry-collector-contrib/internal/sharedcomponent v0.125.0 h1:TwEsRGXekSd3mP4VIeEGtlcbAKiqJw/n3D7zOqZWsmA=
+github.com/open-telemetry/opentelemetry-collector-contrib/internal/sharedcomponent v0.125.0/go.mod h1:/0+8ZOjA7TgryD+jI8allj3czJRSLboTTmlG03sOc1U=
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/sqlquery v0.125.0 h1:4COfBRVPn9W1RBFvZ/r8TrnCBkw+13+YK9YRhKrKNZw=
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/sqlquery v0.125.0/go.mod h1:wTmbB4F4sAFmUMGgGBCd1+HQos8wLhpKgMQC5XhAmEs=
 github.com/open-telemetry/opentelemetry-collector-contrib/pkg/core/xidutils v0.125.0 h1:keO7zSbJbAElnSvQynRhWXdhHW8C3+UKaOABCL++6Uc=
@@ -834,6 +838,8 @@ github.com/open-telemetry/opentelemetry-collector-contrib/receiver/fluentforward
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/fluentforwardreceiver v0.125.0/go.mod h1:VmmOwS63e5UfmXl+k1vKCzikw+Tvwqet1/SiyyExnAE=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver v0.125.0 h1:YUbI1qlBlIfwilHrOWJcL21vJnveIkKKBXV66pwosSk=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver v0.125.0/go.mod h1:frwHCEQdLQ6doFxbblwDItiIdNmgYGATRVe9Ad2vNJI=
+github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sclusterreceiver v0.125.0 h1:3I+mzZ/nXB/3c/KnkXc5KDhq96IzDw3uK5s+7HgFn0o=
+github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sclusterreceiver v0.125.0/go.mod h1:GgxIENT2uoLjCgu3Uz5q13UiC58CqYDdCm47jb56oyw=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kafkametricsreceiver v0.125.0 h1:kvsF/vziGkQoZK4q35JxT2nM/OWxCyyTTcpec2nt1YQ=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kafkametricsreceiver v0.125.0/go.mod h1:2K6LR0+701DTP9e5aFSrqnPoPjt/+AbEe8xmxnoQf1o=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kubeletstatsreceiver v0.125.0 h1:dYSSatslAKYsXPY7xpufUqjWJxLneKlbEjCyUW6kbvY=

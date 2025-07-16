@@ -26,10 +26,35 @@ func GenerateCollectorConfig(kcfg *config.K8sAgentConfig) (map[string]any, error
 	processors := map[string]interface{}{}
 	exporters := map[string]interface{}{
 		"debug": map[string]interface{}{
-			"verbosity": "basic",
+			"verbosity": "detailed",
 		},
 	}
 	pipelines := map[string]interface{}{}
+
+	// listen on all network interfaces
+	receivers["oltp"] = map[string]interface{}{
+		"protocols": map[string]interface{}{
+			"grpc": map[string]interface{}{
+				"endpoint": "0.0.0.0:4317",
+			},
+			"http": map[string]interface{}{
+				"endpoint": "0.0.0.0:4318",
+			},
+		},
+	}
+
+	exporters["otlphttp"] = map[string]interface{}{
+		"headers": map[string]interface{}{
+			"Authorization": kcfg.ExporterEndpoint,
+		},
+		"endpoint": kcfg.APIKey,
+	}
+
+	// batch processer for efficiency
+	processors["batch"] = map[string]interface{}{
+		"send_batch_size": "1000",
+		"timeout":         "10s",
+	}
 
 	collectionInterval := "30s"
 	if kcfg.Monitoring.CollectionInterval != "" {
