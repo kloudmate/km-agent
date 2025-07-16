@@ -32,7 +32,7 @@ func GenerateCollectorConfig(kcfg *config.K8sAgentConfig) (map[string]any, error
 	pipelines := map[string]interface{}{}
 
 	// listen on all network interfaces
-	receivers["oltp"] = map[string]interface{}{
+	receivers["otlp"] = map[string]interface{}{
 		"protocols": map[string]interface{}{
 			"grpc": map[string]interface{}{
 				"endpoint": "0.0.0.0:4317",
@@ -52,7 +52,7 @@ func GenerateCollectorConfig(kcfg *config.K8sAgentConfig) (map[string]any, error
 
 	// batch processer for efficiency
 	processors["batch"] = map[string]interface{}{
-		"send_batch_size": "1000",
+		"send_batch_size": 1000,
 		"timeout":         "10s",
 	}
 
