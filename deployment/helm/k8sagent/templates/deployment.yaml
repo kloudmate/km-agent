@@ -1,17 +1,19 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: {{ include "k8sagent.fullname" . }}
+  name: kloudmate-agent
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "k8sagent.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
+      app: kloudmate-agent
       {{- include "k8sagent.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
+        app: kloudmate-agent
         {{- include "k8sagent.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
@@ -27,9 +29,16 @@ spec:
             - name: KM_API_KEY
               value: {{ .Values.API_KEY }}
             - name: KM_COLLECTOR_ENDPOINT
-              value: {{ .Values.COLLECTOR_ENDPOINT | default https://otel.kloudmate.com:4318 }}
+              value: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }}
             - name: KM_CONFIG_CHECK_INTERVAL
-              value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default 30s }}
+              value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default "30s" }}
+          ports:
+            - name: otlp-grpc
+              containerPort: 4317
+              protocol: TCP
+            - name: otlp-http
+              containerPort: 4318
+              protocol: TCP
           volumeMounts:
             - name: agent-config-volume
               mountPath: "/etc/kmagent/agent.yaml"

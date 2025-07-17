@@ -4,14 +4,15 @@ description: A Helm chart for Kloumate's Kubernetes flavored Agent
 type: application
 version: 1.0.0
 appVersion: "1.0.0"
+icon: https://avatars.githubusercontent.com/u/103623326?s=48&v=4
 
 dependencies:
   - name: cert-manager
     version: v1.18.2
     repository: https://charts.jetstack.io
-    condition: certManager.enabled
+    condition: cert-manager.enabled
 
   - name: opentelemetry-operator
     version: 0.90.0
     repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-    condition: opentelemetryOperator.enabled
+    condition: opentelemetry-operator.enabled

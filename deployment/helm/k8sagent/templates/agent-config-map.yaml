@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Values.configMap.name }}  # Name of your ConfigMap
+  name: {{ .Values.configMap.name }}
   namespace: {{ .Release.Namespace }}
 data:
   # The key here will become the filename inside the mountPath.
@@ -10,7 +10,7 @@ data:
 
     key: {{ .Values.API_KEY }}
     debug: normal
-    endpoint: {{ .Values.COLLECTOR_ENDPOINT | default https://otel.kloudmate.com:4318 }}
+    endpoint: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }}
     interval: 10s
 
     monitoring:
@@ -21,7 +21,7 @@ data:
       
       # Cluster monitoring
       cluster:
-        enabled: true
+        enabled: false
         metrics:
           - cpu_usage
           - memory_usage
@@ -32,7 +32,7 @@ data:
           
       # Node monitoring  
       nodes:
-        enabled: true
+        enabled: false
         # Monitor all nodes or specific ones
         monitor_all: true
         # Or specify specific nodes
@@ -49,7 +49,7 @@ data:
           
       # Pod monitoring
       pods:
-        enabled: true
+        enabled: false
         # Monitor all namespaces or specific ones
         monitor_all_namespaces: false
         namespaces: 

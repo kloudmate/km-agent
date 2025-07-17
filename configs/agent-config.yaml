@@ -23,7 +23,7 @@ monitoring:
       
   # Node monitoring  
   nodes:
-    enabled: true
+    enabled: false
     # Monitor all nodes or specific ones
     monitor_all: true
     # Or specify specific nodes
@@ -40,7 +40,7 @@ monitoring:
       
   # Pod monitoring
   pods:
-    enabled: true
+    enabled: false
     # Monitor all namespaces or specific ones
     monitor_all_namespaces: false
     namespaces: 

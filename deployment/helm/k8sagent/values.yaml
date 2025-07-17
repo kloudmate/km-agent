@@ -2,17 +2,17 @@
 replicaCount: 1
 
 # The api key is a must to be passed and it will be injected in the configmap
-API_KEY:
+API_KEY: KM_API_KEY
 COLLECTOR_ENDPOINT:
-KM_CONFIG_CHECK_INTERVAL:
+KM_CONFIG_CHECK_INTERVAL: 30s
 
 # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
 image:
   repository: ghcr.io/kloudmate/km-agent-k8s
   # This sets the pull policy for images.
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: "latest"
 
 # This is to override the chart name.
 nameOverride: ""
@@ -31,7 +31,7 @@ serviceAccount:
   name: "km-svc-account"
 
 rbac:
-  # -- The ClusterRole name from your original ClusterRoleBinding.
+  # -- The ClusterRole name
   clusterRoleName: km-cluster-role
   ClusterRoleBindingName: km-agent-cluster-binding
 
@@ -66,9 +66,20 @@ volumeMounts: []
 #   mountPath: "/etc/foo"
 #   readOnly: true
 
+selectorLabels:
+  app.kubernetes.io/component: km-k8sagent
+
+extraLabels:
+  app.kubernetes.io/name: km-k8sdaemonset
+  app.kubernetes.io/instance: kloudmate-prod-release # Or "{{ .Release.Name }}" in Helm
+  app.kubernetes.io/component: km-k8sagent-deployment
+  app.kubernetes.io/part-of: observability-apm
+
+
 # ----------- Operator ------------
 opentelemetry-operator:
-
+  crds:
+    create: true
   enabled: true # install the operator as part of this chart
   admissionWebhooks:
     certManager:
@@ -114,8 +125,10 @@ opentelemetry-operator:
       recreate: true
       # Cert period time in days. The default is 365 days.
       certPeriodDays: 365
+  
   manager:
-    createCollector: false
+    resources: {}
+    # createCollector: false
 
 cert-manager:
   enabled: true

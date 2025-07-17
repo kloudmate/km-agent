@@ -40,6 +40,9 @@ helm.sh/chart: {{ include "k8sagent.chart" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.extraLabels }}
+{{ toYaml . }}
+{{- end }}     
 {{- end }}
 
 {{/*
@@ -48,6 +51,9 @@ Selector labels
 {{- define "k8sagent.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "k8sagent.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+{{- with .Values.selectorLabels }}
+{{ toYaml . }}
+{{- end }}
 {{- end }}
 
 {{/*

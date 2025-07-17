@@ -3,6 +3,7 @@ kind: Instrumentation
 metadata:
   name: {{ .Values.InstrumentationCrd.name }}
 spec:
+  releaseName: {{ .Release.Name }}
   exporter:
     endpoint: http://kloudmate-k8sagent.{{ .Release.Namespace }}.svc.cluster.local:4317
   propagators:
