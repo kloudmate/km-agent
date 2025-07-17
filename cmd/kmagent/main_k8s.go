@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/kloudmate/km-agent/internal/k8sagent"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -18,13 +19,13 @@ func main() {
 	appCtx, cancelAppCtx := context.WithCancel(context.Background())
 	defer cancelAppCtx()
 
-	// Handle OS signals for graceful shutdown.
-	handleSignals(cancelAppCtx)
-
 	agent, err := k8sagent.NewK8sAgent()
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Handle OS signals for graceful shutdown.
+	handleSignals(cancelAppCtx, agent.Logger)
 
 	agent.FilterValidResources(appCtx, agent.Logger)
 	// agent.Logger.Infof("cluster in config : %s\n", agent.Cfg.Monitoring.ClusterName)
@@ -43,7 +44,7 @@ func main() {
 		// Ensure logger is synced before exit to flush any buffered logs.
 		if syncErr := agent.Logger.Sync(); syncErr != nil && syncErr.Error() != "sync /dev/stdout: invalid argument" {
 			// Ignore "invalid argument" error for stdout/stderr
-			agent.Logger.Errorf(os.Stderr, "Failed to sync logger: %v\n", syncErr)
+			agent.Logger.Errorf("Failed to sync logger: %v\n", syncErr)
 		}
 	}()
 
@@ -56,13 +57,13 @@ func main() {
 }
 
 // handleSignals sets up a signal handler to gracefully shut down the agent.
-func handleSignals(cancelFunc context.CancelFunc) {
+func handleSignals(cancelFunc context.CancelFunc, l *zap.SugaredLogger) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		sig := <-sigChan
-		agent.Logger.Warnf("Received signal %s, initiating shutdown...", sig)
+		l.Warnf("Received signal %s, initiating shutdown...", sig)
 		cancelFunc() // Cancel the main context to trigger graceful shutdown
 	}()
 }
