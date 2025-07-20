@@ -1,3 +1,6 @@
+//go:build k8s
+// +build k8s
+
 package updater
 
 import (
@@ -6,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -45,9 +49,16 @@ func NewK8sConfigUpdater(cfg *config.K8sAgentConfig, logger *zap.SugaredLogger) 
 	configPath := "/etc/kmagent/agent.yaml"
 
 	return &K8sConfigUpdater{
-		cfg:        cfg,
-		logger:     logger,
-		client:     &http.Client{Timeout: 30 * time.Second},
+		cfg:    cfg,
+		logger: logger,
+		client: &http.Client{
+			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				DialContext:           (&net.Dialer{Timeout: 5 * time.Second}).DialContext,
+				TLSHandshakeTimeout:   5 * time.Second,
+				ResponseHeaderTimeout: 5 * time.Second,
+			},
+		},
 		configPath: configPath,
 	}
 }
@@ -59,7 +70,7 @@ func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p UpdateCheckerP
 	data := map[string]interface{}{
 		"is_docker":          false,
 		"hostname":           u.cfg.Hostname(),
-		"platform":           runtime.GOOS,
+		"platform":           "kubernetes",
 		"architecture":       runtime.GOARCH,
 		"agent_version":      p.Version,
 		"agent_status":       p.AgentStatus,
