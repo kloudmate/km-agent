@@ -32,7 +32,7 @@ type K8sAgent struct {
 	version         string
 }
 
-func NewK8sAgent() (*K8sAgent, error) {
+func NewK8sAgent(version string) (*K8sAgent, error) {
 	// ---------- Logging ----------
 	zapLogger, err := zap.NewProduction()
 	if err != nil {
@@ -63,6 +63,7 @@ func NewK8sAgent() (*K8sAgent, error) {
 		Logger:    logger,
 		K8sClient: k8sClient,
 		updater:   updaterCfg,
+		version:   version,
 		stopCh:    make(chan struct{}),
 	}
 

@@ -13,12 +13,14 @@ import (
 	"github.com/kloudmate/km-agent/internal/k8sagent"
 )
 
+var version = "0.1.0"
+
 func main() {
 	// Set up the main context for the application, which can be cancelled for shutdown.
 	appCtx, cancelAppCtx := context.WithCancel(context.Background())
 	defer cancelAppCtx()
 
-	agent, err := k8sagent.NewK8sAgent()
+	agent, err := k8sagent.NewK8sAgent(version)
 	if err != nil {
 		log.Fatal(err)
 	}
