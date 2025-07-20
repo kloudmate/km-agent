@@ -1,0 +1,62 @@
+name: Release Helm Chart
+
+on:
+  push:
+    branches:
+      - main
+    # The workflow will only run if changes are pushed to the specified paths.
+    # This prevents the workflow from running on every commit to main.
+    paths:
+      - 'deployment/helm/k8sagent/**'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 is required for chart-releaser to be able to look at the git history.
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # necessary for the linting and dependency-building steps.
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.12.0 # specific Helm version for consistency
+
+      # This step checks the chart for syntax and best practice issues.
+      - name: Lint Helm Charts
+        run: |
+          find deployment/helm/k8sagent -mindepth 1 -maxdepth 1 -type d | xargs -L1 helm lint deployment/helm/k8sagent
+
+      # Build chart dependencies.
+      # dependencies listed in Chart.yaml, this step will fetch them.
+      - name: Build Chart Dependencies
+        run: |
+          find deployment/helm/k8sagent -mindepth 1 -maxdepth 1 -type d | xargs -L1 helm dependency build deployment/helm/k8sagent
+
+      # Configure Git.
+      # The chart-releaser action needs to commit to the gh-pages branch.
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      # Run the chart-releaser action.
+      # This is the core step that handles the release process.
+      # How it works:
+      # 1. It inspects the 'Chart.yaml' file of the agent chart in the 'k8sagent' directory.
+      # 2. It compares the 'version' in the file with the existing GitHub Releases available in the repository.
+      # 3. If a release for that version does not exist, it proceeds to "build" the chart.
+      # 4. "Building" involves:
+      #    a. Packaging the chart into a .tgz file.
+      #    b. Creating a new GitHub Release, tagged with the chart name and version (e.g., k8sagent-v0.1.0).
+      #    c. Uploading the .tgz package as an asset to that GitHub Release.
+      #    d. Updating the 'index.yaml' file for agent's Helm repository.
+      #    e. Committing the packaged chart and the updated 'index.yaml' to the 'gh-pages' branch, making it available for 'helm repo add'.
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.5.0
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
