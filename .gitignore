@@ -10,6 +10,7 @@
 *.dylib
 /main
 *.TODO
+*.tgz
 builds
 # Test binary, built with `go test -c`
 *.test

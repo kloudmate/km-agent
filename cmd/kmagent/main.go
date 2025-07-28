@@ -1,12 +1,15 @@
+//go:build !k8s
+
 package main
 
 import (
 	"context"
 	"fmt"
-	"github.com/urfave/cli/v2/altsrc"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/urfave/cli/v2/altsrc"
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
