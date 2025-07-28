@@ -6,7 +6,7 @@ metadata:
 data:
   # The key here will become the filename inside the mountPath.
   # We name it exactly "agent.config.yaml" so it appears as such.
-  agent-config.yaml: |
+  agent.yaml: |
 
     key: {{ .Values.API_KEY }}
     debug: normal

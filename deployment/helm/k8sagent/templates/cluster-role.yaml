@@ -1,7 +1,8 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ .Release.Namespace }}
+  name: {{ .Values.rbac.clusterRoleName }}
+  namespace: {{ .Values.rbac.clusterRoleNamespace }}
 rules:
 - apiGroups: [""]
   resources: ["nodes", "pods", "services", "endpoints", "namespaces", "configmaps", "secrets", "events", "persistentvolumes"]

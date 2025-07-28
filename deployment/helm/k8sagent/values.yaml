@@ -33,7 +33,10 @@ serviceAccount:
 rbac:
   # -- The ClusterRole name
   clusterRoleName: km-cluster-role
+  clusterRoleNamespace: default
+
   ClusterRoleBindingName: km-agent-cluster-binding
+  ClusterRoleBindingNamespace: default
 
 configMap:
   name: "km-agent-configmap"

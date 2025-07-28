@@ -43,7 +43,7 @@ spec:
             - name: agent-config-volume
               mountPath: "/etc/kmagent/agent.yaml"
               readOnly: true
-              subPath: "agent-config.yaml"
+              subPath: "agent.yaml"
             - name: varlog
               mountPath: /var/log
               readOnly: true
