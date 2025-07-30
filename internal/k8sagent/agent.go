@@ -76,7 +76,7 @@ func NewK8sAgent(version string) (*K8sAgent, error) {
 }
 
 // StartAgent first creates a otel config from agent config and then runs the agent
-func (km *K8sAgent) StartAgent(ctx context.Context, cfg map[string]interface{}) error {
+func (km *K8sAgent) StartAgent(ctx context.Context) error {
 
 	return km.Start(ctx)
 }

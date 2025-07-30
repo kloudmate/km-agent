@@ -31,13 +31,7 @@ func main() {
 	// agent.FilterValidResources(appCtx, agent.Logger)
 	// agent.Logger.Infof("cluster in config : %s\n", agent.Cfg.Monitoring.ClusterName)
 
-	otelCfg, err := k8sagent.GenerateCollectorConfig(agent.Cfg)
-
-	if err != nil {
-		log.Fatalf("agent could not generate collector config : %s", err.Error())
-	}
-
-	if err = agent.StartAgent(appCtx, otelCfg); err != nil {
+	if err = agent.StartAgent(appCtx); err != nil {
 		log.Fatalf("agent could not be started with current config : %s", err.Error())
 	}
 
@@ -45,7 +39,7 @@ func main() {
 		// Ensure logger is synced before exit to flush any buffered logs.
 		if syncErr := agent.Logger.Sync(); syncErr != nil && syncErr.Error() != "sync /dev/stdout: invalid argument" {
 			// Ignore "invalid argument" error for stdout/stderr
-			agent.Logger.Errorf("Failed to sync logger: %v\n", syncErr)
+			agent.Logger.Warnf("Failed to sync logger: %v\n", syncErr)
 		}
 	}()
 }

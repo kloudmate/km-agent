@@ -194,9 +194,9 @@ data:
     exporters:
       # OTLP Exporter: Sends all processed telemetry data (metrics, traces, logs) to your Kloudmate backend.
       otlphttp:
-        endpoint: "otel.kloudmate.com:4318" # <-- REPLACE with your actual Kloudmate OTLP endpoint (port 4317 for gRPC, 4318 for HTTP)
+        endpoint: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }} (port 4317 for gRPC, 4318 for HTTP)
         headers:
-            Authorization: ${env:KM_API_KEY}
+            Authorization: {{ .Values.API_KEY }}
         tls:
           insecure: true # Set to 'false' and configure proper 'ca_file' etc. for production (especially for 4317 gRPC)
           # ca_file: /etc/ssl/certs/ca-certificates.crt # Path to CA cert bundle
