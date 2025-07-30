@@ -22,81 +22,12 @@ const (
 )
 
 type K8sAgentConfig struct {
+	OtelCollectorConfig map[string]interface{}
 	AgentConfigPath     string
 	ExporterEndpoint    string
 	ConfigUpdateURL     string
-	APIKey              string `yaml:"apikey"`
+	APIKey              string
 	ConfigCheckInterval time.Duration
-
-	//k8s monitoring configs
-	Monitoring struct {
-		ClusterName        string `yaml:"cluster_name"`
-		CollectionInterval string `yaml:"collection_interval"`
-
-		Cluster struct {
-			Enabled bool     `yaml:"enabled"`
-			Metrics []string `yaml:"metrics"`
-		} `yaml:"cluster"`
-
-		Nodes struct {
-			Enabled       bool     `yaml:"enabled"`
-			MonitorAll    bool     `yaml:"monitor_all"`
-			SpecificNodes []string `yaml:"specific_nodes"`
-			Metrics       []string `yaml:"metrics"`
-		} `yaml:"nodes"`
-
-		Pods struct {
-			Enabled              bool `yaml:"enabled"`
-			MonitorAllNamespaces bool `yaml:"monitor_all_namespaces"`
-
-			Namespaces struct {
-				Include []string `yaml:"include"`
-				Exclude []string `yaml:"exclude"`
-			} `yaml:"namespaces"`
-
-			SpecificPods []struct {
-				Name      string `yaml:"name"`
-				Namespace string `yaml:"namespace"`
-			} `yaml:"specific_pods"`
-
-			Metrics []string `yaml:"metrics"`
-		} `yaml:"pods"`
-
-		NamedResources struct {
-			Enabled bool `yaml:"enabled"`
-
-			Deployments []struct {
-				Name      string `yaml:"name"`
-				Namespace string `yaml:"namespace"`
-			} `yaml:"deployments"`
-
-			Services []struct {
-				Name      string `yaml:"name"`
-				Namespace string `yaml:"namespace"`
-			} `yaml:"services"`
-
-			ConfigMaps []struct {
-				Name      string `yaml:"name"`
-				Namespace string `yaml:"namespace"`
-			} `yaml:"configmaps"`
-
-			Secrets []struct {
-				Name      string `yaml:"name"`
-				Namespace string `yaml:"namespace"`
-			} `yaml:"secrets"`
-
-			PersistentVolumes []struct {
-				Name string `yaml:"name"`
-			} `yaml:"persistent_volumes"`
-
-			Metrics []string `yaml:"metrics"`
-		} `yaml:"named_resources"`
-
-		Logs struct {
-			Enabled bool     `yaml:"enabled"`
-			Sources []string `yaml:"sources"`
-		} `yaml:"logs"`
-	} `yaml:"monitoring"`
 }
 
 // LoadK8sAgentConfig loads and parses the agent config from the default path for kube agent.
@@ -130,7 +61,7 @@ func LoadK8sAgentConfig() (*K8sAgentConfig, error) {
 
 	// Parse YAML into struct
 	var cfg K8sAgentConfig
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	if err := yaml.Unmarshal(data, &cfg.OtelCollectorConfig); err != nil {
 		return nil, fmt.Errorf("failed to parse agent config YAML: %w", err)
 	}
 

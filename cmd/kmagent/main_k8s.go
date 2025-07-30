@@ -32,8 +32,10 @@ func main() {
 	// agent.Logger.Infof("cluster in config : %s\n", agent.Cfg.Monitoring.ClusterName)
 
 	if err = agent.StartAgent(appCtx); err != nil {
-		log.Fatalf("agent could not be started with current config : %s", err.Error())
+		agent.Logger.Errorf("agent could not be started with current config : %s", err.Error())
 	}
+
+	agent.AwaitShutdown()
 
 	defer func() {
 		// Ensure logger is synced before exit to flush any buffered logs.

@@ -226,3 +226,7 @@ func (a *K8sAgent) UpdateConfigMap(cfg map[string]interface{}) error {
 
 	return nil
 }
+
+func (a *K8sAgent) AwaitShutdown() {
+	a.wg.Wait()
+}
