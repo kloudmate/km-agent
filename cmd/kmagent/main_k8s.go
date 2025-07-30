@@ -28,7 +28,7 @@ func main() {
 	// Handle OS signals for graceful shutdown.
 	handleSignals(cancelAppCtx, agent)
 
-	agent.FilterValidResources(appCtx, agent.Logger)
+	// agent.FilterValidResources(appCtx, agent.Logger)
 	// agent.Logger.Infof("cluster in config : %s\n", agent.Cfg.Monitoring.ClusterName)
 
 	otelCfg, err := k8sagent.GenerateCollectorConfig(agent.Cfg)

@@ -2,8 +2,9 @@ apiVersion: opentelemetry.io/v1alpha1
 kind: Instrumentation
 metadata:
   name: {{ .Values.InstrumentationCrd.name }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  releaseName: {{ .Release.Name }}
   exporter:
     endpoint: http://kloudmate-k8sagent.{{ .Release.Namespace }}.svc.cluster.local:4317
   propagators:

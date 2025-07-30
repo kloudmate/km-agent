@@ -32,6 +32,12 @@ spec:
               value: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }}
             - name: KM_CONFIG_CHECK_INTERVAL
               value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default "30s" }}
+            - name: CONFIGMAP_NAME
+              value: {{ .Values.configMap.name }}
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           ports:
             - name: otlp-grpc
               containerPort: 4317

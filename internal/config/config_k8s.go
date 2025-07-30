@@ -6,7 +6,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -98,30 +97,6 @@ type K8sAgentConfig struct {
 			Sources []string `yaml:"sources"`
 		} `yaml:"logs"`
 	} `yaml:"monitoring"`
-}
-
-func WriteTempOtelConfig(cfg map[string]interface{}) error {
-
-	yamlBytes, err := yaml.Marshal(cfg)
-	if err != nil {
-		return fmt.Errorf("marshal error: %w", err)
-	}
-
-	configDir := filepath.Dir(DefaultAgentConfigPath)
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
-	}
-
-	tempFile := DefaultAgentConfigPath + ".new"
-	if err := os.WriteFile(tempFile, yamlBytes, 0644); err != nil {
-		return fmt.Errorf("failed to write new config to temporary file: %w", err)
-	}
-
-	if err := os.Rename(tempFile, DefaultAgentConfigPath); err != nil {
-		return fmt.Errorf("failed to replace config file: %w", err)
-	}
-
-	return nil
 }
 
 // LoadK8sAgentConfig loads and parses the agent config from the default path for kube agent.

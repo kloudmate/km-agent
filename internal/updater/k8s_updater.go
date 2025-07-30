@@ -16,10 +16,9 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/kloudmate/km-agent/internal/config"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
-
-	"github.com/kloudmate/km-agent/internal/config"
 )
 
 // ConfigUpdater handles configuration updates from a remote API
@@ -46,7 +45,7 @@ type K8sConfigUpdateResponse struct {
 // NewK8sConfigUpdater creates a new config updater
 func NewK8sConfigUpdater(cfg *config.K8sAgentConfig, logger *zap.SugaredLogger) *K8sConfigUpdater {
 	// Determine config path
-	configPath := "/etc/kmagent/agent.yaml"
+	configPath := config.DefaultAgentConfigPath
 
 	return &K8sConfigUpdater{
 		cfg:    cfg,

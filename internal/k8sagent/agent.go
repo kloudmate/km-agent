@@ -5,6 +5,7 @@ package k8sagent
 
 import (
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -14,7 +15,10 @@ import (
 	"github.com/kloudmate/km-agent/internal/updater"
 	"go.opentelemetry.io/collector/otelcol"
 	"go.uber.org/zap"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/yaml"
 )
 
 type K8sAgent struct {
@@ -73,10 +77,6 @@ func NewK8sAgent(version string) (*K8sAgent, error) {
 
 // StartAgent first creates a otel config from agent config and then runs the agent
 func (km *K8sAgent) StartAgent(ctx context.Context, cfg map[string]interface{}) error {
-	err := config.WriteTempOtelConfig(cfg)
-	if err != nil {
-		return fmt.Errorf("temp config write error: %w", err)
-	}
 
 	return km.Start(ctx)
 }
@@ -165,7 +165,7 @@ func (a *K8sAgent) performConfigCheck(agentCtx context.Context) error {
 		return fmt.Errorf("updater.CheckForUpdates failed: %w", err)
 	}
 	if newConfig != nil && restart {
-		if err := config.WriteTempOtelConfig(newConfig); err != nil {
+		if err := a.UpdateConfigMap(newConfig); err != nil {
 			return fmt.Errorf("failed to update config file: %w", err)
 		}
 		a.Logger.Infoln("Configuration change requires collector restart.")
@@ -188,4 +188,41 @@ func (a *K8sAgent) performConfigCheck(agentCtx context.Context) error {
 
 func (a *K8sAgent) Stopch() {
 	close(a.stopCh)
+}
+
+func (a *K8sAgent) UpdateConfigMap(cfg map[string]interface{}) error {
+
+	yamlBytes, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("marshal error: %w", err)
+	}
+
+	// configDir := filepath.Dir(config.DefaultAgentConfigPath)
+	// if err := os.MkdirAll(configDir, 0755); err != nil {
+	// 	return fmt.Errorf("failed to create config directory: %w", err)
+	// }
+
+	configMaps := a.K8sClient.CoreV1().ConfigMaps(os.Getenv("POD_NAMESPACE"))
+
+	_, err = configMaps.Update(context.TODO(), &corev1.ConfigMap{
+		Data: map[string]string{"agent.yaml": string(yamlBytes)},
+		ObjectMeta: v1.ObjectMeta{
+			Name: os.Getenv("CONFIGMAP_NAME"),
+		},
+	}, v1.UpdateOptions{})
+
+	if err != nil {
+		a.Logger.Errorln(err)
+	}
+
+	// tempFile := config.DefaultAgentConfigPath + ".new"
+	// if err := os.WriteFile(tempFile, yamlBytes, 0644); err != nil {
+	// 	return fmt.Errorf("failed to write new config to temporary file: %w", err)
+	// }
+
+	// if err := os.Rename(tempFile, config.DefaultAgentConfigPath); err != nil {
+	// 	return fmt.Errorf("failed to replace config file: %w", err)
+	// }
+
+	return nil
 }

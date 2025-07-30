@@ -3,10 +3,18 @@ kind: ClusterRole
 metadata:
   name: {{ .Values.rbac.clusterRoleName }}
   namespace: {{ .Values.rbac.clusterRoleNamespace }}
+
+  labels:
+    {{- include "k8sagent.labels" . | nindent 4 }}
 rules:
 - apiGroups: [""]
   resources: ["nodes", "pods", "services", "endpoints", "namespaces", "configmaps", "secrets", "events", "persistentvolumes"]
   verbs: ["get", "list", "watch"]
+
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch","update"]
+  
 - apiGroups: ["apps"]
   resources: ["deployments", "replicasets"]
   verbs: ["get", "list", "watch"]
