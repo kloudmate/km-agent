@@ -204,6 +204,31 @@ func main() {
 			EnvVars:     []string{"KM_DOCKER_ENDPOINT"},
 			Destination: &program.cfg.DockerEndpoint,
 		}),
+		// --- Synthetic Monitoring Flags ---
+		altsrc.NewBoolFlag(&cli.BoolFlag{
+			Name:        "synthetics-enabled",
+			Usage:       "Enable the synthetic monitoring worker",
+			EnvVars:     []string{"KM_SYNTHETICS_ENABLED"},
+			Destination: &program.cfg.SyntheticsEnabled,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "synthetics-backend-url",
+			Usage:       "WebSocket URL for the synthetic monitoring server",
+			EnvVars:     []string{"KM_SYNTHETICS_BACKEND_URL"},
+			Destination: &program.cfg.SyntheticsBackendURL,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "synthetics-api-key",
+			Usage:       "API key for the synthetic monitoring server",
+			EnvVars:     []string{"KM_SYNTHETICS_API_KEY"},
+			Destination: &program.cfg.SyntheticsAPIKey,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "synthetics-region",
+			Usage:       "Region identifier for the synthetic worker",
+			EnvVars:     []string{"KM_SYNTHETICS_REGION"},
+			Destination: &program.cfg.SyntheticsRegion,
+		}),
 	}
 
 	// Create CLI app

@@ -21,6 +21,10 @@ type Config struct {
 	ConfigCheckInterval int
 	DockerMode          bool
 	DockerEndpoint      string
+	SyntheticsEnabled    bool                  `yaml:"synthetics_enabled"`
+	SyntheticsBackendURL string                `yaml:"synthetics_backend_url"`
+	SyntheticsAPIKey     string                `yaml:"synthetics_api_key"`
+	SyntheticsRegion     string                `yaml:"synthetics_region"`
 }
 
 // GetDefaultConfigPath returns the default configuration file path based on OS
