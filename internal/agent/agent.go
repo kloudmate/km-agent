@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
-
+    "github.com/google/uuid"
 	"github.com/kloudmate/km-agent/internal/config"
 	"github.com/kloudmate/km-agent/internal/updater"
 	"go.opentelemetry.io/collector/otelcol"
+	"github.com/kloudmate/synthetic-agent/worker"
 	"go.uber.org/zap"
 )
 
@@ -69,6 +70,8 @@ func (a *Agent) StartAgent(ctx context.Context) error {
 		}
 	}()
 
+	a.startSyntheticWorker()
+
 	a.wg.Add(2)
 	go func() {
 		defer a.wg.Done()
@@ -83,6 +86,31 @@ func (a *Agent) StartAgent(ctx context.Context) error {
 	a.logger.Info("Agent start sequence initiated.")
 	setupComplete = true
 	return nil
+}
+
+func (a *Agent) startSyntheticWorker() {
+
+	if !a.cfg.SyntheticsEnabled {
+		a.logger.Info("Synthetic worker mode is disabled.")
+		return
+	}
+
+	if a.cfg.SyntheticsBackendURL == "" || a.cfg.SyntheticsAPIKey == "" { 
+		a.logger.Warn("Synthetic worker is enabled but backend_url or api_key is missing. Worker will not start.")
+		return
+	}
+
+	a.logger.Info("Synthetic worker mode is enabled. Initializing...")
+
+	
+	workerConfig := worker.Config{
+		BackendURL: a.cfg.SyntheticsBackendURL,
+		APIKey:     a.cfg.SyntheticsAPIKey,     
+		Region:     a.cfg.SyntheticsRegion,     
+		AgentID:    uuid.New().String(),
+	}
+
+	go worker.Run(workerConfig)
 }
 
 // Shutdown gracefully shuts down the agent
