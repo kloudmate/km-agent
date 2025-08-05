@@ -4,15 +4,12 @@
 package config
 
 import (
-	"fmt"
-	"os"
-	"time"
-
-	"gopkg.in/yaml.v3"
+	"go.uber.org/zap"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
-	DefaultAgentConfigPath = "/etc/kmagent/agent.yaml"
+	DefaultConfigmapMountPath = "/etc/kmagent/agent.yaml"
 
 	EnvAPIKey              = "KM_API_KEY"
 	EnvAgentConfig         = "KM_AGENT_CONFIG"
@@ -22,81 +19,36 @@ const (
 )
 
 type K8sAgentConfig struct {
+	Logger    *zap.SugaredLogger
+	K8sClient *kubernetes.Clientset
+	StopCh    chan struct{}
+	Version   string
+
 	OtelCollectorConfig map[string]interface{}
-	AgentConfigPath     string
 	ExporterEndpoint    string
 	ConfigUpdateURL     string
 	APIKey              string
-	ConfigCheckInterval time.Duration
+	ConfigCheckInterval string
+	// Kubernetes specific
+	KubeNamespace string
+	ClusterName   string
+	ConfigmapName string
 }
 
-// LoadK8sAgentConfig loads and parses the agent config from the default path for kube agent.
-func LoadK8sAgentConfig() (*K8sAgentConfig, error) {
-	agentConfig := ""
+func NewKubeConfig(cfg K8sAgentConfig, clientset *kubernetes.Clientset, logger *zap.Logger) (*K8sAgentConfig, error) {
 
-	// Set AgentConfig from environment variable if available
-	if envAgentConfig := os.Getenv(EnvAgentConfig); envAgentConfig != "" {
-		agentConfig = envAgentConfig
-	} else {
-		agentConfig = DefaultAgentConfigPath
+	agent := &K8sAgentConfig{
+		Logger:              logger.Sugar(),
+		K8sClient:           clientset,
+		ExporterEndpoint:    cfg.ExporterEndpoint,
+		ConfigUpdateURL:     cfg.ConfigUpdateURL,
+		APIKey:              cfg.APIKey,
+		ConfigCheckInterval: cfg.ConfigCheckInterval,
+		KubeNamespace:       cfg.KubeNamespace,
+		ClusterName:         cfg.ClusterName,
+		ConfigmapName:       cfg.ConfigmapName,
 	}
 
-	// Check if file exists and is readable
-	info, err := os.Stat(agentConfig)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("agent config file does not exist at %s", agentConfig)
-		}
-		return nil, fmt.Errorf("error accessing agent config: %w", err)
-	}
-	if info.IsDir() {
-		return nil, fmt.Errorf("agent config path is a directory, expected a file")
-	}
-
-	// Read file contents
-	data, err := os.ReadFile(agentConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read agent config file: %w", err)
-	}
-
-	// Parse YAML into struct
-	var cfg K8sAgentConfig
-	if err := yaml.Unmarshal(data, &cfg.OtelCollectorConfig); err != nil {
-		return nil, fmt.Errorf("failed to parse agent config YAML: %w", err)
-	}
-
-	// Override API key from environment variable if available
-	if envAPIKey := os.Getenv(EnvAPIKey); envAPIKey != "" {
-		cfg.APIKey = envAPIKey
-	}
-
-	// Override ExporterEndpoint from environment variable if available
-	if envExporterEndpoint := os.Getenv(EnvExporterEndpoint); envExporterEndpoint != "" {
-		cfg.ExporterEndpoint = envExporterEndpoint
-	}
-
-	// Override UpdateEndpoint from environment variable if available
-	if envUpdateEndpoint := os.Getenv(EnvUpdateEndpoint); envUpdateEndpoint != "" {
-		cfg.ConfigUpdateURL = envUpdateEndpoint
-	}
-
-	// Override Config check interval from environment variable if available
-	if envConfigCheckInterval := os.Getenv(EnvConfigCheckInterval); envConfigCheckInterval != "" {
-		duration, err := time.ParseDuration(envConfigCheckInterval)
-		if err != nil {
-			fmt.Print(fmt.Errorf("failed to parse config check interval from env falling back to 10s (deafault): %w", err))
-			duration = time.Duration(time.Second * 10)
-		}
-		cfg.ConfigCheckInterval = duration
-	}
-
-	return &cfg, nil
-}
-
-func (c *K8sAgentConfig) Hostname() string {
-	n, e := os.Hostname()
-	if e != nil {
-		n = ""
-	}
-	return n
+	agent.Logger.Infoln("kube updater initialized successfully")
+	return agent, nil
 }

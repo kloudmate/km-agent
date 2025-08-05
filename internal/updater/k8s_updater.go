@@ -12,13 +12,14 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"runtime"
 	"time"
 
 	"github.com/kloudmate/km-agent/internal/config"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ConfigUpdater handles configuration updates from a remote API
@@ -43,9 +44,8 @@ type K8sConfigUpdateResponse struct {
 }
 
 // NewK8sConfigUpdater creates a new config updater
-func NewK8sConfigUpdater(cfg *config.K8sAgentConfig, logger *zap.SugaredLogger) *K8sConfigUpdater {
-	// Determine config path
-	configPath := config.DefaultAgentConfigPath
+func NewKubeConfigUpdaterClient(cfg *config.K8sAgentConfig, logger *zap.SugaredLogger) *K8sConfigUpdater {
+	configPath := config.DefaultConfigmapMountPath
 
 	return &K8sConfigUpdater{
 		cfg:    cfg,
@@ -68,7 +68,6 @@ func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p UpdateCheckerP
 	// Create the request
 	data := map[string]interface{}{
 		"is_docker":          false,
-		"hostname":           u.cfg.Hostname(),
 		"platform":           "kubernetes",
 		"architecture":       runtime.GOARCH,
 		"agent_version":      p.Version,
@@ -117,40 +116,98 @@ func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p UpdateCheckerP
 	return updateResp.RestartRequired, updateResp.Config, nil
 }
 
-// ApplyConfig applies a new configuration by writing it to the config file
-func (u *K8sConfigUpdater) ApplyConfig(newConfig map[string]interface{}) error {
-	// Convert to YAML
-	configYAML, err := yaml.Marshal(newConfig)
+// StartConfigUpdateChecker run ticker for performConfigCheck
+func (a *K8sConfigUpdater) StartConfigUpdateChecker(ctx context.Context) {
+	if a.cfg.ConfigUpdateURL == "" {
+		a.logger.Info("Config update URL not configured, skipping config update checks")
+		return
+	}
+	parsedTime, err := time.ParseDuration(a.cfg.ConfigCheckInterval)
 	if err != nil {
-		return fmt.Errorf("failed to marshal new config to YAML: %w", err)
+		a.logger.Info("Config update URL parse error, falling back to default value")
+		parsedTime = time.Duration(time.Second * 30)
 	}
+	ticker := time.NewTicker(parsedTime)
+	defer ticker.Stop()
 
-	// Make sure the directory exists
-	configDir := filepath.Dir(u.configPath)
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
-	}
-
-	// Create a temporary file in the same directory
-	tempFile := u.configPath + ".new"
-	if err := os.WriteFile(tempFile, configYAML, 0644); err != nil {
-		return fmt.Errorf("failed to write new config to temporary file: %w", err)
-	}
-
-	// Rename the temporary file to the actual config file (atomic operation)
-	if err := os.Rename(tempFile, u.configPath); err != nil {
-		return fmt.Errorf("failed to replace config file: %w", err)
-	}
-
-	u.logger.Info("Successfully updated configuration at ", u.configPath)
-
-	defer func() {
-		if err != nil {
-			// Clean up temp file on error
-			if removeErr := os.Remove(tempFile); removeErr != nil {
-				u.logger.Warnf("Failed to clean up temporary file %s: %v", tempFile, removeErr)
+	for {
+		select {
+		case <-ticker.C:
+			if err := a.performConfigCheck(ctx); err != nil {
+				a.logger.Errorf("Periodic config check failed: %v", err)
 			}
+		case <-a.cfg.StopCh:
+			a.logger.Info("Config update checker stopping due to shutdown.")
+			return
+		case <-ctx.Done():
+			a.logger.Info("Config update checker stopping due to context cancellation.")
+			return
 		}
-	}()
+	}
+}
+
+// performConfigCheck checks remote server for new config and restart collector if required
+func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
+	ctx, cancel := context.WithTimeout(agentCtx, 10*time.Second)
+	defer cancel()
+
+	a.logger.Infoln("Checking for configuration updates...")
+
+	params := UpdateCheckerParams{
+		Version: a.cfg.Version,
+	}
+
+	a.logger.Debugf("Checking for updates with params: %+v", params)
+
+	restart, newConfig, err := a.CheckForUpdates(ctx, params)
+	if err != nil {
+		return fmt.Errorf("updater.CheckForUpdates failed: %w", err)
+	}
+	if newConfig != nil && restart {
+		if err := a.UpdateConfigMap(newConfig); err != nil {
+			return fmt.Errorf("failed to update config file: %w", err)
+		}
+		a.logger.Infoln("Configuration change requires collector restart.")
+
+	} else {
+		a.logger.Infoln("No configuration change")
+	}
+	return nil
+}
+
+func (a *K8sConfigUpdater) UpdateConfigMap(cfg map[string]interface{}) error {
+
+	yamlBytes, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("marshal error: %w", err)
+	}
+
+	// configDir := filepath.Dir(config.DefaultAgentConfigPath)
+	// if err := os.MkdirAll(configDir, 0755); err != nil {
+	// 	return fmt.Errorf("failed to create config directory: %w", err)
+	// }
+
+	configMaps := a.cfg.K8sClient.CoreV1().ConfigMaps(os.Getenv("POD_NAMESPACE"))
+
+	_, err = configMaps.Update(context.TODO(), &corev1.ConfigMap{
+		Data: map[string]string{"agent.yaml": string(yamlBytes)},
+		ObjectMeta: v1.ObjectMeta{
+			Name: os.Getenv("CONFIGMAP_NAME"),
+		},
+	}, v1.UpdateOptions{})
+
+	if err != nil {
+		a.logger.Errorln(err)
+	}
+
+	// tempFile := config.DefaultAgentConfigPath + ".new"
+	// if err := os.WriteFile(tempFile, yamlBytes, 0644); err != nil {
+	// 	return fmt.Errorf("failed to write new config to temporary file: %w", err)
+	// }
+
+	// if err := os.Rename(tempFile, config.DefaultAgentConfigPath); err != nil {
+	// 	return fmt.Errorf("failed to replace config file: %w", err)
+	// }
+
 	return nil
 }

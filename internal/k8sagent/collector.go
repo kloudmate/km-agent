@@ -25,7 +25,7 @@ func (a *K8sAgent) startInternalCollector() error {
 
 	a.Logger.Infoln("Starting actual collector instance with new configuration...")
 
-	collectorSettings := shared.CollectorInfoFactory(config.DefaultAgentConfigPath)
+	collectorSettings := shared.CollectorInfoFactory(config.DefaultConfigmapMountPath)
 
 	// Create a context for this collector instance
 	a.collectorCtx, a.collectorCancel = context.WithCancel(context.Background())
@@ -49,7 +49,7 @@ func (a *K8sAgent) startInternalCollector() error {
 			}
 		}()
 
-		a.Logger.Infof("Collector: Starting with config from %s in background goroutine... \n", config.DefaultAgentConfigPath)
+		a.Logger.Infof("Collector: Starting with config from %s in background goroutine... \n", config.DefaultConfigmapMountPath)
 		err = col.Run(ctx)
 		if err != nil {
 			a.Logger.Infoln("Collector exited with error: %v", err)

@@ -30,7 +30,9 @@ data:
           container.id:
             enabled: true
     processors:
-      batch: 
+      batch:
+        send_batch_size: 10000
+        timeout: 10s
     exporters:
       debug:
         verbosity: detailed
