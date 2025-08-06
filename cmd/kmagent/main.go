@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"sync"
 	"time"
@@ -186,9 +187,20 @@ func main() {
 			Destination: &program.cfg.ConfigCheckInterval,
 		}),
 		altsrc.NewStringFlag(&cli.StringFlag{
-			Name:        "update-endpoint",
-			Usage:       "API key for authentication",
-			Value:       "https://api.kloudmate.com/agents/config-check",
+			Name:  "update-endpoint",
+			Usage: "API key for authentication",
+			Value: func() string {
+				endpoint := os.Getenv("KM_COLLECTOR_ENDPOINT")
+				if endpoint == "" {
+					endpoint = "https://otel.kloudmate.com:4318"
+				}
+				// Extract domain from endpoint
+				u, err := url.Parse(endpoint)
+				if err != nil || u.Host == "" {
+					return "https://api.kloudmate.com/agents/config-check"
+				}
+				return u.Scheme + "://api." + u.Hostname() + "/agents/config-check"
+			}(),
 			EnvVars:     []string{"KM_UPDATE_ENDPOINT"},
 			Destination: &program.cfg.ConfigUpdateURL,
 		}),

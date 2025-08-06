@@ -2,6 +2,12 @@
 
 set -e
 
+# Ensure script is run with sudo or root
+if [ "$EUID" -ne 0 ]; then
+  echo "🔒 Please run this script with elevated privileges (e.g., using sudo)"
+  exit 1
+fi
+
 DOCKER_SOCK_PATH="${DOCKER_SOCK_PATH:-/var/run/docker.sock}"
 
 # Function to install Docker
@@ -63,36 +69,22 @@ uninstall_agent() {
 }
 
 # --- Parse Arguments ---
-KM_API_KEY=""
-KM_COLLECTOR_ENDPOINT=""
+if [[ "$1" == "uninstall" ]]; then
+    uninstall_agent
+fi
 
-for arg in "$@"; do
-  case $arg in
-    KM_API_KEY=*)
-      KM_API_KEY="${arg#*=}"
-      ;;
-    KM_COLLECTOR_ENDPOINT=*)
-      KM_COLLECTOR_ENDPOINT="${arg#*=}"
-      ;;
-    uninstall)
-      uninstall_agent
-      ;;
-    *)
-      echo "❌ Unknown argument: $arg"
-      echo "Usage:"
-      echo "  bash script.sh KM_API_KEY=your_key KM_COLLECTOR_ENDPOINT=your_endpoint"
-      echo "  or"
-      echo "  bash script.sh uninstall"
-      exit 1
-      ;;
-  esac
-done
+# Read from environment variables
+KM_API_KEY="${KM_API_KEY}"
+KM_COLLECTOR_ENDPOINT="${KM_COLLECTOR_ENDPOINT}"
 
 # Validate inputs
 if [ -z "$KM_API_KEY" ] || [ -z "$KM_COLLECTOR_ENDPOINT" ]; then
-    echo "❌ Error: Both KM_API_KEY and KM_COLLECTOR_ENDPOINT must be provided."
+    echo "❌ Error: Both KM_API_KEY and KM_COLLECTOR_ENDPOINT must be provided as environment variables."
+    echo "Usage:"
+    echo "  KM_API_KEY=your_key KM_COLLECTOR_ENDPOINT=your_endpoint bash -c \"\$(curl -fsSL https://cdn.kloudmate.com/scripts/install_docker.sh)\""
     exit 1
 fi
+
 
 # Prompt for additional directories to monitor
 ADDITIONAL_VOLUMES=""
