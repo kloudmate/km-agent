@@ -33,6 +33,7 @@ type K8sAgentConfig struct {
 	KubeNamespace string
 	ClusterName   string
 	ConfigmapName string
+	DaemonSetName string
 }
 
 func NewKubeConfig(cfg K8sAgentConfig, clientset *kubernetes.Clientset, logger *zap.Logger) (*K8sAgentConfig, error) {
@@ -46,6 +47,7 @@ func NewKubeConfig(cfg K8sAgentConfig, clientset *kubernetes.Clientset, logger *
 		ConfigCheckInterval: cfg.ConfigCheckInterval,
 		KubeNamespace:       cfg.KubeNamespace,
 		ClusterName:         cfg.ClusterName,
+		DaemonSetName:       cfg.DaemonSetName,
 		ConfigmapName:       cfg.ConfigmapName,
 	}
 

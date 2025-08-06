@@ -65,6 +65,11 @@ func updaterFlags(cfg *config.K8sAgentConfig) []cli.Flag {
 			EnvVars:     []string{"KM_CONFIGMAP_NAME"},
 			Destination: &cfg.ConfigmapName,
 		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "daemonset-name",
+			EnvVars:     []string{"KM_DAEMONSET_NAME"},
+			Destination: &cfg.DaemonSetName,
+		}),
 	}
 }
 

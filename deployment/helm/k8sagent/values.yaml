@@ -6,13 +6,22 @@ API_KEY:
 COLLECTOR_ENDPOINT: https://otel.kloudmate.com:4318
 KM_CONFIG_CHECK_INTERVAL: 30s
 
-# This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+# Kubernetes agent image configuration
 image:
-  repository: ghcr.io/kloudmate/km-agent-k8s
+  repository: ghcr.io/kloudmate/km-kube-agent
   # This sets the pull policy for images.
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "v2"
+
+# Kubernetes agent config updater image configuration
+configUpdater:
+  image:
+    repository: ghcr.io/kloudmate/km-kube-updater
+    # This sets the pull policy for images.
+    pullPolicy: Always
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "latest"
 
 # This is to override the chart name.
 nameOverride: ""

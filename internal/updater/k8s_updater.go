@@ -11,7 +11,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"runtime"
 	"time"
 
@@ -19,7 +18,9 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // ConfigUpdater handles configuration updates from a remote API
@@ -167,7 +168,11 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 		if err := a.UpdateConfigMap(newConfig); err != nil {
 			return fmt.Errorf("failed to update config file: %w", err)
 		}
-		a.logger.Infoln("Configuration change requires collector restart.")
+		a.logger.Infoln("triggering rollout restart.")
+
+		if err = a.triggerRollout(agentCtx); err != nil {
+			a.logger.Errorln(err)
+		}
 
 	} else {
 		a.logger.Infoln("No configuration change")
@@ -182,17 +187,12 @@ func (a *K8sConfigUpdater) UpdateConfigMap(cfg map[string]interface{}) error {
 		return fmt.Errorf("marshal error: %w", err)
 	}
 
-	// configDir := filepath.Dir(config.DefaultAgentConfigPath)
-	// if err := os.MkdirAll(configDir, 0755); err != nil {
-	// 	return fmt.Errorf("failed to create config directory: %w", err)
-	// }
-
-	configMaps := a.cfg.K8sClient.CoreV1().ConfigMaps(os.Getenv("POD_NAMESPACE"))
+	configMaps := a.cfg.K8sClient.CoreV1().ConfigMaps(a.cfg.KubeNamespace)
 
 	_, err = configMaps.Update(context.TODO(), &corev1.ConfigMap{
 		Data: map[string]string{"agent.yaml": string(yamlBytes)},
 		ObjectMeta: v1.ObjectMeta{
-			Name: os.Getenv("CONFIGMAP_NAME"),
+			Name: a.cfg.ConfigmapName,
 		},
 	}, v1.UpdateOptions{})
 
@@ -200,14 +200,44 @@ func (a *K8sConfigUpdater) UpdateConfigMap(cfg map[string]interface{}) error {
 		a.logger.Errorln(err)
 	}
 
-	// tempFile := config.DefaultAgentConfigPath + ".new"
-	// if err := os.WriteFile(tempFile, yamlBytes, 0644); err != nil {
-	// 	return fmt.Errorf("failed to write new config to temporary file: %w", err)
-	// }
+	return nil
+}
 
-	// if err := os.Rename(tempFile, config.DefaultAgentConfigPath); err != nil {
-	// 	return fmt.Errorf("failed to replace config file: %w", err)
-	// }
+// triggerRollout triggers a DaemonSet rollout by patching its template annotation.
+func (drt *K8sConfigUpdater) triggerRollout(ctx context.Context) error {
+	drt.logger.Infof("Attempting to trigger rollout for DaemonSet %s/%s...", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName)
 
+	// Get the DaemonSet to ensure it exists and get its current state
+	_, err := drt.cfg.K8sClient.AppsV1().DaemonSets(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DaemonSetName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("Error getting DaemonSet %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
+	}
+
+	// Prepare the patch to update the "kubectl.kubernetes.io/restartedAt" annotation.
+	// This annotation change signals Kubernetes to perform a rolling update.
+	patch := map[string]interface{}{
+		"spec": map[string]interface{}{
+			"template": map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"annotations": map[string]interface{}{
+						"kubectl.kubernetes.io/restartedAt": time.Now().Format(time.RFC3339),
+					},
+				},
+			},
+		},
+	}
+
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		return fmt.Errorf("Error marshaling patch for DaemonSet %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
+	}
+
+	// Apply the strategic merge patch to the DaemonSet
+	_, err = drt.cfg.K8sClient.AppsV1().DaemonSets(drt.cfg.KubeNamespace).Patch(ctx, drt.cfg.DaemonSetName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("Error patching DaemonSet %s/%s to trigger rollout: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
+	}
+
+	drt.logger.Infof("Successfully triggered rollout for DaemonSet %s/%s.", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName)
 	return nil
 }
