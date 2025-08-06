@@ -1,0 +1,20 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  # The name is generated using the helper template for consistency.
+  name: {{ .Values.rbac.ClusterRoleBindingName }}
+  namespace: {{ .Values.rbac.ClusterRoleBindingNamespace }}
+
+  labels:
+    {{- include "k8sagent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  # The name of the ClusterRole is configurable via values.yaml.
+  name: {{ .Values.rbac.clusterRoleName }}
+subjects:
+- kind: ServiceAccount
+  # The ServiceAccount name is taken from values.yaml for consistency.
+  name: {{ .Values.serviceAccount.name }}
+  # The namespace is the one where the chart is being released.
+  namespace: {{ .Release.Namespace }}
