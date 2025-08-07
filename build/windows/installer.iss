@@ -44,6 +44,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Files]
 ; Install the main application executable
 Source: "{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "configs\host-col-config.yaml"; DestDir: "{app}"; DestName: "config.yaml"
 ; NOTE: Add any other necessary files like DLLs, resource files etc. here
 ; Example: Source: "{#MyConfigSourceDir}\some_other_file.dll"; DestDir: "{app}"; Flags: ignoreversion
 
