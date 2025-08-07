@@ -26,11 +26,15 @@ COLON := :
 CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
 
-# Define user flag, using the COLON variable
-DOCKER_USER_FLAG := --user $(CURRENT_UID)$(COLON)$(CURRENT_GID)
+ifeq ($(CI),true)
+  DOCKER_USER_FLAG :=
+else
+  CURRENT_UID := $(shell id -u)
+  CURRENT_GID := $(shell id -g)
+  DOCKER_USER_FLAG := --user $(CURRENT_UID):$(CURRENT_GID)
+endif
 
-# Docker run arguments for Inno Setup build, using the COLON variable
-DOCKER_RUN_INNO_ARGS := --rm -v $(PWD)$(COLON)$(CONTAINER_WORKDIR) -w $(CONTAINER_WORKDIR) $(INNO_IMAGE)
+DOCKER_RUN_INNO_ARGS := --rm -v $(PWD):$(CONTAINER_WORKDIR) -w $(CONTAINER_WORKDIR) $(INNO_IMAGE)
 
 
 .PHONY: clean build build-linux-amd64 build-windows package-linux-deb package-linux-rpm package-windows build-installer
