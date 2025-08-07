@@ -12,5 +12,5 @@ jobs:
       - name: Build & Push Image
         run: |
           docker login --username kloudmate --password ${{ secrets.GHCR_PAT }} ghcr.io
-          docker build . -f .\updater.Dockerfile --tag ghcr.io/kloudmate/km-config-updater:latest
-          docker push ghcr.io/kloudmate/km-config-updater:latest
+          docker build . -f .\updater.Dockerfile --tag ghcr.io/kloudmate/km-kube-updater:latest
+          docker push ghcr.io/kloudmate/km-kube-updater:latest
