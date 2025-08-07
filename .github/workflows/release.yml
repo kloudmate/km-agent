@@ -2,7 +2,7 @@ name: Build and Upload Release Assets
 
 on:
   release:
-    types: [created, edited] # Runs when a release is created or edited
+    types: [created] # Runs when a release is created or edited
 
 permissions:
   contents: write # Needed to write release assets

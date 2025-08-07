@@ -2,7 +2,7 @@
 
 receivers:
   hostmetrics:
-    collection_interval: 30s
+    collection_interval: 60s
     scrapers:
       cpu:
         metrics:

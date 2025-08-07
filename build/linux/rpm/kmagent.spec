@@ -4,7 +4,7 @@
 %global _unitdir /usr/lib/systemd/system
 
 Name: %{appname}
-Version: 1.0.0
+Version: %{version}
 Release: 1%{?dist}
 Summary: KloudMate Monitoring Agent
 License: MIT
