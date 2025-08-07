@@ -26,13 +26,7 @@ COLON := :
 CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
 
-ifeq ($(CI),true)
-  DOCKER_USER_FLAG :=
-else
-  CURRENT_UID := $(shell id -u)
-  CURRENT_GID := $(shell id -g)
-  DOCKER_USER_FLAG := --user $(CURRENT_UID):$(CURRENT_GID)
-endif
+DOCKER_USER_FLAG := --user $(CURRENT_UID):$(CURRENT_GID)
 
 DOCKER_RUN_INNO_ARGS := --rm -v $(PWD):$(CONTAINER_WORKDIR) -w $(CONTAINER_WORKDIR) $(INNO_IMAGE)
 
@@ -100,19 +94,15 @@ package-linux-rpm: build-linux-amd64
 # --- Windows Installer Packaging ---
 
 build-installer: build-windows
-	# FIX 2: Create directory before copying files into it.
 	mkdir -p $(WINDOWS_BUILD_DIR)
 	cp $(ISS_FILE) $(ISS_FILE_PATH)
 	@echo ">>> Compiling Windows Installer using Docker ($(INNO_IMAGE))..."
-	# FIX 3: Added the DOCKER_USER_FLAG to ensure correct file permissions.
-	docker run $(DOCKER_USER_FLAG) $(DOCKER_RUN_INNO_ARGS) \
-    		iscc /dMyAppVersion=$(VERSION) "$(ISS_FILE_PATH)"
-
-# FIX 4: This comment was indented with a tab, which made 'make' try to execute it. It is now just a comment.
-# Add flags to iscc if needed, e.g., /O"Output" to set the output directory inside the container.
-# Example: iscc /O"$(CONTAINER_WORKDIR)/$(BUILD_DIR)/win" /dMyAppVersion...
+	# Run the Inno Setup compiler (iscc) inside the container
+	# NOTE: We do NOT specify 'iscc' here, as it's the container's entrypoint.
+	docker run $(DOCKER_RUN_INNO_ARGS) \
+        		/dMyAppVersion=$(VERSION) "$(ISS_FILE_PATH)"
 	@echo ">>> Installer compilation finished."
-	@echo ">>> NOTE: Output setup file location is determined by your installer.iss script."
+
 
 # FIX 5: Removed the redundant `package-windows: build-windows` definition.
 # This target now correctly depends on `build-installer`.
