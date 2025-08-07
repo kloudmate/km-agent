@@ -1,0 +1,16 @@
+name: Publish kubernetes config updater image to the registry
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build_and_pub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build & Push Image
+        run: |
+          docker login --username kloudmate --password ${{ secrets.GHCR_PAT }} ghcr.io
+          docker build . -f .\updater.Dockerfile --tag ghcr.io/kloudmate/km-config-updater:latest
+          docker push ghcr.io/kloudmate/km-config-updater:latest

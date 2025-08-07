@@ -1,4 +1,4 @@
-name: Docker Image Bulid For GHCR
+name: Publish kubernetes agent image to the registry
 
 on:
   release:
@@ -12,5 +12,5 @@ jobs:
       - name: Build & Push Image
         run: |
           docker login --username kloudmate --password ${{ secrets.GHCR_PAT }} ghcr.io
-          docker build . --tag ghcr.io/kloudmate/km-agent:latest
-          docker push ghcr.io/kloudmate/km-agent:latest
+          docker build . -f .\kube.Dockerfile --tag ghcr.io/kloudmate/km-kube-agent:latest
+          docker push ghcr.io/kloudmate/km-kube-agent:latest
