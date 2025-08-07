@@ -95,6 +95,7 @@ package-linux-rpm: build-linux-amd64
 
 build-installer: build-windows
 	mkdir -p $(WINDOWS_BUILD_DIR)
+	chmod 777 $(WINDOWS_BUILD_DIR)
 	cp $(ISS_FILE) $(ISS_FILE_PATH)
 	@echo ">>> Compiling Windows Installer using Docker ($(INNO_IMAGE))..."
 	# Run the Inno Setup compiler (iscc) inside the container
