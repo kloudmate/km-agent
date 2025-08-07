@@ -21,14 +21,60 @@ receivers:
     collection_interval: 30s
     scrapers:
       cpu:
+        metrics:
+          system.cpu.logical.count:
+            enabled: true
+          system.cpu.utilization:
+            enabled: true
       memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
       disk:
       network:
       filesystem:
-        include_fs_types:
-          match_type: strict
-          fs_types: [ext4, btrfs, xfs, tmpfs, devtmpfs]
         include_virtual_filesystems: true
+        exclude_fs_types:
+          fs_types:
+            - autofs
+            - binfmt_misc
+            - bpf
+            - cgroup
+            - cgroup2
+            - configfs
+            - debugfs
+            - devpts
+            - devtmpfs
+            - fusectl
+            - hugetlbfs
+            - iso9660
+            - mqueue
+            - nsfs
+            - overlay
+            - proc
+            - procfs
+            - pstore
+            - rpc_pipefs
+            - securityfs
+            - selinuxfs
+            - squashfs
+            - sysfs
+            - tracefs
+          match_type: strict
+        exclude_mount_points:
+          mount_points:
+            - /dev/*
+            - /proc/*
+            - /sys/*
+            - /snap/*
+            - /var/lib/docker/*
+            - /var/lib/containerd/*
+            - /var/lib/kubelet/*
+            - /run/containerd/*
+            - /run/k3s/*
+            - /run/credentials/*
+            - /run/user/*
+          match_type: regexp
       load:
         cpu_average: true
   otlp:

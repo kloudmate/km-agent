@@ -59,7 +59,9 @@ package-linux-deb: build-linux-amd64
 	cp $(BUILD_DIR)/linux/$(GOARCH)/$(APP_NAME) $(BUILD_DIR)/linux/deb/usr/bin/
 	cp build/linux/kmagent.service $(BUILD_DIR)/linux/deb/lib/systemd/system/
 	cp configs/host-col-config.yaml $(BUILD_DIR)/linux/deb/etc/$(APP_NAME)/config.yaml
-	cp build/linux/deb/control $(BUILD_DIR)/linux/deb/DEBIAN/
+
+	sed "s/^Version:.*$/Version: $(VERSION)/" build/linux/deb/control > $(BUILD_DIR)/linux/deb/DEBIAN/control
+
 
 	# Copy DEBIAN control files
 	cp build/linux/deb/control $(BUILD_DIR)/linux/deb/DEBIAN/
@@ -87,7 +89,9 @@ package-linux-rpm: build-linux-amd64
 	cp configs/host-col-config.yaml $(BUILD_DIR)/rpm/SOURCES/config.yaml
 
 
-	rpmbuild --define "_topdir $(PWD)/$(BUILD_DIR)/rpm" -bb $(BUILD_DIR)/rpm/SPECS/kmagent.spec
+	rpmbuild --define "_topdir $(PWD)/$(BUILD_DIR)/rpm" \
+             --define "version $(VERSION)" \
+             -bb $(BUILD_DIR)/rpm/SPECS/kmagent.spec
 
 # --- Windows Installer Packaging ---
 package-windows: build-windows
