@@ -4,6 +4,7 @@ receivers:
   filelog:
     include:
       - /var/log/**/*.log
+      - /var/lib/docker/containers/**/*.log*
     exclude:
       - /var/log/pods/kmagent*/**/*.log
     include_file_name_resolved: true
@@ -17,7 +18,6 @@ receivers:
     timeout: 10s
 
   hostmetrics:
-    root_path: /hostfs
     collection_interval: 30s
     scrapers:
       cpu:
@@ -28,7 +28,9 @@ receivers:
         include_fs_types:
           match_type: strict
           fs_types: [ext4, btrfs, xfs, tmpfs, devtmpfs]
+        include_virtual_filesystems: true
       load:
+        cpu_average: true
   otlp:
     protocols:
       grpc:
