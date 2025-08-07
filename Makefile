@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 APP_NAME := kmagent
-VERSION := 1.0.0
+VERSION ?= 1.0.0
 BUILD_DIR := dist
 SRC_DIR := ./cmd/$(APP_NAME)
 SCRIPT_DIR := ./build/linux/scripts
@@ -16,37 +16,39 @@ ISS_FILE_PATH := $(WINDOWS_BUILD_DIR)/installer.iss
 WINDOWS_EXE_HOST_PATH := $(WINDOWS_BUILD_DIR)/$(APP_NAME).exe
 
 # --- Docker Specific ---
-INNO_IMAGE := amake/innosetup:64bit-bookworm # Use the desired amake/innosetup tag
+INNO_IMAGE := amake/innosetup:64bit-bookworm
 CONTAINER_WORKDIR := /work
 
+# FIX 1: Define a variable for the colon character to prevent 'make' from misinterpreting it.
+COLON := :
+
 # Get current user/group ID for Docker volume permissions (Linux/macOS)
-# For Windows (Git Bash/WSL), this usually works. For native Windows Docker, permissions might differ.
 CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
 
-# Define user flag, default to host user
-DOCKER_USER_FLAG := --user $(CURRENT_UID):$(CURRENT_GID)
+# Define user flag, using the COLON variable
+DOCKER_USER_FLAG := --user $(CURRENT_UID)$(COLON)$(CURRENT_GID)
 
-# Docker run arguments for Inno Setup build
-DOCKER_RUN_INNO_ARGS := --rm -v $(PWD):$(CONTAINER_WORKDIR) -w $(CONTAINER_WORKDIR) $(INNO_IMAGE)
+# Docker run arguments for Inno Setup build, using the COLON variable
+DOCKER_RUN_INNO_ARGS := --rm -v $(PWD)$(COLON)$(CONTAINER_WORKDIR) -w $(CONTAINER_WORKDIR) $(INNO_IMAGE)
 
 
-.PHONY: clean build
+.PHONY: clean build build-linux-amd64 build-windows package-linux-deb package-linux-rpm package-windows build-installer
 
 clean:
 	rm -rf $(BUILD_DIR)
 
-build:
-	@echo ">>> Building $(APP_NAME) for Linux AMD64..."
-	GOOS=linux GOARCH=amd64 go build -o $(BUILD_DIR)/linux/amd64/$(APP_NAME) $(SRC_DIR);
+build: build-linux-amd64
 
 build-linux-amd64:
 	@echo ">>> Building $(APP_NAME) for Linux AMD64..."
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags=${LD_FLAGS} -o $(BUILD_DIR)/linux/amd64/$(APP_NAME) $(SRC_DIR);
+	mkdir -p $(BUILD_DIR)/linux/amd64
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags=${LD_FLAGS} -o $(BUILD_DIR)/linux/amd64/$(APP_NAME) $(SRC_DIR)
 
 build-windows:
-	@echo ">>> Building $(APP_NAME) for Windows (native)..."
-	GOOS=windows CGO_ENABLED=0 go build -ldflags=${LD_FLAGS} -o $(BUILD_DIR)/win/$(APP_NAME).exe $(SRC_DIR);
+	@echo ">>> Building $(APP_NAME) for Windows..."
+	mkdir -p $(BUILD_DIR)/win
+	GOOS=windows CGO_ENABLED=0 go build -ldflags=${LD_FLAGS} -o $(BUILD_DIR)/win/$(APP_NAME).exe $(SRC_DIR)
 	@echo ">>> Windows executable built at $(WINDOWS_EXE_HOST_PATH)"
 
 package-linux-deb: build-linux-amd64
@@ -61,7 +63,7 @@ package-linux-deb: build-linux-amd64
 	cp configs/host-col-config.yaml $(BUILD_DIR)/linux/deb/etc/$(APP_NAME)/config.yaml
 
 	# Replace version and copy modified control file
-    sed "s|^Version:.*$|Version: ${VERSION}|" build/linux/deb/control > "$(BUILD_DIR)/linux/deb/DEBIAN/control"
+	sed "s|^Version:.*|Version: ${VERSION}|" build/linux/deb/control > "$(BUILD_DIR)/linux/deb/DEBIAN/control"
 
 	# Copy DEBIAN control files
 	cp $(SCRIPT_DIR)/preinst $(BUILD_DIR)/linux/deb/DEBIAN/
@@ -70,10 +72,10 @@ package-linux-deb: build-linux-amd64
 	cp $(SCRIPT_DIR)/postrm $(BUILD_DIR)/linux/deb/DEBIAN/
 
 	# Ensure scripts are executable
-	chmod 755 $(BUILD_DIR)/linux/deb/DEBIAN/preinst || true
-	chmod 755 $(BUILD_DIR)/linux/deb/DEBIAN/postinst || true
-	chmod 755 $(BUILD_DIR)/linux/deb/DEBIAN/prerm || true
-	chmod 755 $(BUILD_DIR)/linux/deb/DEBIAN/postrm || true
+	chmod 755 $(BUILD_DIR)/linux/deb/DEBIAN/preinst
+	chmod 755 $(BUILD_DIR)/linux/deb/DEBIAN/postinst
+	chmod 755 $(BUILD_DIR)/linux/deb/DEBIAN/prerm
+	chmod 755 $(BUILD_DIR)/linux/deb/DEBIAN/postrm
 
 	dpkg-deb --build $(BUILD_DIR)/linux/deb $(BUILD_DIR)/$(APP_NAME)_$(VERSION)_amd64.deb
 
@@ -87,27 +89,28 @@ package-linux-rpm: build-linux-amd64
 	cp $(SCRIPT_DIR)/postinst $(BUILD_DIR)/rpm/SOURCES/postinst
 	cp configs/host-col-config.yaml $(BUILD_DIR)/rpm/SOURCES/config.yaml
 
-
 	rpmbuild --define "_topdir $(PWD)/$(BUILD_DIR)/rpm" \
-             --define "version $(VERSION)" \
-             -bb $(BUILD_DIR)/rpm/SPECS/kmagent.spec
+			 --define "version $(VERSION)" \
+			 -bb $(BUILD_DIR)/rpm/SPECS/kmagent.spec
 
 # --- Windows Installer Packaging ---
-package-windows: build-windows
 
-build-installer:build-windows
-	cp $(ISS_FILE) $(WINDOWS_BUILD_DIR)/installer.iss
+build-installer: build-windows
+	# FIX 2: Create directory before copying files into it.
 	mkdir -p $(WINDOWS_BUILD_DIR)
-	chmod 777 $(WINDOWS_BUILD_DIR)
+	cp $(ISS_FILE) $(ISS_FILE_PATH)
 	@echo ">>> Compiling Windows Installer using Docker ($(INNO_IMAGE))..."
-	# Run the Inno Setup compiler (iscc) inside the amake/innosetup container
-	docker run $(DOCKER_RUN_INNO_ARGS) \
-    		/dMyAppVersion=$(VERSION) "$(ISS_FILE_PATH)"
+	# FIX 3: Added the DOCKER_USER_FLAG to ensure correct file permissions.
+	docker run $(DOCKER_USER_FLAG) $(DOCKER_RUN_INNO_ARGS) \
+    		iscc /dMyAppVersion=$(VERSION) "$(ISS_FILE_PATH)"
 
-		# Add flags to iscc if needed, e.g., /OOutputdir for output path
-		# Example: iscc /O$(BUILD_DIR)/win $(ISS_FILE)
+# FIX 4: This comment was indented with a tab, which made 'make' try to execute it. It is now just a comment.
+# Add flags to iscc if needed, e.g., /O"Output" to set the output directory inside the container.
+# Example: iscc /O"$(CONTAINER_WORKDIR)/$(BUILD_DIR)/win" /dMyAppVersion...
 	@echo ">>> Installer compilation finished."
-	@echo ">>> NOTE: Output setup file is likely in ./Output directory (or as specified in ISS file)."
+	@echo ">>> NOTE: Output setup file location is determined by your installer.iss script."
 
+# FIX 5: Removed the redundant `package-windows: build-windows` definition.
+# This target now correctly depends on `build-installer`.
 package-windows: build-installer
-	@echo ">>> Windows installer package created in $(WINDOWS_BUILD_DIR)."
+	@echo ">>> Windows installer package created."
