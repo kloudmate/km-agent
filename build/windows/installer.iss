@@ -44,7 +44,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Files]
 ; Install the main application executable
 Source: "{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "configs\host-col-config.yaml"; DestDir: "{app}"; DestName: "config.yaml"
+Source: "host-col-config.yaml"; DestDir: "{app}"; DestName: "config.yaml"
 ; NOTE: Add any other necessary files like DLLs, resource files etc. here
 ; Example: Source: "{#MyConfigSourceDir}\some_other_file.dll"; DestDir: "{app}"; Flags: ignoreversion
 
@@ -294,7 +294,8 @@ begin
   // Add input fields to the page
   ConfigPage.Add('API Key:', False); // False = not password
 
-  ConfigPage.Add('Collector Endpoint (e.g., https://collector.example.com:4317):', False);
+  ConfigPage.Add('Collector Endpoint (e.g., https://otel.kloudmate.com:4318):', False);
+  ConfigPage.Values[1] := 'https://otel.kloudmate.com:4318';
 
   // --- Add more controls for optional parameters if needed ---
   // ConfigPage.Add('Enable Docker Mode:', True); // True = creates a checkbox below
