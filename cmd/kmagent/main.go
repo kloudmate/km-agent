@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -194,12 +195,22 @@ func main() {
 				if endpoint == "" {
 					endpoint = "https://otel.kloudmate.com:4318"
 				}
-				// Extract domain from endpoint
 				u, err := url.Parse(endpoint)
 				if err != nil || u.Host == "" {
 					return "https://api.kloudmate.com/agents/config-check"
 				}
-				return u.Scheme + "://api." + u.Hostname() + "/agents/config-check"
+
+				host := u.Hostname()
+				parts := strings.Split(host, ".")
+
+				// If domain has 2+ parts (e.g., otel.kloudmate.com), use last 2
+				if len(parts) >= 2 {
+					rootDomain := parts[len(parts)-2] + "." + parts[len(parts)-1]
+					return u.Scheme + "://api." + rootDomain + "/agents/config-check"
+				}
+
+				// Fallback if we can't parse domain properly
+				return "https://api.kloudmate.com/agents/config-check"
 			}(),
 			EnvVars:     []string{"KM_UPDATE_ENDPOINT"},
 			Destination: &program.cfg.ConfigUpdateURL,

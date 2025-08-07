@@ -18,6 +18,7 @@ fi
 DOCKER_SOCK_PATH="${DOCKER_SOCK_PATH:-/var/run/docker.sock}"
 IMAGE_NAME="ghcr.io/kloudmate/km-agent:latest"
 
+
 # Function to uninstall agent and remove container/image
 uninstall_agent() {
     echo "🧹 Uninstalling km-agent..."
@@ -86,11 +87,10 @@ fi
 echo "🚀 Running the 'km-agent' container..."
 eval docker run -d \
   --privileged \
-  --pid=host \
-  --restart=always \
-  --userns=host \
-  --user 0 \
-  --name km-agent \
+  --pid host \
+  --restart always \
+  --network host \
+  --name km-agent-${KM_API_KEY:3:3} \
   -e KM_COLLECTOR_ENDPOINT="$KM_COLLECTOR_ENDPOINT" \
   -e KM_API_KEY="$KM_API_KEY" \
   -v "$DOCKER_SOCK_PATH":"$DOCKER_SOCK_PATH" \

@@ -60,11 +60,10 @@ package-linux-deb: build-linux-amd64
 	cp build/linux/kmagent.service $(BUILD_DIR)/linux/deb/lib/systemd/system/
 	cp configs/host-col-config.yaml $(BUILD_DIR)/linux/deb/etc/$(APP_NAME)/config.yaml
 
-	sed "s/^Version:.*$/Version: $(VERSION)/" build/linux/deb/control > $(BUILD_DIR)/linux/deb/DEBIAN/control
-
+	# Replace version and copy modified control file
+    sed "s|^Version:.*$|Version: ${VERSION}|" build/linux/deb/control > "$(BUILD_DIR)/linux/deb/DEBIAN/control"
 
 	# Copy DEBIAN control files
-	cp build/linux/deb/control $(BUILD_DIR)/linux/deb/DEBIAN/
 	cp $(SCRIPT_DIR)/preinst $(BUILD_DIR)/linux/deb/DEBIAN/
 	cp $(SCRIPT_DIR)/postinst $(BUILD_DIR)/linux/deb/DEBIAN/
 	cp $(SCRIPT_DIR)/prerm $(BUILD_DIR)/linux/deb/DEBIAN/

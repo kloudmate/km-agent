@@ -83,6 +83,10 @@ receivers:
       http:
 
 exporters:
+  debug:
+    verbosity: basic
+    sampling_initial: 2
+    sampling_thereafter: 100
   otlphttp:
     sending_queue:
       enabled: true
@@ -115,8 +119,8 @@ service:
     metrics:
       receivers: [hostmetrics, docker_stats]
       processors: [resourcedetection, resource, batch]
-      exporters: [otlphttp]
+      exporters: [otlphttp, debug]
     logs:
       receivers: [filelog]
       processors: [resourcedetection, resource, batch]
-      exporters: [otlphttp]
+      exporters: [otlphttp, debug]
