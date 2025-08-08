@@ -5,20 +5,17 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"os"
-	"strings"
-	"sync"
-	"time"
-
-	"github.com/urfave/cli/v2/altsrc"
-
-	"github.com/urfave/cli/v2"
-	"go.uber.org/zap"
-
 	"github.com/kardianos/service"
 	"github.com/kloudmate/km-agent/internal/agent"
 	"github.com/kloudmate/km-agent/internal/config"
+	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2/altsrc"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
+	"os"
+	"sync"
+	"time"
 )
 
 var version = "0.1.0" // Version of the application
@@ -135,6 +132,31 @@ func makeService(p *Program) (service.Service, error) {
 	return svc, nil
 }
 
+// TODO permission issue
+func getFileLogger(logFile string) (*zap.SugaredLogger, error) {
+	// Lumberjack handles log rotation
+	writer := zapcore.AddSync(&lumberjack.Logger{
+		Filename:   logFile,
+		MaxSize:    10, // MB
+		MaxBackups: 1,
+		MaxAge:     7,    // days
+		Compress:   true, // compress old logs
+	})
+
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.TimeKey = "timestamp"
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoder := zapcore.NewJSONEncoder(encoderConfig)
+
+	core := zapcore.NewTee(
+		zapcore.NewCore(encoder, writer, zapcore.InfoLevel),
+		zapcore.NewCore(zapcore.NewConsoleEncoder(encoderConfig), zapcore.AddSync(os.Stdout), zapcore.DebugLevel),
+	)
+
+	logger := zap.New(core)
+	return logger.Sugar(), nil
+}
+
 func main() {
 	// Initialize logger
 	logger, err := zap.NewProduction()
@@ -183,7 +205,7 @@ func main() {
 		altsrc.NewIntFlag(&cli.IntFlag{
 			Name:        "config-check-interval",
 			Usage:       "Interval in seconds to check for config updates",
-			Value:       30,
+			Value:       60,
 			EnvVars:     []string{"KM_CONFIG_CHECK_INTERVAL"},
 			Destination: &program.cfg.ConfigCheckInterval,
 		}),
@@ -195,22 +217,7 @@ func main() {
 				if endpoint == "" {
 					endpoint = "https://otel.kloudmate.com:4318"
 				}
-				u, err := url.Parse(endpoint)
-				if err != nil || u.Host == "" {
-					return "https://api.kloudmate.com/agents/config-check"
-				}
-
-				host := u.Hostname()
-				parts := strings.Split(host, ".")
-
-				// If domain has 2+ parts (e.g., otel.kloudmate.com), use last 2
-				if len(parts) >= 2 {
-					rootDomain := parts[len(parts)-2] + "." + parts[len(parts)-1]
-					return u.Scheme + "://api." + rootDomain + "/agents/config-check"
-				}
-
-				// Fallback if we can't parse domain properly
-				return "https://api.kloudmate.com/agents/config-check"
+				return config.GetAgentConfigUpdaterURL(endpoint)
 			}(),
 			EnvVars:     []string{"KM_UPDATE_ENDPOINT"},
 			Destination: &program.cfg.ConfigUpdateURL,
@@ -256,6 +263,16 @@ func main() {
 					program.logger.Fatalf("Failed to run service: %v", err) // Fatal on run error
 				}
 				program.logger.Info("Service run finished.")
+				return nil
+			},
+		},
+		{
+			Name:  "stop",
+			Usage: "Stop the agent",
+			Action: func(c *cli.Context) error {
+				program.logger.Info("Stopping the agent via CLI command...")
+				program.Shutdown()
+				program.logger.Info("Agent stopped successfully.")
 				return nil
 			},
 		},

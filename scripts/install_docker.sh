@@ -2,12 +2,6 @@
 
 set -e
 
-# Ensure script is run with sudo or root
-if [ "$EUID" -ne 0 ]; then
-  echo "🔒 Please run this script with elevated privileges (e.g., using sudo)"
-  exit 1
-fi
-
 # Check Docker
 if ! command -v docker &> /dev/null || ! docker --version &> /dev/null; then
   echo -e "\nDocker is not installed on the system"

@@ -2,9 +2,11 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -21,6 +23,35 @@ type Config struct {
 	ConfigCheckInterval int
 	DockerMode          bool
 	DockerEndpoint      string
+}
+
+func GetAgentConfigUpdaterURL(collectorEndpoint string) string {
+	const fallbackURL = "https://api.kloudmate.com/agents/config-check"
+
+	u, err := url.Parse(collectorEndpoint)
+	if err != nil || u.Host == "" {
+		return fallbackURL
+	}
+
+	host := u.Hostname()
+	parts := strings.Split(host, ".")
+
+	if len(parts) < 2 {
+		return fallbackURL
+	}
+
+	// Reconstruct the root domain from the last two parts.
+	//    e.g., "otel.kloudmate.dev" -> "kloudmate.dev"
+	rootDomain := parts[len(parts)-2] + "." + parts[len(parts)-1]
+
+	// 5. Build the new URL using the robust url.URL struct, not string concatenation.
+	updateURL := url.URL{
+		Scheme: u.Scheme,               // Use the original scheme (e.g., "https")
+		Host:   "api." + rootDomain,    // Prepend "api." to the new host
+		Path:   "/agents/config-check", // Set the static path
+	}
+
+	return updateURL.String()
 }
 
 // GetDefaultConfigPath returns the default configuration file path based on OS

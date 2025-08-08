@@ -14,16 +14,14 @@ receivers:
 
   docker_stats:
     endpoint: "unix:///var/run/docker.sock"
-    collection_interval: 30s
+    collection_interval: 60s
     timeout: 10s
 
   hostmetrics:
-    collection_interval: 30s
+    collection_interval: 60s
     scrapers:
       cpu:
         metrics:
-          system.cpu.logical.count:
-            enabled: true
           system.cpu.utilization:
             enabled: true
       memory:
@@ -110,11 +108,8 @@ processors:
         from_attribute: host.name
 
 extensions:
-# zpages:
-#   endpoint: :55679
 
 service:
-  # extensions: [zpages]
   pipelines:
     metrics:
       receivers: [hostmetrics, docker_stats]
