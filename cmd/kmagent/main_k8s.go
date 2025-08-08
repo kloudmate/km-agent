@@ -13,23 +13,23 @@ import (
 	"github.com/kloudmate/km-agent/internal/k8sagent"
 )
 
-var version = "0.1.0"
+var (
+	version = "0.1.0"
+	commit  = "none"
+)
 
 func main() {
 	// Set up the main context for the application, which can be cancelled for shutdown.
 	appCtx, cancelAppCtx := context.WithCancel(context.Background())
 	defer cancelAppCtx()
 
-	agent, err := k8sagent.NewK8sAgent(version)
+	agent, err := k8sagent.NewK8sAgent(&k8sagent.AgentInfo{Version: version, CommitSHA: commit})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Handle OS signals for graceful shutdown.
 	handleSignals(cancelAppCtx, agent)
-
-	// agent.FilterValidResources(appCtx, agent.Logger)
-	// agent.Logger.Infof("cluster in config : %s\n", agent.Cfg.Monitoring.ClusterName)
 
 	if err = agent.StartAgent(appCtx); err != nil {
 		agent.Logger.Errorf("agent could not be started with current config : %s", err.Error())

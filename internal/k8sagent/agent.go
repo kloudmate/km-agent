@@ -26,10 +26,15 @@ type K8sAgent struct {
 	collectorCtx    context.Context
 	collectorCancel context.CancelFunc
 	stopCh          chan struct{}
-	version         string
+	agentInfo       AgentInfo
 }
 
-func NewK8sAgent(version string) (*K8sAgent, error) {
+type AgentInfo struct {
+	Version   string
+	CommitSHA string
+}
+
+func NewK8sAgent(info *AgentInfo) (*K8sAgent, error) {
 	// ---------- Logging ----------
 	zapLogger, err := zap.NewProduction()
 	if err != nil {
@@ -51,7 +56,7 @@ func NewK8sAgent(version string) (*K8sAgent, error) {
 	agent := &K8sAgent{
 		Logger:    logger,
 		K8sClient: k8sClient,
-		version:   version,
+		agentInfo: *info,
 		stopCh:    make(chan struct{}),
 	}
 
@@ -61,7 +66,10 @@ func NewK8sAgent(version string) (*K8sAgent, error) {
 
 // StartAgent first creates a otel config from agent config and then runs the agent
 func (km *K8sAgent) StartAgent(ctx context.Context) error {
-
+	km.Logger.Infow("kloudmate kubernetes agent info",
+		"version", km.agentInfo.Version,
+		"commitSHA", km.agentInfo.CommitSHA,
+	)
 	return km.Start(ctx)
 }
 

@@ -19,6 +19,11 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	version = "0.1.0"
+	commit  = "none"
+)
+
 func updaterFlags(cfg *config.K8sAgentConfig) []cli.Flag {
 	return []cli.Flag{
 		altsrc.NewStringFlag(&cli.StringFlag{
@@ -91,6 +96,10 @@ func main() {
 					ctx, cancel := context.WithCancel(c.Context)
 					defer cancel()
 
+					logger.Sugar().Infow("kloudmate config updater info",
+						"version", version,
+						"commitSHA", commit,
+					)
 					logger.Info("loading InClusterConfig via service account.", zap.Any("config", agentCfg))
 					kubeconfig, err := rest.InClusterConfig()
 					if err != nil {
