@@ -11,15 +11,16 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"runtime"
 	"time"
 
+	"github.com/kloudmate/km-agent/internal/config"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
-
-	"github.com/kloudmate/km-agent/internal/config"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // ConfigUpdater handles configuration updates from a remote API
@@ -44,9 +45,8 @@ type K8sConfigUpdateResponse struct {
 }
 
 // NewK8sConfigUpdater creates a new config updater
-func NewK8sConfigUpdater(cfg *config.K8sAgentConfig, logger *zap.SugaredLogger) *K8sConfigUpdater {
-	// Determine config path
-	configPath := "/etc/kmagent/agent.yaml"
+func NewKubeConfigUpdaterClient(cfg *config.K8sAgentConfig, logger *zap.SugaredLogger) *K8sConfigUpdater {
+	configPath := config.DefaultConfigmapMountPath
 
 	return &K8sConfigUpdater{
 		cfg:    cfg,
@@ -69,7 +69,6 @@ func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p UpdateCheckerP
 	// Create the request
 	data := map[string]interface{}{
 		"is_docker":          false,
-		"hostname":           u.cfg.Hostname(),
 		"platform":           "kubernetes",
 		"architecture":       runtime.GOARCH,
 		"agent_version":      p.Version,
@@ -118,40 +117,127 @@ func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p UpdateCheckerP
 	return updateResp.RestartRequired, updateResp.Config, nil
 }
 
-// ApplyConfig applies a new configuration by writing it to the config file
-func (u *K8sConfigUpdater) ApplyConfig(newConfig map[string]interface{}) error {
-	// Convert to YAML
-	configYAML, err := yaml.Marshal(newConfig)
+// StartConfigUpdateChecker run ticker for performConfigCheck
+func (a *K8sConfigUpdater) StartConfigUpdateChecker(ctx context.Context) {
+	if a.cfg.ConfigUpdateURL == "" {
+		a.logger.Info("Config update URL not configured, skipping config update checks")
+		return
+	}
+	parsedTime, err := time.ParseDuration(a.cfg.ConfigCheckInterval)
 	if err != nil {
-		return fmt.Errorf("failed to marshal new config to YAML: %w", err)
+		a.logger.Info("Config update URL parse error, falling back to default value")
+		parsedTime = time.Duration(time.Second * 30)
 	}
+	ticker := time.NewTicker(parsedTime)
+	defer ticker.Stop()
 
-	// Make sure the directory exists
-	configDir := filepath.Dir(u.configPath)
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
-	}
-
-	// Create a temporary file in the same directory
-	tempFile := u.configPath + ".new"
-	if err := os.WriteFile(tempFile, configYAML, 0644); err != nil {
-		return fmt.Errorf("failed to write new config to temporary file: %w", err)
-	}
-
-	// Rename the temporary file to the actual config file (atomic operation)
-	if err := os.Rename(tempFile, u.configPath); err != nil {
-		return fmt.Errorf("failed to replace config file: %w", err)
-	}
-
-	u.logger.Info("Successfully updated configuration at ", u.configPath)
-
-	defer func() {
-		if err != nil {
-			// Clean up temp file on error
-			if removeErr := os.Remove(tempFile); removeErr != nil {
-				u.logger.Warnf("Failed to clean up temporary file %s: %v", tempFile, removeErr)
+	for {
+		select {
+		case <-ticker.C:
+			if err := a.performConfigCheck(ctx); err != nil {
+				a.logger.Errorf("Periodic config check failed: %v", err)
 			}
+		case <-a.cfg.StopCh:
+			a.logger.Info("Config update checker stopping due to shutdown.")
+			return
+		case <-ctx.Done():
+			a.logger.Info("Config update checker stopping due to context cancellation.")
+			return
 		}
-	}()
+	}
+}
+
+// performConfigCheck checks remote server for new config and restart collector if required
+func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
+	ctx, cancel := context.WithTimeout(agentCtx, 10*time.Second)
+	defer cancel()
+
+	a.logger.Infoln("Checking for configuration updates...")
+
+	params := UpdateCheckerParams{
+		Version: a.cfg.Version,
+	}
+
+	a.logger.Debugf("Checking for updates with params: %+v", params)
+
+	restart, newConfig, err := a.CheckForUpdates(ctx, params)
+	if err != nil {
+		return fmt.Errorf("updater.CheckForUpdates failed: %w", err)
+	}
+	if newConfig != nil && restart {
+		if err := a.UpdateConfigMap(newConfig); err != nil {
+			return fmt.Errorf("failed to update config file: %w", err)
+		}
+		a.logger.Infoln("triggering rollout restart.")
+
+		if err = a.triggerRollout(agentCtx); err != nil {
+			a.logger.Errorln(err)
+		}
+
+	} else {
+		a.logger.Infoln("No configuration change")
+	}
+	return nil
+}
+
+func (a *K8sConfigUpdater) UpdateConfigMap(cfg map[string]interface{}) error {
+
+	yamlBytes, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("marshal error: %w", err)
+	}
+
+	configMaps := a.cfg.K8sClient.CoreV1().ConfigMaps(a.cfg.KubeNamespace)
+
+	_, err = configMaps.Update(context.TODO(), &corev1.ConfigMap{
+		Data: map[string]string{"agent.yaml": string(yamlBytes)},
+		ObjectMeta: v1.ObjectMeta{
+			Name: a.cfg.ConfigmapName,
+		},
+	}, v1.UpdateOptions{})
+
+	if err != nil {
+		a.logger.Errorln(err)
+	}
+
+	return nil
+}
+
+// triggerRollout triggers a DaemonSet rollout by patching its template annotation.
+func (drt *K8sConfigUpdater) triggerRollout(ctx context.Context) error {
+	drt.logger.Infof("Attempting to trigger rollout for DaemonSet %s/%s...", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName)
+
+	// Get the DaemonSet to ensure it exists and get its current state
+	_, err := drt.cfg.K8sClient.AppsV1().DaemonSets(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DaemonSetName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("Error getting DaemonSet %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
+	}
+
+	// Prepare the patch to update the "kubectl.kubernetes.io/restartedAt" annotation.
+	// This annotation change signals Kubernetes to perform a rolling update.
+	patch := map[string]interface{}{
+		"spec": map[string]interface{}{
+			"template": map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"annotations": map[string]interface{}{
+						"kubectl.kubernetes.io/restartedAt": time.Now().Format(time.RFC3339),
+					},
+				},
+			},
+		},
+	}
+
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		return fmt.Errorf("Error marshaling patch for DaemonSet %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
+	}
+
+	// Apply the strategic merge patch to the DaemonSet
+	_, err = drt.cfg.K8sClient.AppsV1().DaemonSets(drt.cfg.KubeNamespace).Patch(ctx, drt.cfg.DaemonSetName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("Error patching DaemonSet %s/%s to trigger rollout: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
+	}
+
+	drt.logger.Infof("Successfully triggered rollout for DaemonSet %s/%s.", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName)
 	return nil
 }

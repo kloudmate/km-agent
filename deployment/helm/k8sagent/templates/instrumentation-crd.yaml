@@ -2,10 +2,12 @@ apiVersion: opentelemetry.io/v1alpha1
 kind: Instrumentation
 metadata:
   name: {{ .Values.InstrumentationCrd.name }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  releaseName: {{ .Release.Name }}
   exporter:
-    endpoint: http://kloudmate-k8sagent.{{ .Release.Namespace }}.svc.cluster.local:4317
+    endpoint: http://{{ .Values.agentServiceName }}.{{ .Release.Namespace }}.svc.cluster.local:4317
+  
   propagators:
     - tracecontext
     - baggage
@@ -13,6 +15,10 @@ spec:
   sampler:
     type: parentbased_traceidratio
     argument: "0.25"
+
+  nodejs:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.62.0 # Recommended: Use a specific, stable tag
+  
   # python:
   #   env:
   #     # Required if endpoint is set to 4317.

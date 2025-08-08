@@ -2,12 +2,12 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 ; And custom code added for kmagent specific requirements.
 
-#define MyAppName "kmagent"
+#define MyAppName "KloudMate Agent"
 #define MyAppPublisher "KloudMate"
 #define MyAppURL "https://kloudmate.com"
 #define MyAppExeName "kmagent.exe"
 #define MyServiceName "kmagent"
-#define MyServiceDisplayName "Kloudmate Monitoring Service"
+#define MyServiceDisplayName "KloudMate agent for OpenTelemetry"
 #define MyBuildConfigDirName "win"
 #define MyConfigSourceDir "source"
 #define MyConfigFileName "agent.yaml"
@@ -30,6 +30,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
+SetupIconFile=assets\app-icon.ico
 ; Setup needs admin rights to install service and write to ProgramData
 PrivilegesRequired=admin
 OutputDir=.
@@ -57,6 +58,10 @@ Source: "host-col-config.yaml"; DestDir: "{app}"; DestName: "config.yaml"
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 ; Optional: Add uninstall entry icon
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
+
+[UninstallRun]
+Filename: "{app}\{#MyAppExeName}"; Parameters: "stop"; Flags: runhidden
+
 
 [UninstallDelete]
 ; Clean up the config directory and installation directory on uninstall

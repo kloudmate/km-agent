@@ -1,0 +1,66 @@
+# filename: updater-deployment.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kloudmate-config-updater
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kloudmate-config-updater
+spec:
+  # replica is 1 to ensure a single instance is running
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kloudmate-config-updater
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kloudmate-config-updater
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+
+      containers:
+        - name: config-updater
+          image: "{{ .Values.configUpdater.image.repository }}:{{ .Values.configUpdater.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.configUpdater.image.pullPolicy }}
+
+          env:
+            - name: KM_API_KEY
+              value: {{ .Values.API_KEY }}
+            - name: KM_COLLECTOR_ENDPOINT
+              value: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }}
+            - name: KM_CONFIG_CHECK_INTERVAL
+              value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default "30s" }}
+            - name: KM_UPDATE_ENDPOINT
+              value: {{ .Values.KM_UPDATE_ENDPOINT | default "https://api.kloudmate.com/agents/config-check" }}
+            - name: CONFIGMAP_NAME
+              value: {{ .Values.configMap.name }}
+            - name: KM_CLUSTER_NAME
+              value: {{ .Values.clusterName }}
+            - name: KM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KM_DAEMONSET_NAME
+              value: {{ .Values.daemonsetName }}
+
+          volumeMounts:
+            - name: agent-config-volume
+              mountPath: "/etc/kmagent/agent.yaml"
+              readOnly: true
+              subPath: "agent.yaml"
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+
+      volumes:
+        - name: agent-config-volume
+          configMap:
+            # Assumes the ConfigMap is also managed by this chart
+            name: {{ .Values.configMap.name }}

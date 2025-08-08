@@ -28,6 +28,10 @@ spec:
               value: https://otel.kloudmate.com:4318
             - name: KM_CONFIG_CHECK_INTERVAL
               value: 30s
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           volumeMounts:
             - name: agent-config-volume
               mountPath: "/etc/kmagent/agent.yaml"

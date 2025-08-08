@@ -25,7 +25,7 @@ func (a *K8sAgent) startInternalCollector() error {
 
 	a.Logger.Infoln("Starting actual collector instance with new configuration...")
 
-	collectorSettings := shared.CollectorInfoFactory(config.DefaultAgentConfigPath)
+	collectorSettings := shared.CollectorInfoFactory(config.DefaultConfigmapMountPath)
 
 	// Create a context for this collector instance
 	a.collectorCtx, a.collectorCancel = context.WithCancel(context.Background())
@@ -41,11 +41,16 @@ func (a *K8sAgent) startInternalCollector() error {
 	// The collector's Start method is blocking until the collector is ready or fails.
 	a.wg.Add(1)
 	go func(col *otelcol.Collector, ctx context.Context) {
-		defer a.wg.Done()
-		defer func() {}()
+		defer func() {
+			a.wg.Done()
+			if err != nil {
+				a.Logger.Infoln("Collector exited with error: %v", err)
 
-		a.Logger.Infoln("Collector: Starting with config from %s in background goroutine...", config.DefaultAgentConfigPath)
-		err := col.Run(ctx)
+			}
+		}()
+
+		a.Logger.Infof("Collector: Starting with config from %s in background goroutine... \n", config.DefaultConfigmapMountPath)
+		err = col.Run(ctx)
 		if err != nil {
 			a.Logger.Infoln("Collector exited with error: %v", err)
 
@@ -53,7 +58,14 @@ func (a *K8sAgent) startInternalCollector() error {
 			a.Logger.Infoln("Collector exited normally.")
 		}
 		a.collectorMu.Lock()
-		defer a.collectorMu.Unlock()
+		defer func() {
+			if err != nil {
+				a.Logger.Infoln("Collector exited with error: %v", err)
+
+			}
+			a.collectorMu.Unlock()
+		}()
+
 		if a.Collector == col {
 			a.Collector = nil
 		}

@@ -2,7 +2,12 @@ FROM golang:alpine AS buildstage
 RUN mkdir /app
 COPY . /app
 WORKDIR /app
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags k8s -o kmagent cmd/kmagent/main_k8s.go
+
+# build arguments for version information
+ARG VERSION=dev
+ARG COMMIT_SHA=unknown
+
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-X 'main.version=$VERSION' -X 'main.commit=$COMMIT_SHA'" -tags k8s -o kmagent cmd/kmagent/main_k8s.go
 
 FROM alpine:latest
 COPY --from=buildstage /app/kmagent ./kmagent
