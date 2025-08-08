@@ -20,5 +20,8 @@ jobs:
       - name: Build & Push Image
         run: |
           docker login --username kloudmate --password ${{ secrets.GHCR_PAT }} ghcr.io
-          docker build . --build-arg VERSION=${{ env.VERSION }} --tag ghcr.io/kloudmate/km-agent:latest
+          docker build . --build-arg VERSION=${{ env.VERSION }} \
+            --tag ghcr.io/kloudmate/km-agent:${{ env.VERSION }} \
+            --tag ghcr.io/kloudmate/km-agent:latest
+          docker push ghcr.io/kloudmate/km-agent:${{ env.VERSION }}
           docker push ghcr.io/kloudmate/km-agent:latest
