@@ -4,8 +4,11 @@ replicaCount: 1
 # The api key is a must to be passed and it will be injected in the configmap
 API_KEY:
 COLLECTOR_ENDPOINT: https://otel.kloudmate.com:4318
+KM_UPDATE_ENDPOINT: https://api.kloudmate.com/agents/config-check
 KM_CONFIG_CHECK_INTERVAL: 30s
 
+daemonsetName: kloudmate-agent
+agentServiceName: kloudmate-agent-service
 # Kubernetes agent image configuration
 image:
   repository: ghcr.io/kloudmate/km-kube-agent

@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: kloudmate-agent
+  name: {{ .Values.daemonsetName }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "k8sagent.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app: kloudmate-agent
+      app: {{ .Values.daemonsetName }}
       {{- include "k8sagent.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: kloudmate-agent
+        app: {{ .Values.daemonsetName }}
         {{- include "k8sagent.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}

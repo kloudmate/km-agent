@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
   exporter:
-    endpoint: http://kloudmate-agent.{{ .Release.Namespace }}.svc.cluster.local:4317
+    endpoint: http://{{ .Values.agentServiceName }}.{{ .Release.Namespace }}.svc.cluster.local:4317
   
   propagators:
     - tracecontext
