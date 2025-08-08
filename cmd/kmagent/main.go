@@ -13,9 +13,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"net/url"
 	"os"
-	"strings"
 	"sync"
 	"time"
 )
@@ -207,7 +205,7 @@ func main() {
 		altsrc.NewIntFlag(&cli.IntFlag{
 			Name:        "config-check-interval",
 			Usage:       "Interval in seconds to check for config updates",
-			Value:       30,
+			Value:       60,
 			EnvVars:     []string{"KM_CONFIG_CHECK_INTERVAL"},
 			Destination: &program.cfg.ConfigCheckInterval,
 		}),
@@ -219,22 +217,7 @@ func main() {
 				if endpoint == "" {
 					endpoint = "https://otel.kloudmate.com:4318"
 				}
-				u, err := url.Parse(endpoint)
-				if err != nil || u.Host == "" {
-					return "https://api.kloudmate.com/agents/config-check"
-				}
-
-				host := u.Hostname()
-				parts := strings.Split(host, ".")
-
-				// If domain has 2+ parts (e.g., otel.kloudmate.com), use last 2
-				if len(parts) >= 2 {
-					rootDomain := parts[len(parts)-2] + "." + parts[len(parts)-1]
-					return u.Scheme + "://api." + rootDomain + "/agents/config-check"
-				}
-
-				// Fallback if we can't parse domain properly
-				return "https://api.kloudmate.com/agents/config-check"
+				return config.GetAgentConfigUpdaterURL(endpoint)
 			}(),
 			EnvVars:     []string{"KM_UPDATE_ENDPOINT"},
 			Destination: &program.cfg.ConfigUpdateURL,
