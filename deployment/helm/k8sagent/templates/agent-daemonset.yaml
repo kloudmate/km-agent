@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: kloudmate-agent
+  name: {{ .Values.daemonsetName }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "k8sagent.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app: kloudmate-agent
+      app: {{ .Values.daemonsetName }}
       {{- include "k8sagent.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: kloudmate-agent
+        app: {{ .Values.daemonsetName }}
         {{- include "k8sagent.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
@@ -32,6 +32,12 @@ spec:
               value: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }}
             - name: KM_CONFIG_CHECK_INTERVAL
               value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default "30s" }}
+            - name: CONFIGMAP_NAME
+              value: {{ .Values.configMap.name }}
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           ports:
             - name: otlp-grpc
               containerPort: 4317

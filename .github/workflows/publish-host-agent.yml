@@ -1,4 +1,4 @@
-name: Docker Image Bulid For GHCR
+name: Publish host agent image to the registry
 
 on:
   release:

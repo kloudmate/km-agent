@@ -2,17 +2,29 @@
 replicaCount: 1
 
 # The api key is a must to be passed and it will be injected in the configmap
-API_KEY: KM_API_KEY
-COLLECTOR_ENDPOINT:
+API_KEY:
+COLLECTOR_ENDPOINT: https://otel.kloudmate.com:4318
+KM_UPDATE_ENDPOINT: https://api.kloudmate.com/agents/config-check
 KM_CONFIG_CHECK_INTERVAL: 30s
 
-# This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+daemonsetName: kloudmate-agent
+agentServiceName: kloudmate-agent-service
+# Kubernetes agent image configuration
 image:
-  repository: ghcr.io/kloudmate/km-agent-k8s
+  repository: ghcr.io/kloudmate/km-kube-agent
   # This sets the pull policy for images.
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+  tag: "v2"
+
+# Kubernetes agent config updater image configuration
+configUpdater:
+  image:
+    repository: ghcr.io/kloudmate/km-kube-updater
+    # This sets the pull policy for images.
+    pullPolicy: Always
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "latest"
 
 # This is to override the chart name.
 nameOverride: ""
@@ -87,7 +99,6 @@ opentelemetry-operator:
   admissionWebhooks:
     certManager:
       enabled: true
-  admissionWebhooks:
     create: true
     servicePort: 443
     failurePolicy: Fail
@@ -129,9 +140,25 @@ opentelemetry-operator:
       # Cert period time in days. The default is 365 days.
       certPeriodDays: 365
   
+
   manager:
     resources: {}
     # createCollector: false
+    autoInstrumentationImage:
+      # This section defines the auto-instrumentation images for different languages.
+      # The operator will use these images for the initContainer when injecting.
+      nodejs:
+        repository: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs
+        tag: latest
+      java:
+        repository: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java
+        tag: latest
+      python:
+        repository: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python
+        tag: latest
+      dotnet:
+        repository: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet
+        tag: latest
 
 cert-manager:
   enabled: true
