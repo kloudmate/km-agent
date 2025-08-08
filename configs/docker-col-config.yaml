@@ -22,8 +22,6 @@ receivers:
     scrapers:
       cpu:
         metrics:
-          system.cpu.logical.count:
-            enabled: true
           system.cpu.utilization:
             enabled: true
       memory:

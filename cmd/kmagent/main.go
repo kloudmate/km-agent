@@ -5,20 +5,19 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/kardianos/service"
+	"github.com/kloudmate/km-agent/internal/agent"
+	"github.com/kloudmate/km-agent/internal/config"
+	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2/altsrc"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"net/url"
 	"os"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/urfave/cli/v2/altsrc"
-
-	"github.com/urfave/cli/v2"
-	"go.uber.org/zap"
-
-	"github.com/kardianos/service"
-	"github.com/kloudmate/km-agent/internal/agent"
-	"github.com/kloudmate/km-agent/internal/config"
 )
 
 var version = "0.1.0" // Version of the application
@@ -133,6 +132,31 @@ func makeService(p *Program) (service.Service, error) {
 		return nil, fmt.Errorf("error creating service: %w", err) // Return error
 	}
 	return svc, nil
+}
+
+// TODO permission issue
+func getFileLogger(logFile string) (*zap.SugaredLogger, error) {
+	// Lumberjack handles log rotation
+	writer := zapcore.AddSync(&lumberjack.Logger{
+		Filename:   logFile,
+		MaxSize:    10, // MB
+		MaxBackups: 1,
+		MaxAge:     7,    // days
+		Compress:   true, // compress old logs
+	})
+
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.TimeKey = "timestamp"
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoder := zapcore.NewJSONEncoder(encoderConfig)
+
+	core := zapcore.NewTee(
+		zapcore.NewCore(encoder, writer, zapcore.InfoLevel),
+		zapcore.NewCore(zapcore.NewConsoleEncoder(encoderConfig), zapcore.AddSync(os.Stdout), zapcore.DebugLevel),
+	)
+
+	logger := zap.New(core)
+	return logger.Sugar(), nil
 }
 
 func main() {
@@ -256,6 +280,16 @@ func main() {
 					program.logger.Fatalf("Failed to run service: %v", err) // Fatal on run error
 				}
 				program.logger.Info("Service run finished.")
+				return nil
+			},
+		},
+		{
+			Name:  "stop",
+			Usage: "Stop the agent",
+			Action: func(c *cli.Context) error {
+				program.logger.Info("Stopping the agent via CLI command...")
+				program.Shutdown()
+				program.logger.Info("Agent stopped successfully.")
 				return nil
 			},
 		},
