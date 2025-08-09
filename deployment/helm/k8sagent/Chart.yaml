@@ -3,10 +3,9 @@ name: k8sagent
 description: A Helm chart for Kloumate's Kubernetes flavored Agent
 home: https://www.kloudmate.com
 type: application
-version: 1.0.0
-appVersion: "1.0.0"
+version: 1.0.1
+appVersion: "1.0.1"
 icon: https://avatars.githubusercontent.com/u/103623326?s=48&v=4
-
 keywords:
   - kloudmate
   - observability
@@ -16,21 +15,17 @@ keywords:
   - tracing
   - logs
   - metrics
-
 sources:
   - https://github.com/kloudmate/km-agent
-
 maintainers:
   - name: Amitava Saha
     email: amitava@kloudmate.com
     # url: https://www.kloudmate.com/support
-
 dependencies:
   - name: cert-manager
     version: v1.18.2
     repository: https://charts.jetstack.io
     condition: cert-manager.enabled
-
   - name: opentelemetry-operator
     version: 0.90.0
     repository: https://open-telemetry.github.io/opentelemetry-helm-charts
