@@ -12,7 +12,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      # `fetch-depth: 0` is crucial for chart-releaser to get the full Git history.
+      # Full history needed for chart-releaser to diff versions
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -30,7 +30,7 @@ jobs:
           wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -O /usr/local/bin/yq
           chmod +x /usr/local/bin/yq
       
-      # update chart version
+      # Update chart version and push to develop
       - name: Update Chart Version
         run: |
           NEW_VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
@@ -42,24 +42,19 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git add deployment/helm/km-kube-agent/Chart.yaml
           git commit -m "chore(release): update chart version to $NEW_VERSION"
-          git push origin HEAD:${{ github.event.release.target_commitish }}
 
+          git push https://x-access-token:${{ secrets.GHCR_PAT }}@github.com/kloudmate/km-agent.git HEAD:${{ github.event.release.target_commitish }}
 
-      # Add the external Helm repositories
+      # Add external Helm repositories (optional)
       - name: Add external Helm repositories
         run: |
           helm repo add jetstack https://charts.jetstack.io
           helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 
-
-      # This single action handles linting, dependency building,
-      # chart packaging, creating a GitHub release, and updating the index.
+      # Package and release charts to gh-pages
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.6.0
         with:
-          lint: true
-          # `dep-update` is enabled to automatically run `helm dependency update`.
-          dep-update: true
           charts_dir: deployment/helm
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
