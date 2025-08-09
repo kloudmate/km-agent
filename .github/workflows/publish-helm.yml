@@ -23,10 +23,27 @@ jobs:
         with:
           version: v3.12.0
 
-      - name: Add git actor
+      # Install yq
+      - name: Install yq
         run: |
-          git config --global user.email "helm@kloudmate.com"
-          git config --global user.name "Kloudmate"
+          YQ_VERSION="v4.40.5"
+          wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -O /usr/local/bin/yq
+          chmod +x /usr/local/bin/yq
+      
+      # update chart version
+      - name: Update Chart Version
+        run: |
+          NEW_VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
+          
+          yq e '.version = "'"$NEW_VERSION"'"' -i deployment/helm/km-kube-agent/Chart.yaml
+          yq e '.appVersion = "'"$NEW_VERSION"'"' -i deployment/helm/km-kube-agent/Chart.yaml
+
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add deployment/helm/km-kube-agent/Chart.yaml
+          git commit -m "chore(release): update chart version to $NEW_VERSION"
+          git push origin HEAD:${{ github.event.release.target_commitish }}
+
 
       # Add the external Helm repositories
       - name: Add external Helm repositories

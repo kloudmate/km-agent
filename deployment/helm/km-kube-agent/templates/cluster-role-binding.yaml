@@ -6,7 +6,7 @@ metadata:
   namespace: {{ .Values.rbac.ClusterRoleBindingNamespace }}
 
   labels:
-    {{- include "k8sagent.labels" . | nindent 4 }}
+    {{- include "km-kube-agent.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
