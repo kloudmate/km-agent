@@ -23,6 +23,11 @@ jobs:
         with:
           version: v3.12.0
 
+      - name: Add git actor
+        run: |
+          git config --global user.email "helm@kloudmate.com"
+          git config --global user.name "Kloudmate"
+
       # Add the external Helm repositories
       - name: Add external Helm repositories
         run: |
