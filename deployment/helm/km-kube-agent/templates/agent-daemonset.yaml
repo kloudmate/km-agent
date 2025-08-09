@@ -4,21 +4,21 @@ metadata:
   name: {{ .Values.daemonsetName }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "k8sagent.labels" . | nindent 4 }}
+    {{- include "km-kube-agent.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
       app: {{ .Values.daemonsetName }}
-      {{- include "k8sagent.selectorLabels" . | nindent 6 }}
+      {{- include "km-kube-agent.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
         app: {{ .Values.daemonsetName }}
-        {{- include "k8sagent.selectorLabels" . | nindent 8 }}
+        {{- include "km-kube-agent.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
-        - name: kloudmate-k8sagent
+        - name: kloudmate-km-kube-agent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- with .Values.args }}
