@@ -42,7 +42,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git add deployment/helm/k8sagent/Chart.yaml
           git commit -m "chore(release): update chart version to $NEW_VERSION"
-          git push
+          git push origin HEAD:${{ github.event.release.target_commitish }}
 
 
       # Add the external Helm repositories
