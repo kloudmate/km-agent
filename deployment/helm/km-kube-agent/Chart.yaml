@@ -1,5 +1,5 @@
 apiVersion: v2
-name: k8sagent
+name: km-kube-agent
 description: A Helm chart for Kloumate's Kubernetes flavored Agent
 home: https://www.kloudmate.com
 type: application

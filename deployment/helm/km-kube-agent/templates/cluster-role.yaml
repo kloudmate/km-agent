@@ -5,7 +5,7 @@ metadata:
   namespace: {{ .Values.rbac.clusterRoleNamespace }}
 
   labels:
-    {{- include "k8sagent.labels" . | nindent 4 }}
+    {{- include "km-kube-agent.labels" . | nindent 4 }}
 rules:
 - apiGroups: [""]
   resources: ["nodes", "pods", "services", "endpoints", "namespaces", "configmaps", "secrets", "events", "persistentvolumes", "replicationcontrollers", "resourcequotas"]

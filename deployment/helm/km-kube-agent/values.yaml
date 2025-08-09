@@ -82,12 +82,12 @@ volumeMounts: []
 #   readOnly: true
 
 selectorLabels:
-  app.kubernetes.io/component: km-k8sagent
+  app.kubernetes.io/component: km-km-kube-agent
 
 extraLabels:
   app.kubernetes.io/name: km-k8sdaemonset
   app.kubernetes.io/instance: kloudmate-prod-release # Or "{{ .Release.Name }}" in Helm
-  app.kubernetes.io/component: km-k8sagent-deployment
+  app.kubernetes.io/component: km-km-kube-agent-deployment
   app.kubernetes.io/part-of: observability-apm
 
 
