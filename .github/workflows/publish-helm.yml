@@ -11,15 +11,13 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       # Full history needed for chart-releaser to diff versions
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+          token: ${{ secrets.GHCR_PAT }}
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
