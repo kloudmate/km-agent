@@ -31,6 +31,6 @@ jobs:
           lint: true
           # `dep-update` is enabled to automatically run `helm dependency update`.
           dep-update: true
-          chart_path: deployment/helm/k8sagent
+          charts_dir: deployment/helm
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
