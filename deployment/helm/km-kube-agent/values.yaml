@@ -15,7 +15,7 @@ image:
   # This sets the pull policy for images.
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "v2"
+  tag: "latest"
 
 # Kubernetes agent config updater image configuration
 configUpdater:
@@ -94,19 +94,17 @@ extraLabels:
 # ----------- Operator ------------
 opentelemetry-operator:
   crds:
+    # Set to 'false' if you are managing CRDs externally, or 'true' to let the operator manage them.
+    # The current setting 'true' is fine, but double-check your installation strategy.
     create: true
   enabled: true # install the operator as part of this chart
   admissionWebhooks:
-    certManager:
-      enabled: true
     create: true
     servicePort: 443
-    failurePolicy: Fail
-    secretName: ""
-
-    ## Defines the sidecar injection logic in Pods.
+    # Change the failure policy for pods from 'Ignore' to 'Fail' if you want pods
+    # to fail creation if the webhook is not available.
     pods:
-      failurePolicy: Ignore
+      failurePolicy: Fail
 
     ## Adds a prefix to the mutating webhook name.
     ## This can be used to order this mutating webhook with all cluster's mutating webhooks.
@@ -119,16 +117,7 @@ opentelemetry-operator:
     namespaceSelector: {}
     objectSelector: {}
     certManager:
-      enabled: true
-      ## Provide the issuer kind and name to do the cert auth job.
-      ## By default, OpenTelemetry Operator will use self-signer issuer.
-      issuerRef: {}
-      ## Annotations for the cert and issuer if cert-manager is enabled.
-      certificateAnnotations: {}
-      issuerAnnotations: {}
-      # duration must be specified by a Go time.Duration (ending in s, m or h)
-      duration: ""
-      renewBefore: ""
+      enabled: false
 
     ## Use Helm to automatically generate self-signed certificate.
     ## certManager must be disabled and autoGenerateCert must be enabled.
@@ -143,10 +132,7 @@ opentelemetry-operator:
 
   manager:
     resources: {}
-    # createCollector: false
     autoInstrumentationImage:
-      # This section defines the auto-instrumentation images for different languages.
-      # The operator will use these images for the initContainer when injecting.
       nodejs:
         repository: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs
         tag: latest
@@ -160,8 +146,11 @@ opentelemetry-operator:
         repository: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet
         tag: latest
 
+# ----------- cert-manager ------------
 cert-manager:
-  enabled: true
+  enabled: false
+  # Set crds.enabled to 'true' to have cert-manager install and manage its own CRDs.
+  # It's a common source of bugs for cert-manager to have its CRDs managed externally.
   crds:
     enabled: false
     keep: true
