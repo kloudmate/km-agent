@@ -1,4 +1,4 @@
-{{- if .Values.features.apm -}}
+{{- if .Values.featuresEnabled.apm -}}
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
