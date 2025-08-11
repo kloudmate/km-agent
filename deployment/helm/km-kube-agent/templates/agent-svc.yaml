@@ -3,9 +3,11 @@ kind: Service
 metadata:
   name: {{ .Values.agentServiceName }}
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- toYaml .Values.serviceLabels | nindent 4 }}
 spec:
   selector:
-    app: {{ .Values.daemonsetName }}
+    mapped-with: {{ .Values.daemonsetName }}
   ports:
     - name: otlp-grpc-service
       protocol: TCP
@@ -16,3 +18,4 @@ spec:
       port: 4318
       targetPort: otlp-http
   type: ClusterIP
+  internalTrafficPolicy: Local

@@ -15,6 +15,7 @@ keywords:
   - tracing
   - logs
   - metrics
+  - apm
 sources:
   - https://github.com/kloudmate/km-agent
 maintainers:

@@ -1,9 +1,9 @@
 apiVersion: opentelemetry.io/v1alpha1
 kind: Instrumentation
 metadata:
-  name: {{ .Values.InstrumentationCrd.name }}
+  name: {{ .Values.instrumentationCrdName }}
   labels:
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- toYaml .Values.instrumentationCrdLabels | nindent 4 }}
 spec:
   exporter:
     endpoint: http://{{ .Values.agentServiceName }}.{{ .Release.Namespace }}.svc.cluster.local:4318
@@ -21,6 +21,10 @@ spec:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:latest
   python:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:latest
+  dotnet:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:latest
+  java:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:latest
   
   env:    
     # Using the Downward API to dynamically set resource attributes for the pod.

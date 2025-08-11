@@ -4,27 +4,23 @@ metadata:
   name: {{ .Values.daemonsetName }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "km-kube-agent.labels" . | nindent 4 }}
+    {{- toYaml .Values.daemonsetLabels | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app: {{ .Values.daemonsetName }}
-      {{- include "km-kube-agent.selectorLabels" . | nindent 6 }}
+      mapped-with: {{ .Values.daemonsetName }}
+      {{- toYaml .Values.daemonsetLabels | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ .Values.daemonsetName }}
-        {{- include "km-kube-agent.selectorLabels" . | nindent 8 }}
+        mapped-with: {{ .Values.daemonsetName }}
+        {{- toYaml .Values.daemonsetLabels | nindent 8 }}
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccountName }}
       containers:
         - name: kloudmate-km-kube-agent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- with .Values.args }}
-          args:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
           env:
             - name: KM_API_KEY
               value: {{ .Values.API_KEY }}

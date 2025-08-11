@@ -1,21 +1,50 @@
 replicaCount: 1
 
+# kloudmate platform specific arguments
 API_KEY:
 COLLECTOR_ENDPOINT: https://otel.kloudmate.com:4318
 KM_UPDATE_ENDPOINT: https://api.kloudmate.com/agents/config-check
 KM_CONFIG_CHECK_INTERVAL: 30s
 
-daemonsetName: kloudmate-agent
-agentServiceName: kloudmate-agent-service
+# names of components to be installed.
+daemonsetName: km-agent-daemonset
+deploymentName: km-agent-deployment
+clusterRoleName: km-agent-cluster-role
+agentServiceName: km-agent-svc
+configUpdaterName: km-agent-config-updater
+serviceAccountName: km-agent-sa
+clusterRoleBindingName: km-agent-cluster-role-binding 
+instrumentationCrdName: km-agent-instrumentation-crd
+configMapDaemonsetName: km-agent-configmap-daemonset
+configMapDeploymentName: km-agent-configmap-deployment 
+polylangDetectorDaemonsetName: km-agent-polylang-detector-daemonset 
 
+autoMountServiceAccount: true
+autoCreateServiceAccount: true
+
+featuresEnabled:
+  apm: true
+  logs: true
+  metrics: true
+  traces: true
+
+# image settings for kube agent
 image:
   repository: ghcr.io/kloudmate/km-kube-agent
   pullPolicy: Always
   tag: "latest"
 
+# image settings for config updater
 configUpdater:
   image:
     repository: ghcr.io/kloudmate/km-kube-updater
+    pullPolicy: Always
+    tag: "latest"
+
+# image settings for polylang-detector
+polylangDetector:
+  image:
+    repository: ghcr.io/kloudmate/polylang-detector
     pullPolicy: Always
     tag: "latest"
 
@@ -23,56 +52,38 @@ configUpdater:
 nameOverride: ""
 fullnameOverride: ""
 
-# This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Automatically mount a ServiceAccount's API credentials?
-  automount: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: "km-svc-account"
-
-rbac:
-  # -- The ClusterRole name
-  clusterRoleName: km-cluster-role
-  clusterRoleNamespace: default
-
-  ClusterRoleBindingName: km-agent-cluster-binding
-  ClusterRoleBindingNamespace: default
-
-configMap:
-  name: "km-agent-configmap"
-
-InstrumentationCrd:
-  name: instrumentation-crd
-
-# This is for setting Kubernetes Annotations to a Pod.
-# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
-podAnnotations: {}
-# This is for setting Kubernetes Labels to a Pod.
-# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 podLabels: {}
 
-podSecurityContext: {}
-  # fsGroup: 2000
-
-securityContext: {}
-
-
-selectorLabels:
-  app.kubernetes.io/component: km-km-kube-agent
-
-extraLabels:
-  app.kubernetes.io/name: km-k8sdaemonset
-  app.kubernetes.io/instance: kloudmate-prod-release # Or "{{ .Release.Name }}" in Helm
-  app.kubernetes.io/component: km-km-kube-agent-deployment
-  app.kubernetes.io/part-of: observability-apm
-
-
 # ----------- Labels ------------
+
+# Labels for the DaemonSet, which acts as a node-level agent.
+daemonsetLabels:
+  app.kubernetes.io/name: "km-kube-agent"
+  app.kubernetes.io/instance: "km-kube-agent-daemonset"
+  app.kubernetes.io/component: "node-agent"
+  app.kubernetes.io/part-of: "kloudmate-platform"
+  app.kubernetes.io/managed-by: "Helm"
+  environment: "production"
+  product: "kloudmate"
+
+# Labels for the Deployment, which acts as a cluster-level agent.
+deploymentLabels:
+  app.kubernetes.io/name: "km-kube-agent"
+  app.kubernetes.io/instance: "km-kube-agent-deployment"
+  app.kubernetes.io/component: "cluster-agent"
+  app.kubernetes.io/part-of: "kloudmate-platform"
+  app.kubernetes.io/managed-by: "Helm"
+  environment: "production"
+  product: "kloudmate"
+
+# Labels for the Config Updater.
+configUpdaterLabels:
+  app.kubernetes.io/name: "km-kube-agent"
+  app.kubernetes.io/instance: "km-kube-agent-config-updater"
+  app.kubernetes.io/part-of: "kloudmate-platform"
+  app.kubernetes.io/managed-by: "Helm"
+  product: "kloudmate"
+
 
 # Labels for the Service Account.
 serviceAccountLabels:
@@ -114,7 +125,7 @@ serviceLabels:
   app.kubernetes.io/managed-by: "Helm"
   product: "kloudmate"
 
-# Labels for the ConfigMap.
+# Labels for the Deployment ConfigMap.
 configMapDeploymentLabels:
   app.kubernetes.io/name: "km-kube-agent"
   app.kubernetes.io/instance: "km-kube-agent-config-deployment"
@@ -122,7 +133,7 @@ configMapDeploymentLabels:
   app.kubernetes.io/managed-by: "Helm"
   product: "kloudmate"
 
-# Labels for the ConfigMap.
+# Labels for the Daemonset ConfigMap.
 configMapDaemonsetLabels:
   app.kubernetes.io/name: "km-kube-agent"
   app.kubernetes.io/instance: "km-kube-agent-config-daemonset"
@@ -137,39 +148,25 @@ opentelemetry-operator:
     # Set to 'false' if you are managing CRDs externally, or 'true' to let the operator manage them.
     # The current setting 'true' is fine, but double-check your installation strategy.
     create: true
-  enabled: true # install the operator as part of this chart
+  enabled: true
   admissionWebhooks:
     create: true
     servicePort: 443
-    # Change the failure policy for pods from 'Ignore' to 'Fail' if you want pods
-    # to fail creation if the webhook is not available.
     pods:
       failurePolicy: Fail
-
-    ## Adds a prefix to the mutating webhook name.
-    ## This can be used to order this mutating webhook with all cluster's mutating webhooks.
     namePrefix: ""
-
-    ## Customize webhook timeout duration
     timeoutSeconds: 10
-
-    ## Provide selectors for objects
     namespaceSelector: {}
     objectSelector: {}
     certManager:
       enabled: false
 
-    ## Use Helm to automatically generate self-signed certificate.
     ## certManager must be disabled and autoGenerateCert must be enabled.
     ## If true and certManager.enabled is false, Helm will automatically create a self-signed cert and secret.
     autoGenerateCert:
       enabled: true
-      # If set to true, new webhook key/certificate is generated on helm upgrade.
       recreate: true
-      # Cert period time in days. The default is 365 days.
-      certPeriodDays: 365
-  
-
+      certPeriodDays: 365  
   manager:
     resources: {}
     autoInstrumentationImage:
@@ -189,8 +186,6 @@ opentelemetry-operator:
 # ----------- cert-manager ------------
 cert-manager:
   enabled: false
-  # Set crds.enabled to 'true' to have cert-manager install and manage its own CRDs.
-  # It's a common source of bugs for cert-manager to have its CRDs managed externally.
   crds:
     enabled: false
     keep: true
