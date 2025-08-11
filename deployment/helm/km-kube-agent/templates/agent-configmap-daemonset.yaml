@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Values.configMap.name }}
+  name: {{ .Values.configMapDaemonset.name }}
   namespace: {{ .Release.Namespace }}
 data:
   # The key here will become the filename inside the mountPath.

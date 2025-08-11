@@ -1,7 +1,5 @@
-# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
 replicaCount: 1
 
-# The api key is a must to be passed and it will be injected in the configmap
 API_KEY:
 COLLECTOR_ENDPOINT: https://otel.kloudmate.com:4318
 KM_UPDATE_ENDPOINT: https://api.kloudmate.com/agents/config-check
@@ -9,21 +7,16 @@ KM_CONFIG_CHECK_INTERVAL: 30s
 
 daemonsetName: kloudmate-agent
 agentServiceName: kloudmate-agent-service
-# Kubernetes agent image configuration
+
 image:
   repository: ghcr.io/kloudmate/km-kube-agent
-  # This sets the pull policy for images.
   pullPolicy: Always
-  # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
 
-# Kubernetes agent config updater image configuration
 configUpdater:
   image:
     repository: ghcr.io/kloudmate/km-kube-updater
-    # This sets the pull policy for images.
     pullPolicy: Always
-    # Overrides the image tag whose default is the chart appVersion.
     tag: "latest"
 
 # This is to override the chart name.
@@ -68,18 +61,6 @@ podSecurityContext: {}
 
 securityContext: {}
 
-# Additional volumes on the output Deployment definition.
-volumes: []
-# - name: foo
-#   secret:
-#     secretName: mysecret
-#     optional: false
-
-# Additional volumeMounts on the output Deployment definition.
-volumeMounts: []
-# - name: foo
-#   mountPath: "/etc/foo"
-#   readOnly: true
 
 selectorLabels:
   app.kubernetes.io/component: km-km-kube-agent
@@ -89,6 +70,65 @@ extraLabels:
   app.kubernetes.io/instance: kloudmate-prod-release # Or "{{ .Release.Name }}" in Helm
   app.kubernetes.io/component: km-km-kube-agent-deployment
   app.kubernetes.io/part-of: observability-apm
+
+
+# ----------- Labels ------------
+
+# Labels for the Service Account.
+serviceAccountLabels:
+  app.kubernetes.io/name: "km-kube-agent"
+  app.kubernetes.io/instance: "km-kube-agent-sa"
+  app.kubernetes.io/part-of: "kloudmate-platform"
+  app.kubernetes.io/managed-by: "Helm"
+  product: "kloudmate"
+
+# Labels for the Cluster Role.
+clusterRoleLabels:
+  app.kubernetes.io/name: "km-kube-agent"
+  app.kubernetes.io/instance: "km-kube-agent-clusterrole"
+  app.kubernetes.io/part-of: "kloudmate-platform"
+  app.kubernetes.io/managed-by: "Helm"
+  product: "kloudmate"
+
+# Labels for the Cluster Role Binding.
+clusterRoleBindingLabels:
+  app.kubernetes.io/name: "km-kube-agent"
+  app.kubernetes.io/instance: "km-kube-agent-clusterrolebinding"
+  app.kubernetes.io/part-of: "kloudmate-platform"
+  app.kubernetes.io/managed-by: "Helm"
+  product: "kloudmate"
+
+# Labels for the Instrumentation CRD.
+instrumentationCrdLabels:
+  app.kubernetes.io/name: "km-kube-instrumentation"
+  app.kubernetes.io/instance: "km-kube-instrumentation-crd"
+  app.kubernetes.io/part-of: "kloudmate-platform"
+  app.kubernetes.io/managed-by: "Helm"
+  product: "kloudmate"
+
+# Labels for the Service.
+serviceLabels:
+  app.kubernetes.io/name: "km-kube-agent"
+  app.kubernetes.io/instance: "km-kube-agent-service"
+  app.kubernetes.io/part-of: "kloudmate-platform"
+  app.kubernetes.io/managed-by: "Helm"
+  product: "kloudmate"
+
+# Labels for the ConfigMap.
+configMapDeploymentLabels:
+  app.kubernetes.io/name: "km-kube-agent"
+  app.kubernetes.io/instance: "km-kube-agent-config-deployment"
+  app.kubernetes.io/part-of: "kloudmate-platform"
+  app.kubernetes.io/managed-by: "Helm"
+  product: "kloudmate"
+
+# Labels for the ConfigMap.
+configMapDaemonsetLabels:
+  app.kubernetes.io/name: "km-kube-agent"
+  app.kubernetes.io/instance: "km-kube-agent-config-daemonset"
+  app.kubernetes.io/part-of: "kloudmate-platform"
+  app.kubernetes.io/managed-by: "Helm"
+  product: "kloudmate"
 
 
 # ----------- Operator ------------

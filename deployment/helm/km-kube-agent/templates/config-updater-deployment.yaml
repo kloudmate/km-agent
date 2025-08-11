@@ -1,5 +1,3 @@
-# filename: updater-deployment.yaml
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -34,8 +32,12 @@ spec:
               value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default "30s" }}
             - name: KM_UPDATE_ENDPOINT
               value: {{ .Values.KM_UPDATE_ENDPOINT | default "https://api.kloudmate.com/agents/config-check" }}
-            - name: CONFIGMAP_NAME
-              value: {{ .Values.configMap.name }}
+              ## for daemonset
+            - name: CONFIGMAP_DAEMONSET_NAME
+              value: {{ .Values.configMapDaemonset.name }}
+              ## for deployment
+            - name: CONFIGMAP_DEPLOYMENT_NAME
+              value: {{ .Values.configMapDeployment.name }}
             - name: KM_CLUSTER_NAME
               value: {{ .Values.clusterName }}
             - name: KM_NAMESPACE
@@ -44,10 +46,18 @@ spec:
                   fieldPath: metadata.namespace
             - name: KM_DAEMONSET_NAME
               value: {{ .Values.daemonsetName }}
+            - name: KM_DEPLOYMENT_NAME
+              value: {{ .Values.deploymentName }}
 
           volumeMounts:
-            - name: agent-config-volume
-              mountPath: "/etc/kmagent/agent.yaml"
+              ## for daemonset 
+            - name: agent-config-volume-daemonset
+              mountPath: "/etc/kmagent/agent-daemonset.yaml"
+              readOnly: true
+              subPath: "agent.yaml"
+              ## for deployment
+            - name: agent-config-volume-deployment
+              mountPath: "/etc/kmagent/agent-deployment.yaml"
               readOnly: true
               subPath: "agent.yaml"
 
@@ -60,7 +70,11 @@ spec:
               memory: "256Mi"
 
       volumes:
-        - name: agent-config-volume
+        - name: agent-config-volume-daemonset
           configMap:
-            # Assumes the ConfigMap is also managed by this chart
-            name: {{ .Values.configMap.name }}
+            ## for daemonset
+            name: {{ .Values.configMapDaemonset.name }}
+        - name: agent-config-volume-deployment
+          configMap:
+            ## for deployment
+            name: {{ .Values.configMapDeployment.name }}

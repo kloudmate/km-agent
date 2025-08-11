@@ -1,24 +1,32 @@
+# Deployment manifest for a cluster-level agent.
+# It is based on the provided DaemonSet configuration but has been
+# adapted to run as a single, highly available pod to collect cluster-wide data.
+
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
-  name: {{ .Values.daemonsetName }}
+  name: {{ .Values.deploymentName }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "km-kube-agent.labels" . | nindent 4 }}
 spec:
+  # 'replicas' is a key field for a Deployment. We set it to 1 to ensure
+  # a single, non-redundant instance is running. This is crucial for
+  # collecting cluster-wide data without duplication.
+  replicas: 1
   selector:
     matchLabels:
-      app: {{ .Values.daemonsetName }}
+      app: {{ .Values.deploymentName }}
       {{- include "km-kube-agent.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ .Values.daemonsetName }}
+        app: {{ .Values.deploymentName }}
         {{- include "km-kube-agent.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
-        - name: kloudmate-km-kube-agent
+        - name: kloudmate-km-kube-agent-cluster
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- with .Values.args }}
@@ -32,14 +40,15 @@ spec:
               value: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }}
             - name: KM_CONFIG_CHECK_INTERVAL
               value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default "30s" }}
-              ## for daemonset
-            - name: CONFIGMAP_DAEMONSET_NAME
-              value: {{ .Values.configMapDaemonset.name }}
+            - name: CONFIGMAP_NAME
+              value: {{ .Values.configMap.name }}
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
           ports:
+            # We keep the OTLP ports to allow other components (like the
+            # DaemonSet agents) to send data to this cluster agent.
             - name: otlp-grpc
               containerPort: 4317
               protocol: TCP
@@ -47,25 +56,12 @@ spec:
               containerPort: 4318
               protocol: TCP
           volumeMounts:
-              ## for daemonset 
-            - name: agent-config-volume-daemonset
-              mountPath: "/etc/kmagent/agent-daemonset.yaml"
+            - name: agent-config-volume
+              mountPath: "/etc/kmagent/agent.yaml"
               readOnly: true
               subPath: "agent.yaml"
-            - name: varlog
-              mountPath: /var/log
-              readOnly: true
-            - name: rootfs
-              mountPath: /host
-              readOnly: true
       volumes:
-        - name: agent-config-volume-daemonset
+        - name: agent-config-volume-deployment
           configMap:
-            ## for daemonset
-            name: {{ .Values.configMapDaemonset.name }}
-        - name: varlog
-          hostPath:
-            path: /var/log
-        - name: rootfs
-          hostPath:
-            path: /
+            ## for deployment
+            name: {{ .Values.configMapDeployment.name }}
