@@ -30,7 +30,7 @@ spec:
               value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default "30s" }}
               ## for daemonset
             - name: CONFIGMAP_DAEMONSET_NAME
-              value: {{ .Values.configMapDaemonset.name }}
+              value: {{ .Values.configMapDaemonsetName }}
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -58,7 +58,7 @@ spec:
         - name: agent-config-volume-daemonset
           configMap:
             ## for daemonset
-            name: {{ .Values.configMapDaemonset.name }}
+            name: {{ .Values.configMapDaemonsetName }}
         - name: varlog
           hostPath:
             path: /var/log

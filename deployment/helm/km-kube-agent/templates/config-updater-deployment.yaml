@@ -32,10 +32,10 @@ spec:
               value: {{ .Values.KM_UPDATE_ENDPOINT | default "https://api.kloudmate.com/agents/config-check" }}
               ## for daemonset
             - name: CONFIGMAP_DAEMONSET_NAME
-              value: {{ .Values.configMapDaemonset.name }}
+              value: {{ .Values.configMapDaemonsetName }}
               ## for deployment
             - name: CONFIGMAP_DEPLOYMENT_NAME
-              value: {{ .Values.configMapDeployment.name }}
+              value: {{ .Values.configMapDeploymentName }}
             - name: KM_CLUSTER_NAME
               value: {{ .Values.clusterName }}
             - name: KM_NAMESPACE
@@ -69,8 +69,8 @@ spec:
         - name: agent-config-volume-daemonset
           configMap:
             ## for daemonset
-            name: {{ .Values.configMapDaemonset.name }}
+            name: {{ .Values.configMapDaemonsetName }}
         - name: agent-config-volume-deployment
           configMap:
             ## for deployment
-            name: {{ .Values.configMapDeployment.name }}
+            name: {{ .Values.configMapDeploymentName }}

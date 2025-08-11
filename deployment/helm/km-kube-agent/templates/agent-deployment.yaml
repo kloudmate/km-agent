@@ -38,7 +38,7 @@ spec:
               value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default "30s" }}
               ## for deployment
             - name: CONFIGMAP_DEPLOYMENT_NAME
-              value: {{ .Values.configMapDeployment.name }}
+              value: {{ .Values.configMapDeploymentName }}
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -61,4 +61,4 @@ spec:
         - name: agent-config-volume-deployment
           configMap:
             ## for deployment
-            name: {{ .Values.configMapDeployment.name }}
+            name: {{ .Values.configMapDeploymentName }}

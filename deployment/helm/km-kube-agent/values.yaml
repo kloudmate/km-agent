@@ -7,6 +7,7 @@ KM_UPDATE_ENDPOINT: https://api.kloudmate.com/agents/config-check
 KM_CONFIG_CHECK_INTERVAL: 30s
 
 # names of components to be installed.
+clusterName: 
 daemonsetName: km-agent-daemonset
 deploymentName: km-agent-deployment
 clusterRoleName: km-agent-cluster-role
