@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kloudmate/km-agent/internal/config"
 	"github.com/kloudmate/km-agent/internal/shared"
 	"go.opentelemetry.io/collector/otelcol"
 )
@@ -25,7 +24,7 @@ func (a *K8sAgent) startInternalCollector() error {
 
 	a.Logger.Infoln("Starting actual collector instance with new configuration...")
 
-	collectorSettings := shared.CollectorInfoFactory(config.DefaultConfigmapMountPath)
+	collectorSettings := shared.CollectorInfoFactory(a.otelConfigPath())
 
 	// Create a context for this collector instance
 	a.collectorCtx, a.collectorCancel = context.WithCancel(context.Background())
@@ -49,7 +48,7 @@ func (a *K8sAgent) startInternalCollector() error {
 			}
 		}()
 
-		a.Logger.Infof("Collector: Starting with config from %s in background goroutine... \n", config.DefaultConfigmapMountPath)
+		a.Logger.Infof("Collector: Starting with config from %s in background goroutine... \n", a.otelConfigPath())
 		err = col.Run(ctx)
 		if err != nil {
 			a.Logger.Infoln("Collector exited with error: %v", err)

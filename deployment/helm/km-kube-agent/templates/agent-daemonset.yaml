@@ -28,8 +28,10 @@ spec:
               value: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }}
             - name: KM_CONFIG_CHECK_INTERVAL
               value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default "30s" }}
+            - name: DEPLOYMENT_MODE
+              value: DAEMONSET
               ## for daemonset
-            - name: CONFIGMAP_DAEMONSET_NAME
+            - name: CONFIGMAP_NAME
               value: {{ .Values.configMapDaemonsetName }}
             - name: POD_NAMESPACE
               valueFrom:
@@ -47,7 +49,7 @@ spec:
             - name: agent-config-volume-daemonset
               mountPath: "/etc/kmagent/agent-daemonset.yaml"
               readOnly: true
-              subPath: "agent.yaml"
+              subPath: "agent-daemonset.yaml"
             - name: varlog
               mountPath: /var/log
               readOnly: true

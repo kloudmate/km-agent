@@ -36,8 +36,10 @@ spec:
               value: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }}
             - name: KM_CONFIG_CHECK_INTERVAL
               value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default "30s" }}
+            - name: DEPLOYMENT_MODE
+              value: DEPLOYMENT
               ## for deployment
-            - name: CONFIGMAP_DEPLOYMENT_NAME
+            - name: CONFIGMAP_NAME
               value: {{ .Values.configMapDeploymentName }}
             - name: POD_NAMESPACE
               valueFrom:
@@ -56,7 +58,7 @@ spec:
             - name: agent-config-volume-deployment
               mountPath: "/etc/kmagent/agent-deployment.yaml"
               readOnly: true
-              subPath: "agent.yaml"
+              subPath: "agent-deployment.yaml"
       volumes:
         - name: agent-config-volume-deployment
           configMap:
