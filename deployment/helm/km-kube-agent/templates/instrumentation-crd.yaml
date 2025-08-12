@@ -1,42 +1,43 @@
 apiVersion: opentelemetry.io/v1alpha1
 kind: Instrumentation
 metadata:
-  name: {{ .Values.InstrumentationCrd.name }}
+  name: {{ .Values.instrumentationCrdName }}
   labels:
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- toYaml .Values.instrumentationCrdLabels | nindent 4 }}
 spec:
   exporter:
-    endpoint: http://{{ .Values.agentServiceName }}.{{ .Release.Namespace }}.svc.cluster.local:4317
+    endpoint: http://{{ .Values.agentServiceName }}.{{ .Release.Namespace }}:4318
   
   propagators:
     - tracecontext
     - baggage
     - b3
+    
   sampler:
     type: parentbased_traceidratio
-    argument: "0.25"
+    argument: "1"
 
   nodejs:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.62.0 # Recommended: Use a specific, stable tag
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:latest
+  python:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:latest
+  dotnet:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:latest
+  java:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:latest
   
-  # python:
-  #   env:
-  #     # Required if endpoint is set to 4317.
-  #     # Python autoinstrumentation uses http/proto by default
-  #     # so data must be sent to 4318 instead of 4317.
-  #     - name: OTEL_EXPORTER_OTLP_ENDPOINT
-  #       value: http://otel-collector:4318
-  # dotnet:
-  #   env:
-  #     # Required if endpoint is set to 4317.
-  #     # Dotnet autoinstrumentation uses http/proto by default
-  #     # See https://github.com/open-telemetry/opentelemetry-dotnet-instrumentation/blob/888e2cd216c77d12e56b54ee91dafbc4e7452a52/docs/config.md#otlp
-  #     - name: OTEL_EXPORTER_OTLP_ENDPOINT
-  #       value: http://otel-collector:4318
-  # go:
-  #   env:
-  #     # Required if endpoint is set to 4317.
-  #     # Go autoinstrumentation uses http/proto by default
-  #     # so data must be sent to 4318 instead of 4317.
-  #     - name: OTEL_EXPORTER_OTLP_ENDPOINT
-  #       value: http://otel-collector:4318
+  env:    
+    # Using the Downward API to dynamically set resource attributes for the pod.
+    - name: POD_UID
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.uid
+    - name: NAMESPACE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
+    - name: SERVICE_ACCOUNT_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.serviceAccountName
+          

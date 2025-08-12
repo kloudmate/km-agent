@@ -66,14 +66,24 @@ func updaterFlags(cfg *config.K8sAgentConfig) []cli.Flag {
 			Destination: &cfg.KubeNamespace,
 		}),
 		altsrc.NewStringFlag(&cli.StringFlag{
-			Name:        "configmap-name",
-			EnvVars:     []string{"KM_CONFIGMAP_NAME"},
-			Destination: &cfg.ConfigmapName,
+			Name:        "configmap-daemonset-name",
+			EnvVars:     []string{"CONFIGMAP_DAEMONSET_NAME"},
+			Destination: &cfg.ConfigmapDaemonsetName,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "configmap-deployment-name",
+			EnvVars:     []string{"CONFIGMAP_DEPLOYMENT_NAME"},
+			Destination: &cfg.ConfigmapDeploymentName,
 		}),
 		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:        "daemonset-name",
 			EnvVars:     []string{"KM_DAEMONSET_NAME"},
 			Destination: &cfg.DaemonSetName,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "deployment-name",
+			EnvVars:     []string{"KM_DEPLOYMENT_NAME"},
+			Destination: &cfg.DeploymentName,
 		}),
 	}
 }
@@ -117,6 +127,7 @@ func main() {
 						return err
 					}
 					kubeUpdater := updater.NewKubeConfigUpdaterClient(kubeAgentConfig, logger.Sugar())
+					kubeUpdater.SetConfigPath()
 
 					var wg sync.WaitGroup
 					errCh := make(chan error)

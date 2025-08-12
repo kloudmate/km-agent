@@ -1,0 +1,30 @@
+{{- if .Values.featuresEnabled.apm -}}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Values.polylangDetectorDaemonsetName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- toYaml .Values.daemonsetLabels | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- toYaml .Values.daemonsetLabels | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- toYaml .Values.daemonsetLabels | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      containers:
+      - name: polylang-detector
+        image: "{{ .Values.polylangDetector.image.repository }}:{{ .Values.polylangDetector.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.polylangDetector.image.pullPolicy }}
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+{{- end }}

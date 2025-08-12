@@ -4,27 +4,23 @@ metadata:
   name: {{ .Values.daemonsetName }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "km-kube-agent.labels" . | nindent 4 }}
+    {{- toYaml .Values.daemonsetLabels | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app: {{ .Values.daemonsetName }}
-      {{- include "km-kube-agent.selectorLabels" . | nindent 6 }}
+      mapped-with: {{ .Values.daemonsetName }}
+      {{- toYaml .Values.daemonsetLabels | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ .Values.daemonsetName }}
-        {{- include "km-kube-agent.selectorLabels" . | nindent 8 }}
+        mapped-with: {{ .Values.daemonsetName }}
+        {{- toYaml .Values.daemonsetLabels | nindent 8 }}
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccountName }}
       containers:
         - name: kloudmate-km-kube-agent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- with .Values.args }}
-          args:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
           env:
             - name: KM_API_KEY
               value: {{ .Values.API_KEY }}
@@ -32,8 +28,11 @@ spec:
               value: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }}
             - name: KM_CONFIG_CHECK_INTERVAL
               value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default "30s" }}
+            - name: DEPLOYMENT_MODE
+              value: DAEMONSET
+              ## for daemonset
             - name: CONFIGMAP_NAME
-              value: {{ .Values.configMap.name }}
+              value: {{ .Values.configMapDaemonsetName }}
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -46,10 +45,11 @@ spec:
               containerPort: 4318
               protocol: TCP
           volumeMounts:
-            - name: agent-config-volume
-              mountPath: "/etc/kmagent/agent.yaml"
+              ## for daemonset 
+            - name: agent-config-volume-daemonset
+              mountPath: "/etc/kmagent/agent-daemonset.yaml"
               readOnly: true
-              subPath: "agent.yaml"
+              subPath: "agent-daemonset.yaml"
             - name: varlog
               mountPath: /var/log
               readOnly: true
@@ -57,10 +57,10 @@ spec:
               mountPath: /host
               readOnly: true
       volumes:
-        - name: agent-config-volume
+        - name: agent-config-volume-daemonset
           configMap:
-            # Assumes the ConfigMap is also managed by this chart
-            name: {{ .Values.configMap.name }}
+            ## for daemonset
+            name: {{ .Values.configMapDaemonsetName }}
         - name: varlog
           hostPath:
             path: /var/log

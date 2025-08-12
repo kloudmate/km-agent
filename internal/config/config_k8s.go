@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	DefaultConfigmapMountPath = "/etc/kmagent/agent.yaml"
+	// DefaultConfigmapMountPath = "/etc/kmagent/agent.yaml"
 
 	EnvAPIKey              = "KM_API_KEY"
 	EnvAgentConfig         = "KM_AGENT_CONFIG"
@@ -30,25 +30,29 @@ type K8sAgentConfig struct {
 	APIKey              string
 	ConfigCheckInterval string
 	// Kubernetes specific
-	KubeNamespace string
-	ClusterName   string
-	ConfigmapName string
-	DaemonSetName string
+	KubeNamespace           string
+	ClusterName             string
+	DeploymentMode          string
+	ConfigmapDaemonsetName  string
+	ConfigmapDeploymentName string
+	DaemonSetName           string
+	DeploymentName          string
 }
 
 func NewKubeConfig(cfg K8sAgentConfig, clientset *kubernetes.Clientset, logger *zap.Logger) (*K8sAgentConfig, error) {
 
 	agent := &K8sAgentConfig{
-		Logger:              logger.Sugar(),
-		K8sClient:           clientset,
-		ExporterEndpoint:    cfg.ExporterEndpoint,
-		ConfigUpdateURL:     cfg.ConfigUpdateURL,
-		APIKey:              cfg.APIKey,
-		ConfigCheckInterval: cfg.ConfigCheckInterval,
-		KubeNamespace:       cfg.KubeNamespace,
-		ClusterName:         cfg.ClusterName,
-		DaemonSetName:       cfg.DaemonSetName,
-		ConfigmapName:       cfg.ConfigmapName,
+		Logger:                  logger.Sugar(),
+		K8sClient:               clientset,
+		ExporterEndpoint:        cfg.ExporterEndpoint,
+		ConfigUpdateURL:         cfg.ConfigUpdateURL,
+		APIKey:                  cfg.APIKey,
+		ConfigCheckInterval:     cfg.ConfigCheckInterval,
+		KubeNamespace:           cfg.KubeNamespace,
+		ClusterName:             cfg.ClusterName,
+		DaemonSetName:           cfg.DaemonSetName,
+		ConfigmapDaemonsetName:  cfg.ConfigmapDaemonsetName,
+		ConfigmapDeploymentName: cfg.ConfigmapDeploymentName,
 	}
 
 	agent.Logger.Infoln("kube updater initialized successfully")
