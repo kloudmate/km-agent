@@ -56,7 +56,8 @@ jobs:
         id: package
         run: |
           helm package ${{ steps.vars.outputs.CHART_PATH }}
-          PACKAGE_NAME="km-kube-agent-chart-${{ steps.vars.outputs.CHART_VERSION }}.tgz"
+          cp 
+          PACKAGE_NAME="km-kube-agent-${{ steps.vars.outputs.CHART_VERSION }}.tgz"
           echo "PACKAGE_NAME=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
           echo "Package created: ${PACKAGE_NAME}"
 
