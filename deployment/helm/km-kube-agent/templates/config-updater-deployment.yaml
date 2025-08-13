@@ -46,17 +46,6 @@ spec:
               value: {{ .Values.daemonsetName }}
             - name: KM_DEPLOYMENT_NAME
               value: {{ .Values.deploymentName }}
-          volumeMounts:
-              ## for daemonset 
-            - name: agent-config-volume-daemonset
-              mountPath: "/etc/kmagent/agent-daemonset.yaml"
-              readOnly: true
-              subPath: "agent.yaml"
-              ## for deployment
-            - name: agent-config-volume-deployment
-              mountPath: "/etc/kmagent/agent-deployment.yaml"
-              readOnly: true
-              subPath: "agent.yaml"
           resources:
             requests:
               cpu: "100m"
@@ -64,13 +53,3 @@ spec:
             limits:
               cpu: "500m"
               memory: "256Mi"
-
-      volumes:
-        - name: agent-config-volume-daemonset
-          configMap:
-            ## for daemonset
-            name: {{ .Values.configMapDaemonsetName }}
-        - name: agent-config-volume-deployment
-          configMap:
-            ## for deployment
-            name: {{ .Values.configMapDeploymentName }}
