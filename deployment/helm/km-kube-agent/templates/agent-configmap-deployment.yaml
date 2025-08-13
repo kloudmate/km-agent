@@ -8,7 +8,7 @@ metadata:
 data:
   # The key here will become the filename inside the mountPath.
   # We name it exactly "agent.config.yaml" so it appears as such.
-  agent.yaml: |
+  agent-deployment.yaml: |
 
     receivers:
       otlp:
