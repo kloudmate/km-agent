@@ -2,8 +2,8 @@ apiVersion: v1
 entries:
   km-kube-agent:
   - apiVersion: v2
-    appVersion: 1.0.3
-    created: "2025-08-09T07:17:08.67684366Z"
+    appVersion: 1.0.9
+    created: "2025-08-13T03:49:27.268620148Z"
     dependencies:
     - condition: cert-manager.enabled
       name: cert-manager
@@ -14,7 +14,7 @@ entries:
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
       version: 0.90.0
     description: A Helm chart for Kloumate's Kubernetes flavored Agent
-    digest: b6f8292dac40964616b83c7e0b806895842ab0b4c99c188a6482b99ca65dc7ba
+    digest: 51f6415d60eb4828e7fa9c4ba8813c6610794878cfd186ab9ff40f014671683c
     home: https://www.kloudmate.com
     icon: https://avatars.githubusercontent.com/u/103623326?s=48&v=4
     keywords:
@@ -26,6 +26,7 @@ entries:
     - tracing
     - logs
     - metrics
+    - apm
     maintainers:
     - email: amitava@kloudmate.com
       name: Amitava Saha
@@ -34,6 +35,6 @@ entries:
     - https://github.com/kloudmate/km-agent
     type: application
     urls:
-    - https://github.com/ansh-devs/km-agent/releases/download/km-kube-agent-1.0.3/km-kube-agent-1.0.3.tgz
-    version: 1.0.3
-generated: "2025-08-09T07:17:08.676852296Z"
+    - https://ansh-devs.github.io/ansh-devs/km-agent/km-kube-agent-1.0.9.tgz
+    version: 1.0.9
+generated: "2025-08-13T03:49:27.258471649Z"
