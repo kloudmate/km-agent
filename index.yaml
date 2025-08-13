@@ -2,8 +2,8 @@ apiVersion: v1
 entries:
   km-kube-agent:
   - apiVersion: v2
-    appVersion: 1.0.5
-    created: "2025-08-12T16:38:41.447933261Z"
+    appVersion: 1.0.7
+    created: "2025-08-13T05:16:36.740482497Z"
     dependencies:
     - condition: cert-manager.enabled
       name: cert-manager
@@ -14,7 +14,7 @@ entries:
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
       version: 0.90.0
     description: A Helm chart for Kloumate's Kubernetes flavored Agent
-    digest: 51f6415d60eb4828e7fa9c4ba8813c6610794878cfd186ab9ff40f014671683c
+    digest: 53d0e7da78c1d8d45264ab8e55c61d16d5f9457ac15a4013623fa2b250f614c4
     home: https://www.kloudmate.com
     icon: https://avatars.githubusercontent.com/u/103623326?s=48&v=4
     keywords:
@@ -35,41 +35,6 @@ entries:
     - https://github.com/kloudmate/km-agent
     type: application
     urls:
-    - https://github.com/kloudmate/km-agent/releases/download/km-kube-agent-1.0.5/km-kube-agent-1.0.5.tgz
-    version: 1.0.5
-  - apiVersion: v2
-    appVersion: 1.0.4
-    created: "2025-08-09T08:48:30.024864463Z"
-    dependencies:
-    - condition: cert-manager.enabled
-      name: cert-manager
-      repository: https://charts.jetstack.io
-      version: v1.18.2
-    - condition: opentelemetry-operator.enabled
-      name: opentelemetry-operator
-      repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-      version: 0.90.0
-    description: A Helm chart for Kloumate's Kubernetes flavored Agent
-    digest: fdc244f340d11282b7001103df7eea331d6e22e8440d32a864de7340bc73a0c4
-    home: https://www.kloudmate.com
-    icon: https://avatars.githubusercontent.com/u/103623326?s=48&v=4
-    keywords:
-    - kloudmate
-    - observability
-    - opentelemetry
-    - agent
-    - monitoring
-    - tracing
-    - logs
-    - metrics
-    maintainers:
-    - email: amitava@kloudmate.com
-      name: Amitava Saha
-    name: km-kube-agent
-    sources:
-    - https://github.com/kloudmate/km-agent
-    type: application
-    urls:
-    - https://github.com/kloudmate/km-agent/releases/download/km-kube-agent-1.0.4/km-kube-agent-1.0.4.tgz
-    version: 1.0.4
-generated: "2025-08-12T16:38:41.447946636Z"
+    - https://kloudmate.github.io/kloudmate/km-agent/km-kube-agent-1.0.7.tgz
+    version: 1.0.7
+generated: "2025-08-13T05:16:36.732293919Z"
