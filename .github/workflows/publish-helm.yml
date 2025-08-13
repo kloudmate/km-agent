@@ -2,18 +2,17 @@ name: Release Helm Chart
 
 on:
   release:
-    types: [created]
+    types: [published]
 
 permissions:
   contents: write
   id-token: write
 
 jobs:
-  release:
+  publish-helm-chart:
     runs-on: ubuntu-latest
     steps:
-      # `fetch-depth: 0` is crucial for chart-releaser to get the full Git history.
-      - name: Checkout
+      - name: Checkout main branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -21,45 +20,71 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
-          version: v3.12.0
+          version: v3.14.0
 
-      # Install yq
       - name: Install yq
         run: |
           YQ_VERSION="v4.40.5"
           wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -O /usr/local/bin/yq
           chmod +x /usr/local/bin/yq
       
-      # update chart version
-      - name: Update Chart Version
-        run: |
-          NEW_VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
-          
-          yq e '.version = "'"$NEW_VERSION"'"' -i deployment/helm/km-kube-agent/Chart.yaml
-          yq e '.appVersion = "'"$NEW_VERSION"'"' -i deployment/helm/km-kube-agent/Chart.yaml
-
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          git add deployment/helm/km-kube-agent/Chart.yaml
-          git commit -m "chore(release): update chart version to $NEW_VERSION"
-          git push origin HEAD:${{ github.event.release.target_commitish }}
-
-
-      # Add the external Helm repositories
       - name: Add external Helm repositories
         run: |
           helm repo add jetstack https://charts.jetstack.io
           helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 
+      - name: Update Chart Dependencies and Version
+        id: vars
+        run: |
+          NEW_VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
+          CHART_PATH="deployment/helm/km-kube-agent"
 
-      # This single action handles linting, dependency building,
-      # chart packaging, creating a GitHub release, and updating the index.
-      - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.6.0
-        with:
-          lint: true
-          # `dep-update` is enabled to automatically run `helm dependency update`.
-          dep-update: true
-          charts_dir: deployment/helm
+          helm dependency update "${CHART_PATH}"
+
+          yq e '.version = "'"$NEW_VERSION"'"' -i "${CHART_PATH}/Chart.yaml"
+          yq e '.appVersion = "'"$NEW_VERSION"'"' -i "${CHART_PATH}/Chart.yaml"
+          
+          CHART_VERSION=$(yq e '.version' "${CHART_PATH}/Chart.yaml")
+          APP_VERSION=$(yq e '.appVersion' "${CHART_PATH}/Chart.yaml")
+          echo "CHART_PATH=${CHART_PATH}" >> "$GITHUB_OUTPUT"
+          echo "CHART_VERSION=${CHART_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "APP_VERSION=${APP_VERSION}" >> "$GITHUB_OUTPUT"
+          
+          cat "${CHART_PATH}/Chart.yaml"
+
+      - name: Package Helm Chart
+        id: package
+        run: |
+          helm package ${{ steps.vars.outputs.CHART_PATH }}
+          PACKAGE_NAME="km-kube-agent-chart-${{ steps.vars.outputs.CHART_VERSION }}.tgz"
+          echo "PACKAGE_NAME=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Package created: ${PACKAGE_NAME}"
+
+      - name: Upload Helm Chart to GitHub Release
+        uses: actions/upload-release-asset@v1
         env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./${{ steps.package.outputs.PACKAGE_NAME }}
+          asset_name: ${{ steps.package.outputs.PACKAGE_NAME }}
+          asset_content_type: application/gzip
+          
+      - name: Update Helm Chart Repository Index on gh-pages
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+          git clone --depth=1 --branch gh-pages --single-branch https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages-repo
+
+          cd gh-pages-repo
+          cp ../${{ steps.package.outputs.PACKAGE_NAME }} .
+
+          sed -i "s/{{ APP_VERSION }}/${{ steps.vars.outputs.APP_VERSION }}/g" index.html
+          sed -i "s/{{ CHART_VERSION }}/${{ steps.vars.outputs.CHART_VERSION }}/g" index.html
+
+          helm repo index . --url https://${{ github.repository_owner }}.github.io/${{ github.repository }}/
+
+          git add .
+          git commit -m "🚀 chore(release): update index and landing page for km-kube-agent ${{ steps.vars.outputs.CHART_VERSION }}" || echo "No changes to commit"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages
