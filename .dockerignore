@@ -1,7 +1,0 @@
-.git
-*.exe
-*.msi
-*.deb
-*.rpm
-dist/
-*.log

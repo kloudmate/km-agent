@@ -1,4 +1,0 @@
-# The directory tells the directory of our Helm chart.
-
-charts:
-  - charts_dir: deployment/helm

@@ -14,7 +14,7 @@ entries:
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
       version: 0.90.0
     description: A Helm chart for Kloumate's Kubernetes flavored Agent
-    digest: a94c6782a6bfb95cdb2d901cee17c0c4802e20b584460ba0de007d34d48fc9d0
+    digest: 51f6415d60eb4828e7fa9c4ba8813c6610794878cfd186ab9ff40f014671683c
     home: https://www.kloudmate.com
     icon: https://avatars.githubusercontent.com/u/103623326?s=48&v=4
     keywords:
