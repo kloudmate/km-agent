@@ -28,6 +28,21 @@ jobs:
           wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -O /usr/local/bin/yq
           chmod +x /usr/local/bin/yq
 
+      - name: Update Chart Version
+        run: |
+          NEW_VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
+          
+          yq e '.version = "'"$NEW_VERSION"'"' -i deployment/helm/km-kube-agent/Chart.yaml
+          yq e '.appVersion = "'"$NEW_VERSION"'"' -i deployment/helm/km-kube-agent/Chart.yaml
+
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add deployment/helm/km-kube-agent/Chart.yaml
+          git commit -m "chore(release): update chart version to $NEW_VERSION"
+          git push origin HEAD:${{ github.event.release.target_commitish }}
+
+
+
       - name: Add external Helm repositories
         run: |
           helm repo add jetstack https://charts.jetstack.io
@@ -79,12 +94,11 @@ jobs:
           cd gh-pages-repo
           cp ../${{ steps.package.outputs.PACKAGE_NAME }} .
 
-          sed -i "s/{{ APP_VERSION }}/${{ steps.vars.outputs.APP_VERSION }}/g" index.html
-          sed -i "s/{{ CHART_VERSION }}/${{ steps.vars.outputs.CHART_VERSION }}/g" index.html
+          sed -i "s|<span id=\"app-version\".*</span>|<span id=\"app-version\" class=\"mt-1 text-lg font-bold text-[#58a6ff]\">${{ steps.vars.outputs.APP_VERSION }}</span>|g" index.html
+          sed -i "s|<span id=\"chart-version\".*</span>|<span id=\"chart-version\" class=\"mt-1 text-lg font-bold text-[#58a6ff]\">${{ steps.vars.outputs.CHART_VERSION }}</span>|g" index.html
 
           helm repo index . --url https://${{ github.repository_owner }}.github.io/${{ github.repository }}/
 
           git add .
           git commit -m "🚀 chore(release): update index and landing page for km-kube-agent ${{ steps.vars.outputs.CHART_VERSION }}" || echo "No changes to commit"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages
-

@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"runtime"
 	"time"
 
@@ -40,8 +41,8 @@ type K8sUpdateCheckerParams struct {
 
 // ConfigUpdateResponse represents the response from the config update API
 type K8sConfigUpdateResponse struct {
-	DeploymentType string                 `json:"deployment_type"`
-	Config         map[string]interface{} `json:"config"`
+	DaemonSetConfig  map[string]interface{} `json:"daemonset_config"`
+	DeploymentConfig map[string]interface{} `json:"deployment_config"`
 }
 
 // NewK8sConfigUpdater creates a new config updater
@@ -62,17 +63,16 @@ func NewKubeConfigUpdaterClient(cfg *config.K8sAgentConfig, logger *zap.SugaredL
 }
 
 // CheckForUpdates checks for configuration updates from the remote API
-func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p K8sUpdateCheckerParams) (string, map[string]interface{}, error) {
+func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p K8sUpdateCheckerParams) (daemonSetConfig map[string]interface{}, deploymentConfig map[string]interface{}, err error) {
 
 	// Create the request
 	data := map[string]interface{}{
-		"is_docker":          false,
-		"platform":           "kubernetes",
-		"architecture":       runtime.GOARCH,
-		"agent_version":      p.Version,
-		"agent_status":       p.AgentStatus,
-		"collector_status":   p.CollectorStatus,
-		"last_error_message": p.CollectorLastError,
+		"platform":      "kubernetes",
+		"hostname":      getHost(),
+		"architecture":  runtime.GOARCH,
+		"cluster_name":  u.cfg.ClusterName,
+		"agent_version": p.Version,
+		"agent_status":  "Operational",
 	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -84,7 +84,7 @@ func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p K8sUpdateCheck
 
 	req, err := http.NewRequestWithContext(reqCtx, "POST", u.cfg.ConfigUpdateURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -96,23 +96,23 @@ func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p K8sUpdateCheck
 	resp, respErr := u.client.Do(req)
 
 	if respErr != nil {
-		return "", nil, fmt.Errorf("failed to fetch config updates after retries: %w", respErr)
+		return nil, nil, fmt.Errorf("failed to fetch config updates after retries: %w", respErr)
 	}
 	defer resp.Body.Close()
 
 	// Check response status
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return "", nil, fmt.Errorf("config update API returned non-OK status: %d, body: %s", resp.StatusCode, body)
+		return nil, nil, fmt.Errorf("config update API returned non-OK status: %d, body: %s", resp.StatusCode, body)
 	}
 
 	// Parse response
 	var updateResp K8sConfigUpdateResponse
 	if err := json.NewDecoder(resp.Body).Decode(&updateResp); err != nil {
-		return "", nil, fmt.Errorf("failed to decode config update response: %w", err)
+		return nil, nil, fmt.Errorf("failed to decode config update response: %w", err)
 	}
 
-	return updateResp.DeploymentType, updateResp.Config, nil
+	return updateResp.DaemonSetConfig, updateResp.DeploymentConfig, nil
 }
 
 // StartConfigUpdateChecker run ticker for performConfigCheck
@@ -158,13 +158,13 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 
 	a.logger.Debugf("Checking for updates with params: %+v", params)
 
-	deploymentMode, newConfig, err := a.CheckForUpdates(ctx, params)
+	daemonsetCfg, deploymentCfg, err := a.CheckForUpdates(ctx, params)
 	if err != nil {
 		return fmt.Errorf("updater.CheckForUpdates failed: %w", err)
 	}
-	if newConfig != nil && deploymentMode != "" {
-		if err := a.UpdateConfigMap(newConfig, deploymentMode); err != nil {
-			return fmt.Errorf("failed to update config file: %w", err)
+	if daemonsetCfg != nil && deploymentCfg != nil {
+		if err := a.UpdateConfigMap(daemonsetCfg, deploymentCfg); err != nil {
+			return fmt.Errorf("failed to update configMap: %w", err)
 		}
 		a.logger.Infoln("triggering rollout restart.")
 
@@ -178,35 +178,47 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 	return nil
 }
 
-func (a *K8sConfigUpdater) UpdateConfigMap(cfg map[string]interface{}, deploymentMode string) error {
+func (a *K8sConfigUpdater) UpdateConfigMap(daemonSetConfig map[string]interface{}, deploymentConfig map[string]interface{}) error {
 
-	yamlBytes, err := yaml.Marshal(cfg)
+	daemonSetYamlBytes, err := yaml.Marshal(daemonSetConfig)
 	if err != nil {
-		return fmt.Errorf("marshal error: %w", err)
+		return fmt.Errorf("marshal error for DaemonSet otel-config: %w", err)
+	}
+
+	deploymentYamlBytes, err := yaml.Marshal(deploymentConfig)
+	if err != nil {
+		return fmt.Errorf("marshal error for Deployment otel-config: %w", err)
 	}
 
 	configMaps := a.cfg.K8sClient.CoreV1().ConfigMaps(a.cfg.KubeNamespace)
 
-	if deploymentMode == "DAEMONSET" {
-		_, err = configMaps.Update(context.TODO(), &corev1.ConfigMap{
-			Data: map[string]string{"agent-daemonset.yaml": string(yamlBytes)},
-			ObjectMeta: v1.ObjectMeta{
-				Name: a.cfg.ConfigmapDaemonsetName,
-			},
-		}, v1.UpdateOptions{})
-	} else {
-		_, err = configMaps.Update(context.TODO(), &corev1.ConfigMap{
-			Data: map[string]string{"agent-deployment.yaml": string(yamlBytes)},
-			ObjectMeta: v1.ObjectMeta{
-				Name: a.cfg.ConfigmapDeploymentName,
-			},
-		}, v1.UpdateOptions{})
-	}
+	a.logger.Infoln("Attempting to update DaemonSet configMap.")
+	_, err = configMaps.Update(context.TODO(), &corev1.ConfigMap{
+		Data: map[string]string{"agent-daemonset.yaml": string(daemonSetYamlBytes)},
+		ObjectMeta: v1.ObjectMeta{
+			Name: a.cfg.ConfigmapDaemonsetName,
+		},
+	}, v1.UpdateOptions{})
 
 	if err != nil {
-		a.logger.Errorln(err)
+		return fmt.Errorf("failed to update DaemonsSt configMap: %w", err)
+	} else {
+		a.logger.Infoln("Successfully updated DaemonSet configMap.")
 	}
 
+	a.logger.Infoln("Attempting to update Deployment configMap.")
+	_, err = configMaps.Update(context.TODO(), &corev1.ConfigMap{
+		Data: map[string]string{"agent-deployment.yaml": string(deploymentYamlBytes)},
+		ObjectMeta: v1.ObjectMeta{
+			Name: a.cfg.ConfigmapDeploymentName,
+		},
+	}, v1.UpdateOptions{})
+
+	if err != nil {
+		return fmt.Errorf("failed to update Deployment configMap: %w", err)
+	} else {
+		a.logger.Infoln("Successfully updated Deployment configMap.")
+	}
 	return nil
 }
 
@@ -261,4 +273,9 @@ func (c *K8sConfigUpdater) otelConfigPath() string {
 
 func (c *K8sConfigUpdater) SetConfigPath() {
 	c.configPath = c.otelConfigPath()
+}
+
+func getHost() (h string) {
+	h, _ = os.Hostname()
+	return h
 }
