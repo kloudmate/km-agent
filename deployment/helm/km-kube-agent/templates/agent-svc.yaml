@@ -17,5 +17,9 @@ spec:
       protocol: TCP
       port: 4318
       targetPort: otlp-http
+    - name: health-check
+      port: 13133
+      targetPort: 13133
+      protocol: TCP
   type: ClusterIP
   internalTrafficPolicy: Local

@@ -33,6 +33,16 @@ spec:
               ## for daemonset
             - name: CONFIGMAP_NAME
               value: {{ .Values.configMapDaemonsetName }}
+            - name: KM_CLUSTER_NAME
+              value: {{ .Values.clusterName }}
+            - name: KM_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: KM_NODE_HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -56,6 +66,18 @@ spec:
             - name: rootfs
               mountPath: /host
               readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 5
+            periodSeconds: 10
       volumes:
         - name: agent-config-volume-daemonset
           configMap:

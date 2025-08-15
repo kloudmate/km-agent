@@ -16,7 +16,8 @@ func CollectorInfoFactory(cfgPath string) otelcol.CollectorSettings {
 	info := component.BuildInfo{
 		Command:     "kmagent",
 		Description: "KloudMate Agent for OpenTelemetry",
-		Version:     "1.0.0",
+		// Collector version
+		Version: GetCollectorVersion(),
 	}
 
 	fmt.Println("config file ", cfgPath)

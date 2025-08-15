@@ -168,7 +168,10 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 		}
 		a.logger.Infoln("triggering rollout restart.")
 
-		if err = a.triggerRollout(agentCtx); err != nil {
+		if err = a.triggerDaemonSetRollout(agentCtx); err != nil {
+			a.logger.Errorln(err)
+		}
+		if err = a.triggerDeploymentRollout(agentCtx); err != nil {
 			a.logger.Errorln(err)
 		}
 
@@ -222,8 +225,8 @@ func (a *K8sConfigUpdater) UpdateConfigMap(daemonSetConfig map[string]interface{
 	return nil
 }
 
-// triggerRollout triggers a DaemonSet rollout by patching its template annotation.
-func (drt *K8sConfigUpdater) triggerRollout(ctx context.Context) error {
+// triggerDaemonSetRollout triggers a DaemonSet rollout by patching its template annotation.
+func (drt *K8sConfigUpdater) triggerDaemonSetRollout(ctx context.Context) error {
 	drt.logger.Infof("Attempting to trigger rollout for DaemonSet %s/%s...", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName)
 
 	// Get the DaemonSet to ensure it exists and get its current state
@@ -258,6 +261,45 @@ func (drt *K8sConfigUpdater) triggerRollout(ctx context.Context) error {
 	}
 
 	drt.logger.Infof("Successfully triggered rollout for DaemonSet %s/%s.", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName)
+	return nil
+}
+
+// triggerDeploymentRollout triggers a DaemonSet rollout by patching its template annotation.
+func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error {
+	drt.logger.Infof("Attempting to trigger rollout for Deployment %s/%s...", drt.cfg.KubeNamespace, drt.cfg.DeploymentName)
+
+	// Get the DaemonSet to ensure it exists and get its current state
+	_, err := drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DeploymentName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("Error getting Deployment %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
+	}
+
+	// Prepare the patch to update the "kubectl.kubernetes.io/restartedAt" annotation.
+	// This annotation change signals Kubernetes to perform a rolling update.
+	patch := map[string]interface{}{
+		"spec": map[string]interface{}{
+			"template": map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"annotations": map[string]interface{}{
+						"kubectl.kubernetes.io/restartedAt": time.Now().Format(time.RFC3339),
+					},
+				},
+			},
+		},
+	}
+
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		return fmt.Errorf("Error marshaling patch for Deployment %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
+	}
+
+	// Apply the strategic merge patch to the Deployment
+	_, err = drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Patch(ctx, drt.cfg.DeploymentName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("Error patching Deployment %s/%s to trigger rollout: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
+	}
+
+	drt.logger.Infof("Successfully triggered rollout for Deployment %s/%s.", drt.cfg.KubeNamespace, drt.cfg.DeploymentName)
 	return nil
 }
 

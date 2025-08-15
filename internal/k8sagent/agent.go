@@ -11,6 +11,7 @@ import (
 
 	"context"
 
+	"github.com/kloudmate/km-agent/internal/shared"
 	"go.opentelemetry.io/collector/otelcol"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
@@ -42,8 +43,9 @@ type K8sAgent struct {
 }
 
 type AgentInfo struct {
-	Version   string
-	CommitSHA string
+	Version          string
+	CommitSHA        string
+	CollectorVersion string
 }
 
 func NewK8sAgent(info *AgentInfo) (*K8sAgent, error) {
@@ -74,7 +76,8 @@ func NewK8sAgent(info *AgentInfo) (*K8sAgent, error) {
 		agentInfo: *info,
 		stopCh:    make(chan struct{}),
 	}
-
+	agent.agentInfo.setEnvForAgentVersion()
+	agent.agentInfo.CollectorVersion = shared.GetCollectorVersion()
 	logger.Infoln("kube agent initialized successfully")
 	return agent, nil
 }
@@ -84,6 +87,7 @@ func (km *K8sAgent) StartAgent(ctx context.Context) error {
 	km.Logger.Infow("kloudmate kubernetes agent info",
 		"version", km.agentInfo.Version,
 		"commitSHA", km.agentInfo.CommitSHA,
+		"collector-version", km.agentInfo.CollectorVersion,
 	)
 	return km.Start(ctx)
 }
@@ -95,8 +99,9 @@ func (a *K8sAgent) Start(ctx context.Context) error {
 	// Start the initial collector instance
 	if err := a.startInternalCollector(); err != nil {
 		return fmt.Errorf("failed to start initial collector: %w", err)
+	} else {
+		a.Logger.Infoln("collector agent started successfully.")
 	}
-	a.Logger.Infoln("Collector agent started successfully.")
 	return nil
 }
 
@@ -164,4 +169,9 @@ func (c *K8sAgent) otelConfigPath() string {
 	} else {
 		return deploymentURI
 	}
+}
+
+// setEnvForAgentVersion sets agent version on env this gets later used by otel processor to inject agent version
+func (r *AgentInfo) setEnvForAgentVersion() {
+	os.Setenv("KM_AGENT_VERSION", r.Version)
 }
