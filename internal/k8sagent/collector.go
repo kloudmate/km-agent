@@ -16,12 +16,6 @@ func (a *K8sAgent) startInternalCollector() error {
 	a.collectorMu.Lock()
 	defer a.collectorMu.Unlock()
 
-	// Ensure any previous instance is stopped before starting a new one
-	if a.Collector != nil {
-		a.Logger.Infoln("Collector instance already running, stopping it before restart...")
-		a.stopInternalCollector()
-	}
-
 	a.Logger.Infoln("Starting actual collector instance with new configuration...")
 
 	collectorSettings := shared.CollectorInfoFactory(a.otelConfigPath())
@@ -32,7 +26,7 @@ func (a *K8sAgent) startInternalCollector() error {
 	collector, err := otelcol.NewCollector(collectorSettings)
 	if err != nil {
 		a.collectorCancel()
-		return fmt.Errorf("failed to create new collector service: %w", err)
+		return fmt.Errorf("failed to create new collector: %w", err)
 	}
 	a.Collector = collector
 
@@ -48,7 +42,7 @@ func (a *K8sAgent) startInternalCollector() error {
 			}
 		}()
 
-		a.Logger.Infof("Collector: Starting with config from %s in background goroutine... \n", a.otelConfigPath())
+		a.Logger.Infof("Collector: Starting with configMap mounted in path:  [%s] \n", a.otelConfigPath())
 		err = col.Run(ctx)
 		if err != nil {
 			a.Logger.Infoln("Collector exited with error: %v", err)
@@ -79,11 +73,6 @@ func (a *K8sAgent) startInternalCollector() error {
 func (a *K8sAgent) stopInternalCollector() {
 	a.collectorMu.Lock()
 	defer a.collectorMu.Unlock()
-
-	if a.Collector == nil {
-		a.Logger.Infoln("No collector instance running to stop.")
-		return
-	}
 
 	a.Logger.Infoln("Attempting to stop collector instance gracefully...")
 
