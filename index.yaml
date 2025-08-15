@@ -2,8 +2,44 @@ apiVersion: v1
 entries:
   km-kube-agent:
   - apiVersion: v2
+    appVersion: 1.0.8
+    created: "2025-08-15T15:49:40.392166493Z"
+    dependencies:
+    - condition: cert-manager.enabled
+      name: cert-manager
+      repository: https://charts.jetstack.io
+      version: v1.18.2
+    - condition: opentelemetry-operator.enabled
+      name: opentelemetry-operator
+      repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+      version: 0.90.0
+    description: A Helm chart for Kloumate's Kubernetes flavored Agent
+    digest: 5bc3c7bb2326ca5112147af515be114a49b40b3d91109937095b93e2c48288a3
+    home: https://www.kloudmate.com
+    icon: https://avatars.githubusercontent.com/u/103623326?s=48&v=4
+    keywords:
+    - kloudmate
+    - observability
+    - opentelemetry
+    - agent
+    - monitoring
+    - tracing
+    - logs
+    - metrics
+    - apm
+    maintainers:
+    - email: amitava@kloudmate.com
+      name: Amitava Saha
+    name: km-kube-agent
+    sources:
+    - https://github.com/kloudmate/km-agent
+    type: application
+    urls:
+    - https://kloudmate.github.io/kloudmate/km-agent/km-kube-agent-1.0.8.tgz
+    version: 1.0.8
+  - apiVersion: v2
     appVersion: 1.0.7
-    created: "2025-08-13T05:16:36.740482497Z"
+    created: "2025-08-15T15:49:40.383940182Z"
     dependencies:
     - condition: cert-manager.enabled
       name: cert-manager
@@ -37,4 +73,4 @@ entries:
     urls:
     - https://kloudmate.github.io/kloudmate/km-agent/km-kube-agent-1.0.7.tgz
     version: 1.0.7
-generated: "2025-08-13T05:16:36.732293919Z"
+generated: "2025-08-15T15:49:40.374868558Z"
