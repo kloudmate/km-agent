@@ -12,6 +12,7 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourcedetectionprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourceprocessor"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/journaldreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8seventsreceiver"
 
@@ -43,6 +44,7 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/httpcheckreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sclusterreceiver"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sobjectsreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kafkametricsreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kubeletstatsreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/mongodbatlasreceiver"
@@ -95,6 +97,7 @@ func Components() (otelcol.Factories, error) {
 		elasticsearchreceiver.NewFactory(),
 		filelogreceiver.NewFactory(),
 		k8sclusterreceiver.NewFactory(),
+		k8sobjectsreceiver.NewFactory(),
 		fluentforwardreceiver.NewFactory(),
 		kafkametricsreceiver.NewFactory(),
 		mongodbatlasreceiver.NewFactory(),
@@ -151,6 +154,7 @@ func Components() (otelcol.Factories, error) {
 		filterprocessor.NewFactory(),
 		metricstransformprocessor.NewFactory(),
 		memorylimiterprocessor.NewFactory(),
+		transformprocessor.NewFactory(),
 		groupbyattrsprocessor.NewFactory(),
 	)
 	if err != nil {
