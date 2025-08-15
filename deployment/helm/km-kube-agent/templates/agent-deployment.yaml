@@ -38,9 +38,14 @@ spec:
               value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default "30s" }}
             - name: DEPLOYMENT_MODE
               value: DEPLOYMENT
-              ## for deployment
             - name: CONFIGMAP_NAME
               value: {{ .Values.configMapDeploymentName }}
+            - name: KM_CLUSTER_NAME
+              value: {{ .Values.clusterName }}
+            - name: KM_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -53,6 +58,9 @@ spec:
               protocol: TCP
             - name: otlp-http
               containerPort: 4318
+              protocol: TCP
+            - containerPort: 13133
+              name: health-check
               protocol: TCP
           volumeMounts:
             - name: agent-config-volume-deployment
