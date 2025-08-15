@@ -1,13 +1,13 @@
 replicaCount: 1
 
-# kloudmate platform specific arguments
+# KloudMate platform specific arguments
 API_KEY:
 COLLECTOR_ENDPOINT: https://otel.kloudmate.com:4318
 KM_UPDATE_ENDPOINT: https://api.kloudmate.com/agents/config-check
 KM_CONFIG_CHECK_INTERVAL: 30s
 
 # names of components to be installed.
-clusterName: 
+clusterName: km-cluster
 daemonsetName: km-agent-daemonset
 deploymentName: km-agent-deployment
 clusterRoleName: km-agent-cluster-role
@@ -56,6 +56,10 @@ fullnameOverride: ""
 podLabels: {}
 
 # ----------- Labels ------------
+
+# Below anotation is injected to all the Pods/ Namespaces & Nodes instrumented by the agent.
+# This can be easily modified to add custom annotations from the KloudMate Dashboard
+# instrumentation.kloudmate.com: criticality=high,sla-level=99.9,status=instrumented,managed-by=KloudMate
 
 # Labels for the DaemonSet, which acts as a node-level agent.
 daemonsetLabels:
