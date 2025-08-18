@@ -28,10 +28,7 @@ type Config struct {
 func GetAgentConfigUpdaterURL(collectorEndpoint string) string {
 	const fallbackURL = "https://api.kloudmate.com/agents/config-check"
 
-	u, err := url.Parse(collectorEndpoint)
-	if err != nil || u.Host == "" {
-		return fallbackURL
-	}
+	u, _ := url.Parse(collectorEndpoint)
 
 	host := u.Hostname()
 	parts := strings.Split(host, ".")
@@ -78,6 +75,10 @@ func (c *Config) LoadConfig() error {
 
 	os.Setenv("KM_COLLECTOR_ENDPOINT", c.ExporterEndpoint)
 	os.Setenv("KM_API_KEY", c.APIKey)
+
+	if c.ConfigUpdateURL == "" {
+		c.ConfigUpdateURL = GetAgentConfigUpdaterURL(c.ExporterEndpoint)
+	}
 
 	// Default config file path based on OS
 	configPath := c.OtelConfigPath
