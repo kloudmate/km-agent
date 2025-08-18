@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: {{ .Values.daemonsetName }}
-  namespace: {{ .Release.Namespace }}
+  namespace: km-agent
   labels:
     {{- toYaml .Values.daemonsetLabels | nindent 4 }}
 spec:
@@ -66,6 +66,9 @@ spec:
             - name: rootfs
               mountPath: /host
               readOnly: true
+              volumeMounts:
+            - name: varlogpods
+              mountPath: /var/log/pods
           livenessProbe:
             httpGet:
               path: /
@@ -89,3 +92,6 @@ spec:
         - name: rootfs
           hostPath:
             path: /
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods

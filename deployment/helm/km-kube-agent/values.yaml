@@ -23,6 +23,9 @@ polylangDetectorDaemonsetName: km-agent-polylang-detector-daemonset
 autoMountServiceAccount: true
 autoCreateServiceAccount: true
 
+monitoredNamespaces:
+  - "default"
+
 featuresEnabled:
   apm: true
   logs: true
@@ -142,6 +145,14 @@ configMapDeploymentLabels:
 configMapDaemonsetLabels:
   app.kubernetes.io/name: "km-kube-agent"
   app.kubernetes.io/instance: "km-kube-agent-config-daemonset"
+  app.kubernetes.io/part-of: "kloudmate-platform"
+  app.kubernetes.io/managed-by: "Helm"
+  product: "kloudmate"
+
+# Labels for the Namespace
+NamespaceLabels:
+  app.kubernetes.io/name: "km-agent"
+  app.kubernetes.io/instance: "km-agent-namespace"
   app.kubernetes.io/part-of: "kloudmate-platform"
   app.kubernetes.io/managed-by: "Helm"
   product: "kloudmate"

@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Values.configMapDaemonsetName }}
-  namespace: {{ .Release.Namespace }}
+  namespace: km-agent
   labels:
     {{- toYaml .Values.configMapDaemonsetLabels | nindent 4 }}
 data:
@@ -29,6 +29,18 @@ data:
       {{- if .Values.featuresEnabled.logs }}
       attributes/logs:
         actions:
+          - key: k8s.cluster.name
+            from_attribute: k8s.cluster.name
+            action: upsert
+          - key: k8s.namespace.name
+            from_attribute: k8s.namespace.name
+            action: upsert
+          - key: k8s.deployment.name
+            from_attribute: k8s.deployment.name
+            action: upsert
+          - key: service.name
+            from_attribute: k8s.container.name
+            action: upsert
           - key: source
             from_attribute: name
             action: upsert
@@ -319,6 +331,12 @@ data:
               - set(resource.attributes["service.name"], log.attributes["service.name"]) where
                 log.attributes["service.name"] != nil and resource.attributes["service.name"]
                 == nil
+      transform/k8sevents:
+        log_statements:
+          - context: resource
+            statements:
+              - set(resource.attributes["service.name"], "k8s-events-km") where resource.attributes["service.name"] == nil
+      
       {{- end }}
       transform/deleteostype:
         metric_statements:
@@ -401,6 +419,25 @@ data:
               - convert_sum_to_gauge() where metric.name == "k8s.node.network.io"
               - convert_sum_to_gauge() where metric.name == "k8s.node.network.errors"
     receivers:
+      {{- if .Values.featuresEnabled.logs }}
+      filelog:
+        exclude:
+        - /**/*.gz
+        - /var/log/pods/km-agent*/**/*.log
+        include:
+        - /var/log/pods/*/*/*.log
+        include_file_name_resolved: true
+        include_file_path: true
+        include_file_path_resolved: true
+        max_log_size: 1MiB
+        operators:
+        - id: container-parser
+          type: container
+          include_file_path: true
+        poll_interval: 10s
+      k8s_events:
+        auth_type: "serviceAccount"
+      {{- end }}
       {{- if .Values.featuresEnabled.metrics }}
       hostmetrics:
         collection_interval: 15s
@@ -544,6 +581,17 @@ data:
             - batch/2
           receivers:
             - otlp
+            - filelog
+        logs/k8sevents:
+          receivers:
+            - k8s_events
+          processors:
+            - k8sattributes
+            - transform/k8sevents
+            - batch
+            - batch/2
+          exporters:
+            - otlphttp
         {{- end }}
         {{- if .Values.featuresEnabled.metrics }}
         metrics/hostmetrics:

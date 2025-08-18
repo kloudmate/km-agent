@@ -2,6 +2,7 @@ apiVersion: opentelemetry.io/v1alpha1
 kind: Instrumentation
 metadata:
   name: {{ .Values.instrumentationCrdName }}
+  namespace: km-agent
   labels:
     {{- toYaml .Values.instrumentationCrdLabels | nindent 4 }}
 spec:

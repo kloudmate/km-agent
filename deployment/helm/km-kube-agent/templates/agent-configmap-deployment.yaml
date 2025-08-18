@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Values.configMapDeploymentName }}
-  namespace: {{ .Release.Namespace }}
+  namespace: km-agent
   labels:
     {{- toYaml .Values.configMapDeploymentLabels | nindent 4 }}
 data:
@@ -394,6 +394,8 @@ data:
           - NetworkUnavailable
       k8s_events:
         auth_type: serviceAccount
+        namespaces:
+          {{- .Values.monitoredNamespaces | toYaml | nindent 10 }}
       k8sobjects/1:
         auth_type: serviceAccount
         objects:

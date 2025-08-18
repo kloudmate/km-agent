@@ -39,7 +39,7 @@ type K8sAgent struct {
 	collectorCtx    context.Context
 	collectorCancel context.CancelFunc
 	stopCh          chan struct{}
-	agentInfo       AgentInfo
+	AgentInfo       AgentInfo
 }
 
 type AgentInfo struct {
@@ -73,11 +73,11 @@ func NewK8sAgent(info *AgentInfo) (*K8sAgent, error) {
 		Cfg:       cfg,
 		Logger:    logger,
 		K8sClient: k8sClient,
-		agentInfo: *info,
+		AgentInfo: *info,
 		stopCh:    make(chan struct{}),
 	}
-	agent.agentInfo.setEnvForAgentVersion()
-	agent.agentInfo.CollectorVersion = shared.GetCollectorVersion()
+	agent.AgentInfo.setEnvForAgentVersion()
+	agent.AgentInfo.CollectorVersion = shared.GetCollectorVersion()
 	logger.Infoln("kube agent initialized successfully")
 	return agent, nil
 }
@@ -85,9 +85,9 @@ func NewK8sAgent(info *AgentInfo) (*K8sAgent, error) {
 // StartAgent first creates a otel config from agent config and then runs the agent
 func (km *K8sAgent) StartAgent(ctx context.Context) error {
 	km.Logger.Infow("kloudmate kubernetes agent info",
-		"version", km.agentInfo.Version,
-		"commitSHA", km.agentInfo.CommitSHA,
-		"collector-version", km.agentInfo.CollectorVersion,
+		"version", km.AgentInfo.Version,
+		"commitSHA", km.AgentInfo.CommitSHA,
+		"collector-version", km.AgentInfo.CollectorVersion,
 	)
 	return km.Start(ctx)
 }
@@ -129,11 +129,12 @@ func (a *K8sAgent) AwaitShutdown() {
 
 func NewK8sConfig() *K8sConfig {
 	config := &K8sConfig{
-		APIKey:            os.Getenv("KM_API_KEY"),
-		CollectorEndpoint: os.Getenv("KM_COLLECTOR_ENDPOINT"),
-		ConfigMapName:     os.Getenv("CONFIGMAP_NAME"),
-		DeploymentMode:    os.Getenv("DEPLOYMENT_MODE"),
-		PodNamespace:      os.Getenv("POD_NAMESPACE"),
+		ConfigCheckInterval: os.Getenv(""),
+		APIKey:              os.Getenv("KM_API_KEY"),
+		CollectorEndpoint:   os.Getenv("KM_COLLECTOR_ENDPOINT"),
+		ConfigMapName:       os.Getenv("CONFIGMAP_NAME"),
+		DeploymentMode:      os.Getenv("DEPLOYMENT_MODE"),
+		PodNamespace:        os.Getenv("POD_NAMESPACE"),
 	}
 
 	if strings.ToUpper(config.DeploymentMode) == "DAEMONSET" {
