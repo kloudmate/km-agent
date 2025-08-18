@@ -210,15 +210,8 @@ func main() {
 			Destination: &program.cfg.ConfigCheckInterval,
 		}),
 		altsrc.NewStringFlag(&cli.StringFlag{
-			Name:  "update-endpoint",
-			Usage: "API key for authentication",
-			Value: func() string {
-				endpoint := os.Getenv("KM_COLLECTOR_ENDPOINT")
-				if endpoint == "" {
-					endpoint = "https://otel.kloudmate.com:4318"
-				}
-				return config.GetAgentConfigUpdaterURL(endpoint)
-			}(),
+			Name:        "update-endpoint",
+			Usage:       "API key for authentication",
 			EnvVars:     []string{"KM_UPDATE_ENDPOINT"},
 			Destination: &program.cfg.ConfigUpdateURL,
 		}),
