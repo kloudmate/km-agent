@@ -27,6 +27,7 @@ processors:
       - key: service.name
         from_attribute: k8s.container.name
         action: upsert
+
       - key: source
         from_attribute: name
         action: upsert

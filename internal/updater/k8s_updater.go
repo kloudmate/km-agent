@@ -180,6 +180,7 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 		return fmt.Errorf("updater.CheckForUpdates failed: %w", err)
 	}
 	if daemonsetCfg != nil && deploymentCfg != nil && restartRequired {
+
 		if err := a.UpdateConfigMap(daemonsetCfg, deploymentCfg); err != nil {
 			return fmt.Errorf("failed to update configMap: %w", err)
 		}
@@ -199,7 +200,6 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 }
 
 func (a *K8sConfigUpdater) UpdateConfigMap(daemonSetConfig map[string]interface{}, deploymentConfig map[string]interface{}) error {
-
 	daemonSetYamlBytes, err := yaml.Marshal(daemonSetConfig)
 	if err != nil {
 		return fmt.Errorf("marshal error for DaemonSet otel-config: %w", err)

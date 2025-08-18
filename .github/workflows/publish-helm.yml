@@ -99,6 +99,7 @@ jobs:
 
           helm repo index . --url "$RELEASE_URL"
           rm -rf ./${{ steps.package.outputs.PACKAGE_NAME }}
+
           git add .
           git commit -m "🚀 chore(release): update index and landing page for km-kube-agent ${{ steps.vars.outputs.CHART_VERSION }}" || echo "No changes to commit"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages
