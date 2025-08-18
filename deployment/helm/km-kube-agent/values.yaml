@@ -146,6 +146,14 @@ configMapDaemonsetLabels:
   app.kubernetes.io/managed-by: "Helm"
   product: "kloudmate"
 
+# Labels for the Namespace
+NamespaceLabels:
+  app.kubernetes.io/name: "km-agent"
+  app.kubernetes.io/instance: "km-agent-namespace"
+  app.kubernetes.io/part-of: "kloudmate-platform"
+  app.kubernetes.io/managed-by: "Helm"
+  product: "kloudmate"
+
 
 # ----------- Operator ------------
 opentelemetry-operator:

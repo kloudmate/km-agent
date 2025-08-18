@@ -1,10 +1,12 @@
-//go:build !k8s
-
 package main
 
 import (
 	"context"
 	"fmt"
+	"os"
+	"sync"
+	"time"
+
 	"github.com/kardianos/service"
 	"github.com/kloudmate/km-agent/internal/agent"
 	"github.com/kloudmate/km-agent/internal/config"
@@ -13,9 +15,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"os"
-	"sync"
-	"time"
 )
 
 var version = "0.1.0" // Version of the application

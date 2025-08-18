@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: {{ .Values.polylangDetectorDaemonsetName }}
-  namespace: {{ .Release.Namespace }}
+  namespace: km-agent
   labels:
     {{- toYaml .Values.daemonsetLabels | nindent 4 }}
 spec:
@@ -20,6 +20,10 @@ spec:
       - name: polylang-detector
         image: "{{ .Values.polylangDetector.image.repository }}:{{ .Values.polylangDetector.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.polylangDetector.image.pullPolicy }}
+        env:
+          - name: KM_SVC_ACCOUNT_NAME
+            value: {{ .Values.serviceAccountName }}
+
         resources:
           requests:
             cpu: "100m"

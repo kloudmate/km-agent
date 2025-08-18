@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/kloudmate/km-agent/internal/config"
+	"github.com/kloudmate/km-agent/internal/shared"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
@@ -33,16 +34,28 @@ type K8sConfigUpdater struct {
 }
 
 type K8sUpdateCheckerParams struct {
-	Version            string
-	AgentStatus        string
-	CollectorStatus    string
-	CollectorLastError string
+	Version          string
+	CollectorVersion string
+	CollectorStatus  string
+	APMData          []APMConfig
+}
+
+type APMConfig struct {
+	Namespace  string `json:"namespace"`
+	Deployment string `json:"deployment"`
+	Kind       string `json:"kind"`
+	Language   string `json:"language"`
+}
+
+type K8sAPIConfigs struct {
+	DaemonSetConfig  map[string]interface{} `json:"daemonset_config"`
+	DeploymentConfig map[string]interface{} `json:"deployment_config"`
 }
 
 // ConfigUpdateResponse represents the response from the config update API
 type K8sConfigUpdateResponse struct {
-	DaemonSetConfig  map[string]interface{} `json:"daemonset_config"`
-	DeploymentConfig map[string]interface{} `json:"deployment_config"`
+	RestartRequired bool          `json:"restart_required"`
+	K8sAPIConfigs   K8sAPIConfigs `json:"config"`
 }
 
 // NewK8sConfigUpdater creates a new config updater
@@ -63,16 +76,17 @@ func NewKubeConfigUpdaterClient(cfg *config.K8sAgentConfig, logger *zap.SugaredL
 }
 
 // CheckForUpdates checks for configuration updates from the remote API
-func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p K8sUpdateCheckerParams) (daemonSetConfig map[string]interface{}, deploymentConfig map[string]interface{}, err error) {
+func (u *K8sConfigUpdater) CheckForUpdatesK8s(ctx context.Context, p K8sUpdateCheckerParams) (restartRequired bool, daemonSetConfig map[string]interface{}, deploymentConfig map[string]interface{}, err error) {
 
 	// Create the request
 	data := map[string]interface{}{
-		"platform":      "kubernetes",
-		"hostname":      getHost(),
-		"architecture":  runtime.GOARCH,
-		"cluster_name":  u.cfg.ClusterName,
-		"agent_version": p.Version,
-		"agent_status":  "Operational",
+		"architecture":      runtime.GOARCH,
+		"hostname":          u.cfg.ClusterName,
+		"platform":          "k8s",
+		"k8s_deployments":   p.APMData,
+		"collector_version": p.CollectorVersion,
+		"agent_version":     p.Version,
+		"collector_status":  p.CollectorStatus,
 	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -84,7 +98,7 @@ func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p K8sUpdateCheck
 
 	req, err := http.NewRequestWithContext(reqCtx, "POST", u.cfg.ConfigUpdateURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create request: %w", err)
+		return false, nil, nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -96,23 +110,23 @@ func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p K8sUpdateCheck
 	resp, respErr := u.client.Do(req)
 
 	if respErr != nil {
-		return nil, nil, fmt.Errorf("failed to fetch config updates after retries: %w", respErr)
+		return false, nil, nil, fmt.Errorf("failed to fetch config updates after retries: %w", respErr)
 	}
 	defer resp.Body.Close()
 
 	// Check response status
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, nil, fmt.Errorf("config update API returned non-OK status: %d, body: %s", resp.StatusCode, body)
+		return false, nil, nil, fmt.Errorf("config update API returned non-OK status: %d, body: %s", resp.StatusCode, body)
 	}
 
 	// Parse response
 	var updateResp K8sConfigUpdateResponse
 	if err := json.NewDecoder(resp.Body).Decode(&updateResp); err != nil {
-		return nil, nil, fmt.Errorf("failed to decode config update response: %w", err)
+		return false, nil, nil, fmt.Errorf("failed to decode config update response: %w", err)
 	}
 
-	return updateResp.DaemonSetConfig, updateResp.DeploymentConfig, nil
+	return updateResp.RestartRequired, updateResp.K8sAPIConfigs.DaemonSetConfig, updateResp.K8sAPIConfigs.DeploymentConfig, nil
 }
 
 // StartConfigUpdateChecker run ticker for performConfigCheck
@@ -153,16 +167,19 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 	a.logger.Infoln("Checking for configuration updates...")
 
 	params := K8sUpdateCheckerParams{
-		Version: a.cfg.Version,
+		Version:          a.cfg.Version,
+		CollectorVersion: shared.GetCollectorVersion(),
+		CollectorStatus:  "Running",
+		APMData:          []APMConfig{},
 	}
 
 	a.logger.Debugf("Checking for updates with params: %+v", params)
 
-	daemonsetCfg, deploymentCfg, err := a.CheckForUpdates(ctx, params)
+	restartRequired, daemonsetCfg, deploymentCfg, err := a.CheckForUpdatesK8s(ctx, params)
 	if err != nil {
 		return fmt.Errorf("updater.CheckForUpdates failed: %w", err)
 	}
-	if daemonsetCfg != nil && deploymentCfg != nil {
+	if daemonsetCfg != nil && deploymentCfg != nil && restartRequired {
 		if err := a.UpdateConfigMap(daemonsetCfg, deploymentCfg); err != nil {
 			return fmt.Errorf("failed to update configMap: %w", err)
 		}

@@ -15,6 +15,18 @@ processors:
         action: insert
   attributes/logs:
     actions:
+      - key: k8s.cluster.name
+        from_attribute: k8s.cluster.name
+        action: upsert
+      - key: k8s.namespace.name
+        from_attribute: k8s.namespace.name
+        action: upsert
+      - key: k8s.deployment.name
+        from_attribute: k8s.deployment.name
+        action: upsert
+      - key: service.name
+        from_attribute: k8s.container.name
+        action: upsert
       - key: source
         from_attribute: name
         action: upsert
@@ -376,6 +388,8 @@ processors:
           - convert_sum_to_gauge() where metric.name == "k8s.node.network.io"
           - convert_sum_to_gauge() where metric.name == "k8s.node.network.errors"
 receivers:
+  k8s_events:
+        auth_type: "serviceAccount"
   hostmetrics:
     collection_interval: 15s
     scrapers:
@@ -514,6 +528,9 @@ service:
         - batch/2
       receivers:
         - otlp
+    logs/k8sevents:
+        receivers:
+          - k8s_events
     metrics/hostmetrics:
       exporters:
         - otlphttp

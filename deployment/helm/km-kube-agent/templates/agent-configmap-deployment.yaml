@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Values.configMapDeploymentName }}
-  namespace: {{ .Release.Namespace }}
+  namespace: km-agent
   labels:
     {{- toYaml .Values.configMapDeploymentLabels | nindent 4 }}
 data:
