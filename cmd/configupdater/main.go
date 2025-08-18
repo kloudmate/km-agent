@@ -50,7 +50,6 @@ func updaterFlags(cfg *config.K8sAgentConfig) []cli.Flag {
 		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:        "update-endpoint",
 			Usage:       "API key for authentication",
-			Value:       "https://api.kloudmate.com/agents/config-check",
 			EnvVars:     []string{"KM_UPDATE_ENDPOINT"},
 			Destination: &cfg.ConfigUpdateURL,
 		}),

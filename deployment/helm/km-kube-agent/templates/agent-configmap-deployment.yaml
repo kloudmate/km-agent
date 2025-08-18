@@ -394,6 +394,8 @@ data:
           - NetworkUnavailable
       k8s_events:
         auth_type: serviceAccount
+        namespaces:
+          {{- .Values.monitoredNamespaces | toYaml | nindent 10 }}
       k8sobjects/1:
         auth_type: serviceAccount
         objects:

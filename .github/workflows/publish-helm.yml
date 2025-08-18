@@ -93,12 +93,12 @@ jobs:
 
           cd gh-pages-repo
           cp ../${{ steps.package.outputs.PACKAGE_NAME }} .
-
           sed -i "s|<span id=\"app-version\".*</span>|<span id=\"app-version\" class=\"mt-1 text-lg font-bold text-[#58a6ff]\">${{ steps.vars.outputs.APP_VERSION }}</span>|g" index.html
           sed -i "s|<span id=\"chart-version\".*</span>|<span id=\"chart-version\" class=\"mt-1 text-lg font-bold text-[#58a6ff]\">${{ steps.vars.outputs.CHART_VERSION }}</span>|g" index.html
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/${{ steps.package.outputs.PACKAGE_NAME }}"
 
-          helm repo index . --url https://${{ github.repository_owner }}.github.io/${{ github.repository }}/
-
+          helm repo index . --url "$RELEASE_URL"
+          rm -rf ./${{ steps.package.outputs.PACKAGE_NAME }}
           git add .
           git commit -m "🚀 chore(release): update index and landing page for km-kube-agent ${{ steps.vars.outputs.CHART_VERSION }}" || echo "No changes to commit"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages

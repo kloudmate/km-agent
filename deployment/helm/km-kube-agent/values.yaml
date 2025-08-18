@@ -23,6 +23,9 @@ polylangDetectorDaemonsetName: km-agent-polylang-detector-daemonset
 autoMountServiceAccount: true
 autoCreateServiceAccount: true
 
+monitoredNamespaces:
+  - "default"
+
 featuresEnabled:
   apm: true
   logs: true

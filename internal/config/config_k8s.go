@@ -45,7 +45,7 @@ func NewKubeConfig(cfg K8sAgentConfig, clientset *kubernetes.Clientset, logger *
 		Logger:                  logger.Sugar(),
 		K8sClient:               clientset,
 		ExporterEndpoint:        cfg.ExporterEndpoint,
-		ConfigUpdateURL:         cfg.ConfigUpdateURL,
+		ConfigUpdateURL:         GetAgentConfigUpdaterURL(cfg.ExporterEndpoint),
 		APIKey:                  cfg.APIKey,
 		ConfigCheckInterval:     cfg.ConfigCheckInterval,
 		KubeNamespace:           cfg.KubeNamespace,
