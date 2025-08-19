@@ -3,8 +3,8 @@ name: km-kube-agent
 description: A Helm chart for Kloumate's Kubernetes flavored Agent
 home: https://www.kloudmate.com
 type: application
-version: 1.0.11
-appVersion: "1.0.11"
+version: 1.0.12
+appVersion: "1.0.12"
 icon: https://avatars.githubusercontent.com/u/103623326?s=48&v=4
 keywords:
   - kloudmate
