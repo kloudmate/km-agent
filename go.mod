@@ -28,6 +28,7 @@ require (
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/fluentforwardreceiver v0.125.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudmonitoringreceiver v0.131.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/httpcheckreceiver v0.131.0
+	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/iisreceiver v0.132.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/journaldreceiver v0.131.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sclusterreceiver v0.125.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8seventsreceiver v0.131.0
@@ -297,7 +298,7 @@ require (
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/sampling v0.125.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/stanza v0.131.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/prometheus v0.131.0 // indirect
-	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/winperfcounters v0.125.0 // indirect
+	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/winperfcounters v0.132.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor v0.131.0 // indirect
 	github.com/opencontainers/cgroups v0.0.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
@@ -361,7 +362,7 @@ require (
 	go.opentelemetry.io/collector/extension/extensionmiddleware v0.132.0 // indirect
 	go.opentelemetry.io/collector/extension/xextension v0.131.0 // indirect
 	go.opentelemetry.io/collector/featuregate v1.38.0 // indirect
-	go.opentelemetry.io/collector/filter v0.131.0 // indirect
+	go.opentelemetry.io/collector/filter v0.132.0 // indirect
 	go.opentelemetry.io/collector/internal/telemetry v0.132.0 // indirect
 	go.opentelemetry.io/collector/pdata/pprofile v0.132.0 // indirect
 	go.opentelemetry.io/collector/pdata/xpdata v0.131.0 // indirect
@@ -371,8 +372,8 @@ require (
 	go.opentelemetry.io/collector/processor/xprocessor v0.132.0 // indirect
 	go.opentelemetry.io/collector/receiver/receiverhelper v0.132.0 // indirect
 	go.opentelemetry.io/collector/receiver/xreceiver v0.132.0 // indirect
-	go.opentelemetry.io/collector/scraper v0.131.0 // indirect
-	go.opentelemetry.io/collector/scraper/scraperhelper v0.131.0 // indirect
+	go.opentelemetry.io/collector/scraper v0.132.0 // indirect
+	go.opentelemetry.io/collector/scraper/scraperhelper v0.132.0 // indirect
 	go.opentelemetry.io/collector/service/hostcapabilities v0.131.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.61.0 // indirect
 	go.opentelemetry.io/contrib/otelconf v0.17.0 // indirect

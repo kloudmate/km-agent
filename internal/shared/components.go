@@ -43,6 +43,7 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudmonitoringreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/httpcheckreceiver"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/iisreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sclusterreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sobjectsreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kafkametricsreceiver"
@@ -125,6 +126,7 @@ func Components() (otelcol.Factories, error) {
 		sqlqueryreceiver.NewFactory(),
 		syslogreceiver.NewFactory(),
 		vcenterreceiver.NewFactory(),
+		iisreceiver.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
