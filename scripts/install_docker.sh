@@ -55,19 +55,31 @@ fi
 
 # Prompt for additional directories to monitor
 ADDITIONAL_VOLUMES=""
+FILELOG_PATHS=""
+
 read -p "📂 Do you want to monitor additional directories for logs? (y/n): " monitor_extra
 if [[ "$monitor_extra" =~ ^[Yy]$ ]]; then
     while true; do
-        read -r -p "📁 Enter the full path of the directory to monitor [e.g., /var/log/app] or leave empty to finish: " dir
+        read -r -p "📁 Enter directory to monitor (leave empty to finish): " dir
         if [ -z "$dir" ]; then
             break
         elif [ -d "$dir" ]; then
-            ADDITIONAL_VOLUMES+=" -v \"$dir:$dir:ro\""
+            # Mount dir into container
+            ADDITIONAL_VOLUMES+=" -v $dir:$dir:ro"
+
+            # Append glob for filelog receiver
+            if [ -z "$FILELOG_PATHS" ]; then
+                FILELOG_PATHS="$dir/**/*"
+            else
+                FILELOG_PATHS="$FILELOG_PATHS,$dir/**/*"
+            fi
         else
             echo "❌ Directory '$dir' does not exist. Try again."
         fi
     done
 fi
+
+export FILELOG_PATHS
 
 echo "📥 Pulling Docker image: $IMAGE_NAME..."
 docker pull $IMAGE_NAME
@@ -87,6 +99,7 @@ eval docker run -d \
   --name km-agent-${KM_API_KEY:3:3} \
   -e KM_COLLECTOR_ENDPOINT="$KM_COLLECTOR_ENDPOINT" \
   -e KM_API_KEY="$KM_API_KEY" \
+  -e FILELOG_PATHS="$FILELOG_PATHS" \
   -v "$DOCKER_SOCK_PATH":"$DOCKER_SOCK_PATH" \
   -v /var/log:/var/log \
   -v /var/lib/docker/containers:/var/lib/docker/containers:ro \
