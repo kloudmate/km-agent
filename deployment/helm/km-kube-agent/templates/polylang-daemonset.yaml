@@ -31,11 +31,4 @@ spec:
                 # This field path directly exposes the name of the node
                 # where the pod has been scheduled.
                 fieldPath: spec.nodeName
-        resources:
-          requests:
-            cpu: "250m"
-            memory: "256Mi"
-          limits:
-            cpu: "768m"
-            memory: "512Mi"
 {{- end }}

@@ -189,12 +189,12 @@ opentelemetry-operator:
     namespaceSelector: {}
     objectSelector: {}
     certManager:
-      enabled: false
+      enabled: true
 
     ## certManager must be disabled and autoGenerateCert must be enabled.
     ## If true and certManager.enabled is false, Helm will automatically create a self-signed cert and secret.
     autoGenerateCert:
-      enabled: true
+      enabled: false
       recreate: true
       certPeriodDays: 365  
   manager:
