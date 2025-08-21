@@ -21,5 +21,9 @@ spec:
       port: 13133
       targetPort: 13133
       protocol: TCP
+    - name: cfg-updater
+      port: {{ .Values.KM_CFG_UPDATER_RPC_ADDR }}
+      targetPort: {{ .Values.KM_CFG_UPDATER_RPC_ADDR }}
+      protocol: TCP
   type: ClusterIP
   internalTrafficPolicy: Local

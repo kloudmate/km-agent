@@ -23,12 +23,19 @@ spec:
         env:
           - name: KM_SVC_ACCOUNT_NAME
             value: {{ .Values.serviceAccountName }}
-
+          - name: KM_CFG_UPDATER_RPC_ADDR
+            value: "cfg-updater-rpc-svc.km-agent.svc.cluster.local:{{ .Values.KM_CFG_UPDATER_RPC_ADDR }}"
+          - name: KM_NODE_NAME
+            valueFrom:
+              fieldRef:
+                # This field path directly exposes the name of the node
+                # where the pod has been scheduled.
+                fieldPath: spec.nodeName
         resources:
           requests:
-            cpu: "100m"
-            memory: "128Mi"
-          limits:
             cpu: "250m"
             memory: "256Mi"
+          limits:
+            cpu: "768m"
+            memory: "512Mi"
 {{- end }}

@@ -3,12 +3,13 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.1
-    meta.helm.sh/release-name: kloudmate-release
-    meta.helm.sh/release-namespace: default  #  No namespace since this will be available cluster-wide.
-  # creationTimestamp: null
+    meta.helm.sh/release-name: "kloudmate-release"
+    meta.helm.sh/release-namespace: "km-agent"
   labels:
-    app.kubernetes.io/name: opentelemetry-operator
     app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: opentelemetry-operator
+    meta.helm.sh/release-name: "kloudmate-release"
+    meta.helm.sh/release-namespace: "km-agent"
   name: instrumentations.opentelemetry.io
 spec:
   group: opentelemetry.io
