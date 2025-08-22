@@ -7,11 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/charmbracelet/log"
 	"github.com/kardianos/service"
 	"github.com/kloudmate/km-agent/internal/agent"
 	"github.com/kloudmate/km-agent/internal/config"
-	"github.com/kloudmate/km-agent/internal/windows"
+	kmlogger "github.com/kloudmate/km-agent/internal/logger"
 	"github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 	"go.uber.org/zap"
@@ -160,30 +159,11 @@ func getFileLogger(logFile string) (*zap.SugaredLogger, error) {
 
 func main() {
 	// Initialize logger
-	// logger, err := zap.NewProduction()
-	// if err != nil {
-	// 	fmt.Fprintf(os.Stderr, "failed to create logger: %v\n", err)
-	// 	os.Exit(1)
-	// }
-	// Create Windows Event Log core
-	eventLogCore, err := windows.NewWindowsEventLogCore("kmagent", zapcore.InfoLevel)
-	if err != nil {
-		log.Errorf("failed to create windows event log core: %v\n", err)
-	}
-	defer eventLogCore.Close()
+	sysLogger := kmlogger.SetupLogger()
+	logger := sysLogger.Logger
 
-	consoleCore := zapcore.NewCore(
-		zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
-		zapcore.AddSync(os.Stdout),
-		zapcore.InfoLevel,
-	)
-
-	// Combine otel core logger with win event logger
-	combinedCore := zapcore.NewTee(consoleCore, eventLogCore)
-	logger := zap.New(combinedCore)
-	zap.ReplaceGlobals(logger)
-
-	defer logger.Sync()
+	// handles cleanup for unix and windows systems
+	defer sysLogger.MustCleanup()
 
 	sugar := logger.Sugar()
 
