@@ -17,6 +17,7 @@ import (
 
 	"github.com/kloudmate/km-agent/internal/config"
 	"github.com/kloudmate/km-agent/internal/shared"
+	"github.com/kloudmate/km-agent/rpc"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
@@ -84,7 +85,7 @@ func (u *K8sConfigUpdater) CheckForUpdatesK8s(ctx context.Context, p K8sUpdateCh
 		"hostname":          u.cfg.ClusterName,
 		"platform":          "k8s",
 		"k8s_deployments":   p.APMData,
-		"collector_version": p.CollectorVersion,
+		"collector_version": shared.GetCollectorVersion(),
 		"agent_version":     p.Version,
 		"collector_status":  p.CollectorStatus,
 	}
@@ -165,12 +166,21 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 	defer cancel()
 
 	a.logger.Infoln("Checking for configuration updates...")
-
+	apmData := []APMConfig{}
+	results := rpc.GetDetectionResults()
+	for _, info := range results {
+		apmData = append(apmData, APMConfig{
+			Namespace:  info.Namespace,
+			Deployment: info.DeploymentName,
+			Kind:       info.Kind,
+			Language:   info.Language,
+		})
+	}
 	params := K8sUpdateCheckerParams{
 		Version:          a.cfg.Version,
 		CollectorVersion: shared.GetCollectorVersion(),
 		CollectorStatus:  "Running",
-		APMData:          []APMConfig{},
+		APMData:          apmData,
 	}
 
 	a.logger.Debugf("Checking for updates with params: %+v", params)

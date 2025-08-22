@@ -39,7 +39,7 @@ type K8sAgentConfig struct {
 	DeploymentName          string
 }
 
-func NewKubeConfig(cfg K8sAgentConfig, clientset *kubernetes.Clientset, logger *zap.Logger) (*K8sAgentConfig, error) {
+func NewKubeConfig(cfg K8sAgentConfig, clientset *kubernetes.Clientset, logger *zap.Logger, version string) (*K8sAgentConfig, error) {
 
 	agent := &K8sAgentConfig{
 		Logger:                  logger.Sugar(),
@@ -49,6 +49,7 @@ func NewKubeConfig(cfg K8sAgentConfig, clientset *kubernetes.Clientset, logger *
 		APIKey:                  cfg.APIKey,
 		ConfigCheckInterval:     cfg.ConfigCheckInterval,
 		KubeNamespace:           cfg.KubeNamespace,
+		Version:                 version,
 		ClusterName:             cfg.ClusterName,
 		DaemonSetName:           cfg.DaemonSetName,
 		ConfigmapDaemonsetName:  cfg.ConfigmapDaemonsetName,
