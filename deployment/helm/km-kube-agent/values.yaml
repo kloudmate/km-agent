@@ -50,7 +50,7 @@ configUpdater:
 # image settings for polylang-detector
 polylangDetector:
   image:
-    repository: ghcr.io/kloudmatepolylang-detector
+    repository: ghcr.io/kloudmate/polylang-detector
     pullPolicy: Always
     tag: "latest"
 
