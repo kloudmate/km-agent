@@ -14,4 +14,4 @@ spec:
       targetPort: {{ .Values.KM_CFG_UPDATER_RPC_ADDR }}
       protocol: TCP
   type: ClusterIP
-  internalTrafficPolicy: Local
+  internalTrafficPolicy: Cluster

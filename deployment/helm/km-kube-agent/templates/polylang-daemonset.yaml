@@ -24,7 +24,7 @@ spec:
           - name: KM_SVC_ACCOUNT_NAME
             value: {{ .Values.serviceAccountName }}
           - name: KM_CFG_UPDATER_RPC_ADDR
-            value: "cfg-updater-rpc-svc.km-agent.svc.cluster.local:{{ .Values.KM_CFG_UPDATER_RPC_ADDR }}"
+            value: {{ printf "cfg-updater-rpc-svc.km-agent.svc.cluster.local:%s" (.Values.KM_CFG_UPDATER_RPC_ADDR | toString) }}
           - name: KM_NODE_NAME
             valueFrom:
               fieldRef:

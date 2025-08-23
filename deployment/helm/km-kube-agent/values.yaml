@@ -50,9 +50,9 @@ configUpdater:
 # image settings for polylang-detector
 polylangDetector:
   image:
-    repository: anshdevs/polylang-detector
+    repository: ghcr.io/kloudmatepolylang-detector
     pullPolicy: Always
-    tag: "v6"
+    tag: "latest"
 
 # This is to override the chart name.
 nameOverride: ""
@@ -132,7 +132,6 @@ instrumentationCrdLabels:
   app.kubernetes.io/part-of: "kloudmate-platform"
   app.kubernetes.io/managed-by: "Helm"
   meta.helm.sh/release-name: "kloudmate-release"
-  meta.helm.sh/release-namespace: "km-agent"
   product: "kloudmate"
 
 # Labels for the Service.

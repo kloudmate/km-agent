@@ -42,6 +42,8 @@ spec:
               value: {{ .Values.clusterName }}
             - name: KM_CFG_UPDATER_RPC_ADDR
               value: "{{ .Values.KM_CFG_UPDATER_RPC_ADDR }}"
+            - name: KM_CRD_NAME
+              value: {{ .Values.instrumentationCrdName }}
             - name: KM_NAMESPACE
               valueFrom:
                 fieldRef:

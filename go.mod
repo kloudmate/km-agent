@@ -446,7 +446,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
-	github.com/kloudmate/polylang-detector v0.0.0-20250821054935-5ee1c8a35570
+	github.com/kloudmate/polylang-detector v0.0.0-20250823002422-a46aae1c5648
 	github.com/knadh/koanf/maps v0.1.2 // indirect
 	github.com/knadh/koanf/providers/confmap v1.0.0 // indirect
 	github.com/knadh/koanf/v2 v2.2.2 // indirect
