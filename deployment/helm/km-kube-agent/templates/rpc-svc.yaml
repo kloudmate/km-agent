@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cfg-updater-rpc-svc
+  namespace: km-agent
+  labels:
+    {{- toYaml .Values.serviceLabels | nindent 4 }}
+spec:
+  selector:
+    mapped-with: {{ .Values.configUpdaterName }}
+  ports:
+    - name: cfg-updater
+      port: {{ .Values.KM_CFG_UPDATER_RPC_ADDR }}
+      targetPort: {{ .Values.KM_CFG_UPDATER_RPC_ADDR }}
+      protocol: TCP
+  type: ClusterIP
+  internalTrafficPolicy: Cluster

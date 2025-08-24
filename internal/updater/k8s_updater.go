@@ -13,10 +13,13 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/kloudmate/km-agent/internal/config"
+	"github.com/kloudmate/km-agent/internal/instrumentation"
 	"github.com/kloudmate/km-agent/internal/shared"
+	"github.com/kloudmate/km-agent/rpc"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
@@ -44,18 +47,23 @@ type APMConfig struct {
 	Namespace  string `json:"namespace"`
 	Deployment string `json:"deployment"`
 	Kind       string `json:"kind"`
+	Enabled    bool   `json:"enabled"`
 	Language   string `json:"language"`
 }
 
-type K8sAPIConfigs struct {
+type K8sOtelConfigs struct {
 	DaemonSetConfig  map[string]interface{} `json:"daemonset_config"`
 	DeploymentConfig map[string]interface{} `json:"deployment_config"`
 }
 
 // ConfigUpdateResponse represents the response from the config update API
 type K8sConfigUpdateResponse struct {
-	RestartRequired bool          `json:"restart_required"`
-	K8sAPIConfigs   K8sAPIConfigs `json:"config"`
+	RestartRequired bool           `json:"restart_required"`
+	K8sAPIConfigs   K8sOtelConfigs `json:"config"`
+	K8s             struct {
+		APMEnabled  bool        `json:"apm_enabled"`
+		APMSettings []APMConfig `json:"apm_settings"`
+	} `json:"k8s"`
 }
 
 // NewK8sConfigUpdater creates a new config updater
@@ -76,7 +84,7 @@ func NewKubeConfigUpdaterClient(cfg *config.K8sAgentConfig, logger *zap.SugaredL
 }
 
 // CheckForUpdates checks for configuration updates from the remote API
-func (u *K8sConfigUpdater) CheckForUpdatesK8s(ctx context.Context, p K8sUpdateCheckerParams) (restartRequired bool, daemonSetConfig map[string]interface{}, deploymentConfig map[string]interface{}, err error) {
+func (u *K8sConfigUpdater) CheckForUpdatesK8s(ctx context.Context, p K8sUpdateCheckerParams) (updateResp K8sConfigUpdateResponse, err error) {
 
 	// Create the request
 	data := map[string]interface{}{
@@ -84,7 +92,7 @@ func (u *K8sConfigUpdater) CheckForUpdatesK8s(ctx context.Context, p K8sUpdateCh
 		"hostname":          u.cfg.ClusterName,
 		"platform":          "k8s",
 		"k8s_deployments":   p.APMData,
-		"collector_version": p.CollectorVersion,
+		"collector_version": shared.GetCollectorVersion(),
 		"agent_version":     p.Version,
 		"collector_status":  p.CollectorStatus,
 	}
@@ -98,7 +106,7 @@ func (u *K8sConfigUpdater) CheckForUpdatesK8s(ctx context.Context, p K8sUpdateCh
 
 	req, err := http.NewRequestWithContext(reqCtx, "POST", u.cfg.ConfigUpdateURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return false, nil, nil, fmt.Errorf("failed to create request: %w", err)
+		return K8sConfigUpdateResponse{}, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -110,23 +118,22 @@ func (u *K8sConfigUpdater) CheckForUpdatesK8s(ctx context.Context, p K8sUpdateCh
 	resp, respErr := u.client.Do(req)
 
 	if respErr != nil {
-		return false, nil, nil, fmt.Errorf("failed to fetch config updates after retries: %w", respErr)
+		return K8sConfigUpdateResponse{}, fmt.Errorf("failed to fetch config updates after retries: %w", respErr)
 	}
 	defer resp.Body.Close()
 
 	// Check response status
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return false, nil, nil, fmt.Errorf("config update API returned non-OK status: %d, body: %s", resp.StatusCode, body)
+		return K8sConfigUpdateResponse{}, fmt.Errorf("config update API returned non-OK status: %d, body: %s", resp.StatusCode, body)
 	}
 
 	// Parse response
-	var updateResp K8sConfigUpdateResponse
 	if err := json.NewDecoder(resp.Body).Decode(&updateResp); err != nil {
-		return false, nil, nil, fmt.Errorf("failed to decode config update response: %w", err)
+		return K8sConfigUpdateResponse{}, fmt.Errorf("failed to decode config update response: %w", err)
 	}
 
-	return updateResp.RestartRequired, updateResp.K8sAPIConfigs.DaemonSetConfig, updateResp.K8sAPIConfigs.DeploymentConfig, nil
+	return updateResp, nil
 }
 
 // StartConfigUpdateChecker run ticker for performConfigCheck
@@ -161,27 +168,38 @@ func (a *K8sConfigUpdater) StartConfigUpdateChecker(ctx context.Context) {
 
 // performConfigCheck checks remote server for new config and restart collector if required
 func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
-	ctx, cancel := context.WithTimeout(agentCtx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(agentCtx, 15*time.Second)
 	defer cancel()
 
 	a.logger.Infoln("Checking for configuration updates...")
+	apmData := []APMConfig{}
+	results := rpc.GetDetectionResults()
 
+	for _, info := range results {
+		apmData = append(apmData, APMConfig{
+			Namespace:  info.Namespace,
+			Deployment: info.DeploymentName,
+			Kind:       info.Kind,
+			Language:   info.Language,
+			Enabled:    info.Enabled,
+		})
+	}
 	params := K8sUpdateCheckerParams{
 		Version:          a.cfg.Version,
 		CollectorVersion: shared.GetCollectorVersion(),
 		CollectorStatus:  "Running",
-		APMData:          []APMConfig{},
+		APMData:          apmData,
 	}
 
 	a.logger.Debugf("Checking for updates with params: %+v", params)
 
-	restartRequired, daemonsetCfg, deploymentCfg, err := a.CheckForUpdatesK8s(ctx, params)
+	updateResp, err := a.CheckForUpdatesK8s(ctx, params)
 	if err != nil {
 		return fmt.Errorf("updater.CheckForUpdates failed: %w", err)
 	}
-	if daemonsetCfg != nil && deploymentCfg != nil && restartRequired {
+	if updateResp.K8sAPIConfigs.DaemonSetConfig != nil && updateResp.K8sAPIConfigs.DeploymentConfig != nil && updateResp.RestartRequired {
 
-		if err := a.UpdateConfigMap(daemonsetCfg, deploymentCfg); err != nil {
+		if err := a.UpdateConfigMap(updateResp.K8sAPIConfigs.DaemonSetConfig, updateResp.K8sAPIConfigs.DeploymentConfig); err != nil {
 			return fmt.Errorf("failed to update configMap: %w", err)
 		}
 		a.logger.Infoln("triggering rollout restart.")
@@ -190,6 +208,10 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 			a.logger.Errorln(err)
 		}
 		if err = a.triggerDeploymentRollout(agentCtx); err != nil {
+			a.logger.Errorln(err)
+		}
+
+		if err := a.performAPMUpdation(ctx, &updateResp); err != nil {
 			a.logger.Errorln(err)
 		}
 
@@ -317,6 +339,48 @@ func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error
 	}
 
 	drt.logger.Infof("Successfully triggered rollout for Deployment %s/%s.", drt.cfg.KubeNamespace, drt.cfg.DeploymentName)
+	return nil
+}
+
+func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8sConfigUpdateResponse) error {
+
+	if !response.K8s.APMEnabled {
+		return nil
+	}
+
+	for _, app := range response.K8s.APMSettings {
+		kind := strings.ToUpper(app.Kind)
+		annotations := instrumentation.KmCrdAnnotation(app.Language, app.Enabled)
+		annotationBytes, err := json.Marshal(annotations)
+		if err != nil {
+			return fmt.Errorf("Error marshaling patch %s/%s: %v", app.Namespace, app.Deployment, err)
+		}
+		switch kind {
+		case "DAEMONSET":
+			_, err := a.cfg.K8sClient.AppsV1().DaemonSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			if err != nil {
+				return fmt.Errorf("Error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+			}
+		case "DEPLOYMENT":
+			_, err := a.cfg.K8sClient.AppsV1().Deployments(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			if err != nil {
+				return fmt.Errorf("Error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+			}
+		case "REPLICASET":
+			_, err := a.cfg.K8sClient.AppsV1().ReplicaSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			if err != nil {
+				return fmt.Errorf("Error applying auto instrumentation on %s/%s: %v", app.Deployment, app.Deployment, err)
+			}
+		case "STATEFULSET":
+			_, err := a.cfg.K8sClient.AppsV1().StatefulSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			if err != nil {
+				return fmt.Errorf("Error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+			}
+		default:
+			return fmt.Errorf("Error applying auto instrumentation invalid KIND provided %s\n", app.Kind)
+		}
+	}
+
 	return nil
 }
 

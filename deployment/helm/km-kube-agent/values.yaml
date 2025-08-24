@@ -1,10 +1,12 @@
 replicaCount: 1
+installCRDs: false.
 
 # KloudMate platform specific arguments
 API_KEY:
 COLLECTOR_ENDPOINT: https://otel.kloudmate.com:4318
 KM_UPDATE_ENDPOINT: https://api.kloudmate.com/agents/config-check
 KM_CONFIG_CHECK_INTERVAL: 30s
+KM_CFG_UPDATER_RPC_ADDR: 5501
 
 # names of components to be installed.
 clusterName: km-cluster
@@ -71,6 +73,7 @@ daemonsetLabels:
   app.kubernetes.io/component: "node-agent"
   app.kubernetes.io/part-of: "kloudmate-platform"
   app.kubernetes.io/managed-by: "Helm"
+  meta.helm.sh/release-name: "kloudmate-release"
   environment: "production"
   product: "kloudmate"
 
@@ -81,6 +84,7 @@ deploymentLabels:
   app.kubernetes.io/component: "cluster-agent"
   app.kubernetes.io/part-of: "kloudmate-platform"
   app.kubernetes.io/managed-by: "Helm"
+  meta.helm.sh/release-name: "kloudmate-release"
   environment: "production"
   product: "kloudmate"
 
@@ -90,6 +94,7 @@ configUpdaterLabels:
   app.kubernetes.io/instance: "km-kube-agent-config-updater"
   app.kubernetes.io/part-of: "kloudmate-platform"
   app.kubernetes.io/managed-by: "Helm"
+  meta.helm.sh/release-name: "kloudmate-release"
   product: "kloudmate"
 
 
@@ -99,6 +104,7 @@ serviceAccountLabels:
   app.kubernetes.io/instance: "km-kube-agent-sa"
   app.kubernetes.io/part-of: "kloudmate-platform"
   app.kubernetes.io/managed-by: "Helm"
+  meta.helm.sh/release-name: "kloudmate-release"
   product: "kloudmate"
 
 # Labels for the Cluster Role.
@@ -107,6 +113,7 @@ clusterRoleLabels:
   app.kubernetes.io/instance: "km-kube-agent-clusterrole"
   app.kubernetes.io/part-of: "kloudmate-platform"
   app.kubernetes.io/managed-by: "Helm"
+  meta.helm.sh/release-name: "kloudmate-release"
   product: "kloudmate"
 
 # Labels for the Cluster Role Binding.
@@ -115,6 +122,7 @@ clusterRoleBindingLabels:
   app.kubernetes.io/instance: "km-kube-agent-clusterrolebinding"
   app.kubernetes.io/part-of: "kloudmate-platform"
   app.kubernetes.io/managed-by: "Helm"
+  meta.helm.sh/release-name: "kloudmate-release"
   product: "kloudmate"
 
 # Labels for the Instrumentation CRD.
@@ -123,6 +131,7 @@ instrumentationCrdLabels:
   app.kubernetes.io/instance: "km-kube-instrumentation-crd"
   app.kubernetes.io/part-of: "kloudmate-platform"
   app.kubernetes.io/managed-by: "Helm"
+  meta.helm.sh/release-name: "kloudmate-release"
   product: "kloudmate"
 
 # Labels for the Service.
@@ -131,6 +140,7 @@ serviceLabels:
   app.kubernetes.io/instance: "km-kube-agent-service"
   app.kubernetes.io/part-of: "kloudmate-platform"
   app.kubernetes.io/managed-by: "Helm"
+  meta.helm.sh/release-name: "kloudmate-release"
   product: "kloudmate"
 
 # Labels for the Deployment ConfigMap.
@@ -139,6 +149,7 @@ configMapDeploymentLabels:
   app.kubernetes.io/instance: "km-kube-agent-config-deployment"
   app.kubernetes.io/part-of: "kloudmate-platform"
   app.kubernetes.io/managed-by: "Helm"
+  meta.helm.sh/release-name: "kloudmate-release"
   product: "kloudmate"
 
 # Labels for the Daemonset ConfigMap.
@@ -147,6 +158,7 @@ configMapDaemonsetLabels:
   app.kubernetes.io/instance: "km-kube-agent-config-daemonset"
   app.kubernetes.io/part-of: "kloudmate-platform"
   app.kubernetes.io/managed-by: "Helm"
+  meta.helm.sh/release-name: "kloudmate-release"
   product: "kloudmate"
 
 # Labels for the Namespace
@@ -155,6 +167,7 @@ NamespaceLabels:
   app.kubernetes.io/instance: "km-agent-namespace"
   app.kubernetes.io/part-of: "kloudmate-platform"
   app.kubernetes.io/managed-by: "Helm"
+  meta.helm.sh/release-name: "kloudmate-release"
   product: "kloudmate"
 
 
@@ -175,12 +188,12 @@ opentelemetry-operator:
     namespaceSelector: {}
     objectSelector: {}
     certManager:
-      enabled: false
+      enabled: true
 
     ## certManager must be disabled and autoGenerateCert must be enabled.
     ## If true and certManager.enabled is false, Helm will automatically create a self-signed cert and secret.
     autoGenerateCert:
-      enabled: true
+      enabled: false
       recreate: true
       certPeriodDays: 365  
   manager:

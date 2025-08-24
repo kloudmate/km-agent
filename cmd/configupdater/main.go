@@ -11,6 +11,7 @@ import (
 	// configupdater "github.com/kloudmate/km-agent/configupdater"
 	"github.com/kloudmate/km-agent/internal/config"
 	"github.com/kloudmate/km-agent/internal/updater"
+	"github.com/kloudmate/km-agent/rpc"
 	cli "github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 	"k8s.io/client-go/kubernetes"
@@ -109,6 +110,7 @@ func main() {
 						"version", version,
 						"commitSHA", commit,
 					)
+					go rpc.StartRpcServer()
 					logger.Info("loading InClusterConfig via service account.", zap.Any("config", agentCfg))
 					kubeconfig, err := rest.InClusterConfig()
 					if err != nil {
@@ -120,7 +122,7 @@ func main() {
 						return err
 					}
 
-					kubeAgentConfig, err := config.NewKubeConfig(agentCfg, clientset, logger)
+					kubeAgentConfig, err := config.NewKubeConfig(agentCfg, clientset, logger, version)
 					if err != nil {
 						logger.Fatal("failed to create kube agent config", zap.Error(err))
 						return err

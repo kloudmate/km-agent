@@ -10,6 +10,7 @@ import (
 	"github.com/kardianos/service"
 	"github.com/kloudmate/km-agent/internal/agent"
 	"github.com/kloudmate/km-agent/internal/config"
+	kmlogger "github.com/kloudmate/km-agent/internal/logger"
 	"github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 	"go.uber.org/zap"
@@ -158,12 +159,11 @@ func getFileLogger(logFile string) (*zap.SugaredLogger, error) {
 
 func main() {
 	// Initialize logger
-	logger, err := zap.NewProduction()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create logger: %v\n", err)
-		os.Exit(1)
-	}
-	defer logger.Sync()
+	sysLogger := kmlogger.SetupLogger()
+	logger := sysLogger.Logger
+
+	// handles cleanup for unix and windows systems
+	defer sysLogger.MustCleanup()
 
 	sugar := logger.Sugar()
 

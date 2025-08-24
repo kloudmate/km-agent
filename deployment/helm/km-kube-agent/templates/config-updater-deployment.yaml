@@ -10,10 +10,12 @@ spec:
   replicas: 1
   selector:
     matchLabels:
+      mapped-with: {{ .Values.configUpdaterName }}
       {{- toYaml .Values.configUpdaterLabels | nindent 6 }}
   template:
     metadata:
       labels:
+        mapped-with: {{ .Values.configUpdaterName }}
         {{- toYaml .Values.configUpdaterLabels | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.serviceAccountName }}
@@ -38,6 +40,10 @@ spec:
               value: {{ .Values.configMapDeploymentName }}
             - name: KM_CLUSTER_NAME
               value: {{ .Values.clusterName }}
+            - name: KM_CFG_UPDATER_RPC_ADDR
+              value: "{{ .Values.KM_CFG_UPDATER_RPC_ADDR }}"
+            - name: KM_CRD_NAME
+              value: {{ .Values.instrumentationCrdName }}
             - name: KM_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -46,6 +52,10 @@ spec:
               value: {{ .Values.daemonsetName }}
             - name: KM_DEPLOYMENT_NAME
               value: {{ .Values.deploymentName }}
+          ports:
+            - name: cfg-updater
+              containerPort: {{ .Values.KM_CFG_UPDATER_RPC_ADDR }}
+              protocol: TCP
           resources:
             requests:
               cpu: "100m"
