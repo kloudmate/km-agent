@@ -12,7 +12,7 @@ RUN apk add --no-cache ca-certificates openssl && \
 ARG VERSION=dev
 ARG COMMIT_SHA=unknown
 
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-X 'main.version=$VERSION' -X 'main.commit=$COMMIT_SHA'" -tags k8s -o configupdater cmd/configupdater/main.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-X 'main.version=$VERSION' -X 'main.commit=$COMMIT_SHA'" -o configupdater cmd/configupdater/main.go
 
 FROM alpine:latest
 
