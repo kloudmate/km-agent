@@ -16,6 +16,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/kloudmate/km-agent/internal/config"
+	"github.com/kloudmate/km-agent/internal/shared"
 )
 
 // ConfigUpdater handles configuration updates from a remote API
@@ -62,13 +63,18 @@ func NewConfigUpdater(cfg *config.Config, logger *zap.SugaredLogger) *ConfigUpda
 // CheckForUpdates checks for configuration updates from the remote API
 func (u *ConfigUpdater) CheckForUpdates(ctx context.Context, p UpdateCheckerParams) (bool, map[string]interface{}, error) {
 
-	// Create the request
+	platform := runtime.GOOS
+	if u.cfg.DockerMode {
+		platform = "docker"
+	}
+
 	data := map[string]interface{}{
 		"is_docker":          u.cfg.DockerMode,
 		"hostname":           u.cfg.Hostname(),
-		"platform":           runtime.GOOS,
+		"platform":           platform,
 		"architecture":       runtime.GOARCH,
 		"agent_version":      p.Version,
+		"collector_version":  shared.GetCollectorVersion(),
 		"agent_status":       p.AgentStatus,
 		"collector_status":   p.CollectorStatus,
 		"last_error_message": p.CollectorLastError,

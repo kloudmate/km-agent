@@ -11,10 +11,15 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/kloudmate/km-agent/internal/config"
+	"github.com/kloudmate/km-agent/internal/instrumentation"
+	"github.com/kloudmate/km-agent/internal/shared"
+	"github.com/kloudmate/km-agent/rpc"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
@@ -32,21 +37,37 @@ type K8sConfigUpdater struct {
 }
 
 type K8sUpdateCheckerParams struct {
-	Version            string
-	AgentStatus        string
-	CollectorStatus    string
-	CollectorLastError string
+	Version          string
+	CollectorVersion string
+	CollectorStatus  string
+	APMData          []APMConfig
+}
+
+type APMConfig struct {
+	Namespace  string `json:"namespace"`
+	Deployment string `json:"deployment"`
+	Kind       string `json:"kind"`
+	Enabled    bool   `json:"enabled"`
+	Language   string `json:"language"`
+}
+
+type K8sOtelConfigs struct {
+	DaemonSetConfig  map[string]interface{} `json:"daemonset_config"`
+	DeploymentConfig map[string]interface{} `json:"deployment_config"`
 }
 
 // ConfigUpdateResponse represents the response from the config update API
 type K8sConfigUpdateResponse struct {
-	RestartRequired bool                   `json:"restart_required"`
-	Config          map[string]interface{} `json:"config"`
+	RestartRequired bool           `json:"restart_required"`
+	K8sAPIConfigs   K8sOtelConfigs `json:"config"`
+	K8s             struct {
+		APMEnabled  bool        `json:"apm_enabled"`
+		APMSettings []APMConfig `json:"apm_settings"`
+	} `json:"k8s"`
 }
 
 // NewK8sConfigUpdater creates a new config updater
 func NewKubeConfigUpdaterClient(cfg *config.K8sAgentConfig, logger *zap.SugaredLogger) *K8sConfigUpdater {
-	configPath := config.DefaultConfigmapMountPath
 
 	return &K8sConfigUpdater{
 		cfg:    cfg,
@@ -59,22 +80,21 @@ func NewKubeConfigUpdaterClient(cfg *config.K8sAgentConfig, logger *zap.SugaredL
 				ResponseHeaderTimeout: 5 * time.Second,
 			},
 		},
-		configPath: configPath,
 	}
 }
 
 // CheckForUpdates checks for configuration updates from the remote API
-func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p UpdateCheckerParams) (bool, map[string]interface{}, error) {
+func (u *K8sConfigUpdater) CheckForUpdatesK8s(ctx context.Context, p K8sUpdateCheckerParams) (updateResp K8sConfigUpdateResponse, err error) {
 
 	// Create the request
 	data := map[string]interface{}{
-		"is_docker":          false,
-		"platform":           "kubernetes",
-		"architecture":       runtime.GOARCH,
-		"agent_version":      p.Version,
-		"agent_status":       p.AgentStatus,
-		"collector_status":   p.CollectorStatus,
-		"last_error_message": p.CollectorLastError,
+		"architecture":      runtime.GOARCH,
+		"hostname":          u.cfg.ClusterName,
+		"platform":          "k8s",
+		"k8s_deployments":   p.APMData,
+		"collector_version": shared.GetCollectorVersion(),
+		"agent_version":     p.Version,
+		"collector_status":  p.CollectorStatus,
 	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -86,7 +106,7 @@ func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p UpdateCheckerP
 
 	req, err := http.NewRequestWithContext(reqCtx, "POST", u.cfg.ConfigUpdateURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return false, nil, fmt.Errorf("failed to create request: %w", err)
+		return K8sConfigUpdateResponse{}, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -98,23 +118,22 @@ func (u *K8sConfigUpdater) CheckForUpdates(ctx context.Context, p UpdateCheckerP
 	resp, respErr := u.client.Do(req)
 
 	if respErr != nil {
-		return false, nil, fmt.Errorf("failed to fetch config updates after retries: %w", respErr)
+		return K8sConfigUpdateResponse{}, fmt.Errorf("failed to fetch config updates after retries: %w", respErr)
 	}
 	defer resp.Body.Close()
 
 	// Check response status
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return false, nil, fmt.Errorf("config update API returned non-OK status: %d, body: %s", resp.StatusCode, body)
+		return K8sConfigUpdateResponse{}, fmt.Errorf("config update API returned non-OK status: %d, body: %s", resp.StatusCode, body)
 	}
 
 	// Parse response
-	var updateResp ConfigUpdateResponse
 	if err := json.NewDecoder(resp.Body).Decode(&updateResp); err != nil {
-		return false, nil, fmt.Errorf("failed to decode config update response: %w", err)
+		return K8sConfigUpdateResponse{}, fmt.Errorf("failed to decode config update response: %w", err)
 	}
 
-	return updateResp.RestartRequired, updateResp.Config, nil
+	return updateResp, nil
 }
 
 // StartConfigUpdateChecker run ticker for performConfigCheck
@@ -149,28 +168,50 @@ func (a *K8sConfigUpdater) StartConfigUpdateChecker(ctx context.Context) {
 
 // performConfigCheck checks remote server for new config and restart collector if required
 func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
-	ctx, cancel := context.WithTimeout(agentCtx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(agentCtx, 15*time.Second)
 	defer cancel()
 
 	a.logger.Infoln("Checking for configuration updates...")
+	apmData := []APMConfig{}
+	results := rpc.GetDetectionResults()
 
-	params := UpdateCheckerParams{
-		Version: a.cfg.Version,
+	for _, info := range results {
+		apmData = append(apmData, APMConfig{
+			Namespace:  info.Namespace,
+			Deployment: info.DeploymentName,
+			Kind:       info.Kind,
+			Language:   info.Language,
+			Enabled:    info.Enabled,
+		})
+	}
+	params := K8sUpdateCheckerParams{
+		Version:          a.cfg.Version,
+		CollectorVersion: shared.GetCollectorVersion(),
+		CollectorStatus:  "Running",
+		APMData:          apmData,
 	}
 
 	a.logger.Debugf("Checking for updates with params: %+v", params)
 
-	restart, newConfig, err := a.CheckForUpdates(ctx, params)
+	updateResp, err := a.CheckForUpdatesK8s(ctx, params)
 	if err != nil {
 		return fmt.Errorf("updater.CheckForUpdates failed: %w", err)
 	}
-	if newConfig != nil && restart {
-		if err := a.UpdateConfigMap(newConfig); err != nil {
-			return fmt.Errorf("failed to update config file: %w", err)
+	if updateResp.K8sAPIConfigs.DaemonSetConfig != nil && updateResp.K8sAPIConfigs.DeploymentConfig != nil && updateResp.RestartRequired {
+
+		if err := a.UpdateConfigMap(updateResp.K8sAPIConfigs.DaemonSetConfig, updateResp.K8sAPIConfigs.DeploymentConfig); err != nil {
+			return fmt.Errorf("failed to update configMap: %w", err)
 		}
 		a.logger.Infoln("triggering rollout restart.")
 
-		if err = a.triggerRollout(agentCtx); err != nil {
+		if err = a.triggerDaemonSetRollout(agentCtx); err != nil {
+			a.logger.Errorln(err)
+		}
+		if err = a.triggerDeploymentRollout(agentCtx); err != nil {
+			a.logger.Errorln(err)
+		}
+
+		if err := a.performAPMUpdation(ctx, &updateResp); err != nil {
 			a.logger.Errorln(err)
 		}
 
@@ -180,31 +221,51 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 	return nil
 }
 
-func (a *K8sConfigUpdater) UpdateConfigMap(cfg map[string]interface{}) error {
-
-	yamlBytes, err := yaml.Marshal(cfg)
+func (a *K8sConfigUpdater) UpdateConfigMap(daemonSetConfig map[string]interface{}, deploymentConfig map[string]interface{}) error {
+	daemonSetYamlBytes, err := yaml.Marshal(daemonSetConfig)
 	if err != nil {
-		return fmt.Errorf("marshal error: %w", err)
+		return fmt.Errorf("marshal error for DaemonSet otel-config: %w", err)
+	}
+
+	deploymentYamlBytes, err := yaml.Marshal(deploymentConfig)
+	if err != nil {
+		return fmt.Errorf("marshal error for Deployment otel-config: %w", err)
 	}
 
 	configMaps := a.cfg.K8sClient.CoreV1().ConfigMaps(a.cfg.KubeNamespace)
 
+	a.logger.Infoln("Attempting to update DaemonSet configMap.")
 	_, err = configMaps.Update(context.TODO(), &corev1.ConfigMap{
-		Data: map[string]string{"agent.yaml": string(yamlBytes)},
+		Data: map[string]string{"agent-daemonset.yaml": string(daemonSetYamlBytes)},
 		ObjectMeta: v1.ObjectMeta{
-			Name: a.cfg.ConfigmapName,
+			Name: a.cfg.ConfigmapDaemonsetName,
 		},
 	}, v1.UpdateOptions{})
 
 	if err != nil {
-		a.logger.Errorln(err)
+		return fmt.Errorf("failed to update DaemonsSt configMap: %w", err)
+	} else {
+		a.logger.Infoln("Successfully updated DaemonSet configMap.")
 	}
 
+	a.logger.Infoln("Attempting to update Deployment configMap.")
+	_, err = configMaps.Update(context.TODO(), &corev1.ConfigMap{
+		Data: map[string]string{"agent-deployment.yaml": string(deploymentYamlBytes)},
+		ObjectMeta: v1.ObjectMeta{
+			Name: a.cfg.ConfigmapDeploymentName,
+		},
+	}, v1.UpdateOptions{})
+
+	if err != nil {
+		return fmt.Errorf("failed to update Deployment configMap: %w", err)
+	} else {
+		a.logger.Infoln("Successfully updated Deployment configMap.")
+	}
 	return nil
 }
 
-// triggerRollout triggers a DaemonSet rollout by patching its template annotation.
-func (drt *K8sConfigUpdater) triggerRollout(ctx context.Context) error {
+// triggerDaemonSetRollout triggers a DaemonSet rollout by patching its template annotation.
+func (drt *K8sConfigUpdater) triggerDaemonSetRollout(ctx context.Context) error {
 	drt.logger.Infof("Attempting to trigger rollout for DaemonSet %s/%s...", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName)
 
 	// Get the DaemonSet to ensure it exists and get its current state
@@ -240,4 +301,104 @@ func (drt *K8sConfigUpdater) triggerRollout(ctx context.Context) error {
 
 	drt.logger.Infof("Successfully triggered rollout for DaemonSet %s/%s.", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName)
 	return nil
+}
+
+// triggerDeploymentRollout triggers a DaemonSet rollout by patching its template annotation.
+func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error {
+	drt.logger.Infof("Attempting to trigger rollout for Deployment %s/%s...", drt.cfg.KubeNamespace, drt.cfg.DeploymentName)
+
+	// Get the DaemonSet to ensure it exists and get its current state
+	_, err := drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DeploymentName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("Error getting Deployment %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
+	}
+
+	// Prepare the patch to update the "kubectl.kubernetes.io/restartedAt" annotation.
+	// This annotation change signals Kubernetes to perform a rolling update.
+	patch := map[string]interface{}{
+		"spec": map[string]interface{}{
+			"template": map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"annotations": map[string]interface{}{
+						"kubectl.kubernetes.io/restartedAt": time.Now().Format(time.RFC3339),
+					},
+				},
+			},
+		},
+	}
+
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		return fmt.Errorf("Error marshaling patch for Deployment %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
+	}
+
+	// Apply the strategic merge patch to the Deployment
+	_, err = drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Patch(ctx, drt.cfg.DeploymentName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("Error patching Deployment %s/%s to trigger rollout: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
+	}
+
+	drt.logger.Infof("Successfully triggered rollout for Deployment %s/%s.", drt.cfg.KubeNamespace, drt.cfg.DeploymentName)
+	return nil
+}
+
+func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8sConfigUpdateResponse) error {
+
+	if !response.K8s.APMEnabled {
+		return nil
+	}
+
+	for _, app := range response.K8s.APMSettings {
+		kind := strings.ToUpper(app.Kind)
+		annotations := instrumentation.KmCrdAnnotation(app.Language, app.Enabled)
+		annotationBytes, err := json.Marshal(annotations)
+		if err != nil {
+			return fmt.Errorf("Error marshaling patch %s/%s: %v", app.Namespace, app.Deployment, err)
+		}
+		switch kind {
+		case "DAEMONSET":
+			_, err := a.cfg.K8sClient.AppsV1().DaemonSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			if err != nil {
+				return fmt.Errorf("Error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+			}
+		case "DEPLOYMENT":
+			_, err := a.cfg.K8sClient.AppsV1().Deployments(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			if err != nil {
+				return fmt.Errorf("Error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+			}
+		case "REPLICASET":
+			_, err := a.cfg.K8sClient.AppsV1().ReplicaSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			if err != nil {
+				return fmt.Errorf("Error applying auto instrumentation on %s/%s: %v", app.Deployment, app.Deployment, err)
+			}
+		case "STATEFULSET":
+			_, err := a.cfg.K8sClient.AppsV1().StatefulSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			if err != nil {
+				return fmt.Errorf("Error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+			}
+		default:
+			return fmt.Errorf("Error applying auto instrumentation invalid KIND provided %s\n", app.Kind)
+		}
+	}
+
+	return nil
+}
+
+func (c *K8sConfigUpdater) otelConfigPath() string {
+	daemonsetURI := "/etc/kmagent/agent-daemonset.yaml"
+	deploymentURI := "/etc/kmagent/agent-deployment.yaml"
+	if c.cfg.DeploymentMode == "DAEMONSET" {
+		return daemonsetURI
+	} else {
+		return deploymentURI
+	}
+}
+
+func (c *K8sConfigUpdater) SetConfigPath() {
+	c.configPath = c.otelConfigPath()
+}
+
+func getHost() (h string) {
+	h, _ = os.Hostname()
+	return h
 }

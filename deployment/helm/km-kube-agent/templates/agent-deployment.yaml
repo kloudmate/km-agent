@@ -1,0 +1,74 @@
+# Deployment manifest for a cluster-level agent.
+# It is based on the provided DaemonSet configuration but has been
+# adapted to run as a single, highly available pod to collect cluster-wide data.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.deploymentName }}
+  namespace: km-agent
+  labels:
+    {{- toYaml .Values.configMapDeploymentLabels | nindent 4 }}
+spec:
+  # 'replicas' is a key field for a Deployment. We set it to 1 to ensure
+  # a single, non-redundant instance is running. This is crucial for
+  # collecting cluster-wide data without duplication.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.deploymentName }}
+      {{- toYaml .Values.configMapDeploymentLabels | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.deploymentName }}
+        {{- toYaml .Values.configMapDeploymentLabels | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      containers:
+        - name: kloudmate-km-kube-agent-cluster
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: KM_API_KEY
+              value: {{ .Values.API_KEY }}
+            - name: KM_COLLECTOR_ENDPOINT
+              value: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }}
+            - name: KM_CONFIG_CHECK_INTERVAL
+              value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default "30s" }}
+            - name: DEPLOYMENT_MODE
+              value: DEPLOYMENT
+            - name: CONFIGMAP_NAME
+              value: {{ .Values.configMapDeploymentName }}
+            - name: KM_CLUSTER_NAME
+              value: {{ .Values.clusterName }}
+            - name: KM_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            # We keep the OTLP ports to allow other components (like the
+            # DaemonSet agents) to send data to this cluster agent.
+            - name: otlp-grpc
+              containerPort: 4317
+              protocol: TCP
+            - name: otlp-http
+              containerPort: 4318
+              protocol: TCP
+            - containerPort: 13133
+              name: health-check
+              protocol: TCP
+          volumeMounts:
+            - name: agent-config-volume-deployment
+              mountPath: "/etc/kmagent/agent-deployment.yaml"
+              readOnly: true
+              subPath: "agent-deployment.yaml"
+      volumes:
+        - name: agent-config-volume-deployment
+          configMap:
+            ## for deployment
+            name: {{ .Values.configMapDeploymentName }}

@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Values.daemonsetName }}
+  namespace: km-agent
+  labels:
+    {{- toYaml .Values.daemonsetLabels | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      mapped-with: {{ .Values.daemonsetName }}
+      {{- toYaml .Values.daemonsetLabels | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        mapped-with: {{ .Values.daemonsetName }}
+        {{- toYaml .Values.daemonsetLabels | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      containers:
+        - name: kloudmate-km-kube-agent
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: KM_API_KEY
+              value: {{ .Values.API_KEY }}
+            - name: KM_COLLECTOR_ENDPOINT
+              value: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }}
+            - name: KM_CONFIG_CHECK_INTERVAL
+              value: {{ .Values.KM_CONFIG_CHECK_INTERVAL | default "30s" }}
+            - name: DEPLOYMENT_MODE
+              value: DAEMONSET
+              ## for daemonset
+            - name: CONFIGMAP_NAME
+              value: {{ .Values.configMapDaemonsetName }}
+            - name: KM_CLUSTER_NAME
+              value: {{ .Values.clusterName }}
+            - name: KM_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: KM_NODE_HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - name: otlp-grpc
+              containerPort: 4317
+              protocol: TCP
+            - name: otlp-http
+              containerPort: 4318
+              protocol: TCP
+          volumeMounts:
+              ## for daemonset 
+            - name: agent-config-volume-daemonset
+              mountPath: "/etc/kmagent/agent-daemonset.yaml"
+              readOnly: true
+              subPath: "agent-daemonset.yaml"
+            - name: varlog
+              mountPath: /var/log
+              readOnly: true
+            - name: rootfs
+              mountPath: /host
+              readOnly: true
+              volumeMounts:
+            - name: varlogpods
+              mountPath: /var/log/pods
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: agent-config-volume-daemonset
+          configMap:
+            ## for daemonset
+            name: {{ .Values.configMapDaemonsetName }}
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: rootfs
+          hostPath:
+            path: /
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods

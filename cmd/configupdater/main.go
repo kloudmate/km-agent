@@ -11,6 +11,7 @@ import (
 	// configupdater "github.com/kloudmate/km-agent/configupdater"
 	"github.com/kloudmate/km-agent/internal/config"
 	"github.com/kloudmate/km-agent/internal/updater"
+	"github.com/kloudmate/km-agent/rpc"
 	cli "github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 	"k8s.io/client-go/kubernetes"
@@ -50,7 +51,6 @@ func updaterFlags(cfg *config.K8sAgentConfig) []cli.Flag {
 		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:        "update-endpoint",
 			Usage:       "API key for authentication",
-			Value:       "https://api.kloudmate.com/agents/config-check",
 			EnvVars:     []string{"KM_UPDATE_ENDPOINT"},
 			Destination: &cfg.ConfigUpdateURL,
 		}),
@@ -66,14 +66,24 @@ func updaterFlags(cfg *config.K8sAgentConfig) []cli.Flag {
 			Destination: &cfg.KubeNamespace,
 		}),
 		altsrc.NewStringFlag(&cli.StringFlag{
-			Name:        "configmap-name",
-			EnvVars:     []string{"KM_CONFIGMAP_NAME"},
-			Destination: &cfg.ConfigmapName,
+			Name:        "configmap-daemonset-name",
+			EnvVars:     []string{"CONFIGMAP_DAEMONSET_NAME"},
+			Destination: &cfg.ConfigmapDaemonsetName,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "configmap-deployment-name",
+			EnvVars:     []string{"CONFIGMAP_DEPLOYMENT_NAME"},
+			Destination: &cfg.ConfigmapDeploymentName,
 		}),
 		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:        "daemonset-name",
 			EnvVars:     []string{"KM_DAEMONSET_NAME"},
 			Destination: &cfg.DaemonSetName,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "deployment-name",
+			EnvVars:     []string{"KM_DEPLOYMENT_NAME"},
+			Destination: &cfg.DeploymentName,
 		}),
 	}
 }
@@ -100,6 +110,7 @@ func main() {
 						"version", version,
 						"commitSHA", commit,
 					)
+					go rpc.StartRpcServer()
 					logger.Info("loading InClusterConfig via service account.", zap.Any("config", agentCfg))
 					kubeconfig, err := rest.InClusterConfig()
 					if err != nil {
@@ -111,12 +122,13 @@ func main() {
 						return err
 					}
 
-					kubeAgentConfig, err := config.NewKubeConfig(agentCfg, clientset, logger)
+					kubeAgentConfig, err := config.NewKubeConfig(agentCfg, clientset, logger, version)
 					if err != nil {
 						logger.Fatal("failed to create kube agent config", zap.Error(err))
 						return err
 					}
 					kubeUpdater := updater.NewKubeConfigUpdaterClient(kubeAgentConfig, logger.Sugar())
+					kubeUpdater.SetConfigPath()
 
 					var wg sync.WaitGroup
 					errCh := make(chan error)
