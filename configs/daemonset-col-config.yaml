@@ -1,4 +1,5 @@
-
+# This is for collector running as a DaemonSet in Kubernetes.
+#  It collects host metrics and kubelet stats, enriches them with Kubernetes metadata
 exporters:
   otlphttp:
     endpoint: ${env:COLLECTOR_ENDPOINT}
@@ -24,68 +25,34 @@ processors:
       - key: k8s.deployment.name
         from_attribute: k8s.deployment.name
         action: upsert
+      - key: k8s.node.name
+        from_attribute: k8s.node.name
+        action: upsert
+      - key: k8s.pod.name
+        from_attribute: k8s.pod.name
+        action: upsert
       - key: service.name
+        from_attribute: k8s.deployment.name
+        action: upsert
+      - key: service.namespace
+        from_attribute: k8s.namespace.name
+        action: upsert
+      - key: service.instance.id
+        from_attribute: k8s.pod.uid
+        action: upsert
+      - key: k8s.container.name
         from_attribute: k8s.container.name
         action: upsert
-
-      - key: source
-        from_attribute: name
+      - key: k8s.container.image.name
+        from_attribute: k8s.container.image.name
         action: upsert
-      - key: source
-        from_attribute: operator_type
+      - key: k8s.container.image.tag
+        from_attribute: k8s.container.image.tag
         action: upsert
-      - key: source
-        from_attribute: log.file.name
-        action: upsert
-      - key: source
-        from_attribute: fluent.tag
-        action: upsert
-      - key: source
-        from_attribute: service.name
-        action: upsert
-      - key: source
-        from_attribute: project.name
-        action: upsert
-      - key: source
-        from_attribute: serviceName
-        action: upsert
-      - key: source
-        from_attribute: projectName
-        action: upsert
-      - key: source
-        from_attribute: pod_name
-        action: upsert
-      - key: source
-        from_attribute: container_name
-        action: upsert
-      - key: source
-        from_attribute: namespace
-        action: upsert
-      - key: serviceName
-        value: 'k8s-logs'
-        action: insert
-  attributes/traces:
-    actions:
-      - action: insert
-        from_attribute: db.system
-        key: km.service.name.derived
-      - action: insert
-        from_attribute: messaging.system
-        key: km.service.name.derived
-      - action: insert
-        from_attribute: rpc.system
-        key: km.service.name.derived
-      - action: insert
-        from_attribute: http.scheme
-        key: km.service.name.derived
-      - action: insert
-        from_attribute: faas.trigger
-        key: km.service.name.derived
-  batch: null
-  batch/2:
+  batch:
     send_batch_size: 10000
-    timeout: 60s
-  cumulativetodelta/ratecalculation:
+    timeout: 10s
+  cumulativetodelta:
     include:
       match_type: strict
       metrics:
@@ -99,7 +66,7 @@ processors:
         - k8s.pod.network.errors.rate
         - k8s.node.network.io.rate
         - k8s.node.network.errors.rate
-  deltatorate/ratecalculation:
+  deltatorate:
     metrics:
       - system.network.io
       - system.disk.io
@@ -206,44 +173,11 @@ processors:
   resource:
     attributes:
       - action: upsert
-        from_attribute: host.name
-        key: host.id
-      - action: insert
         from_attribute: k8s.node.uid
-        key: k8s.cluster.name
-      - action: insert
-        from_attribute: k8s.namespace.uid
-        key: k8s.cluster.name
-      - action: insert
-        from_attribute: k8s.pod.uid
-        key: k8s.cluster.name
-      - action: insert
-        from_attribute: k8s.container.name
-        key: k8s.cluster.name
-      - action: insert
-        from_attribute: k8s.replicaset.uid
-        key: k8s.cluster.name
-      - action: insert
-        from_attribute: k8s.statefulset.uid
-        key: k8s.cluster.name
-      - action: insert
-        from_attribute: k8s.cronjob.uid
-        key: k8s.cluster.name
-      - action: insert
-        from_attribute: k8s.job.uid
-        key: k8s.cluster.name
-      - action: insert
-        from_attribute: k8s.daemonset.uid
-        key: k8s.cluster.name
-      - action: insert
-        from_attribute: k8s.deployment.uid
-        key: k8s.cluster.name
-      - action: insert
-        key: k8s.node.ip
-        value: ${env:KM_NODE_HOST_IP}
+        key: host.id
       - action: upsert
-        key: km.agent.version
-        value: develop
+        key: k8s.cluster.name
+        value: ${env:KM_CLUSTER_NAME}
   resource/add_node_name:
     attributes:
       - action: upsert
@@ -254,9 +188,6 @@ processors:
       - action: upsert
         key: k8s.cluster.name
         value: ${env:KM_CLUSTER_NAME}
-      - action: update
-        from_attribute: k8s.node.name
-        key: host.id
       - action: update
         from_attribute: k8s.node.name
         key: host.name
@@ -275,31 +206,9 @@ processors:
       hostname_sources:
         - os
       resource_attributes:
-        host.arch:
-          enabled: true
-        host.cpu.cache.l2.size:
-          enabled: true
-        host.cpu.family:
-          enabled: true
-        host.cpu.model.id:
-          enabled: true
-        host.cpu.model.name:
-          enabled: true
-        host.cpu.stepping:
-          enabled: true
-        host.cpu.vendor.id:
-          enabled: true
         host.ip:
           enabled: true
-        host.mac:
-          enabled: true
-        os.description:
-          enabled: true
     timeout: 5s
-  transform/add_labels:
-    log_statements:
-      - context: log
-        statements: []
   transform/copyservicefromlogattributes:
     error_mode: ignore
     log_statements:
@@ -392,7 +301,7 @@ receivers:
   k8s_events:
         auth_type: "serviceAccount"
   hostmetrics:
-    collection_interval: 15s
+    collection_interval: 60s
     scrapers:
       cpu:
         metrics:
@@ -476,7 +385,7 @@ receivers:
       system: {}
   kubeletstats:
     auth_type: serviceAccount
-    collection_interval: 30s
+    collection_interval: 60s
     endpoint: ${env:KM_NODE_NAME}:10250
     extra_metadata_labels:
       - container.id
@@ -526,7 +435,6 @@ service:
         - k8sattributes
         - transform/copyservicefromlogattributes
         - batch
-        - batch/2
       receivers:
         - otlp
     logs/k8sevents:
@@ -546,11 +454,10 @@ service:
         - transform/deleteostype
         - attributes/metrics
         - transform/ratecalculation/copymetric
-        - cumulativetodelta/ratecalculation
-        - deltatorate/ratecalculation
+        - cumulativetodelta
+        - deltatorate
         - transform/ratecalculation/sumtogauge
         - batch
-        - batch/2
       receivers:
         - hostmetrics
     metrics/kubeletstats:
@@ -567,7 +474,6 @@ service:
         - deltatorate/ratecalculation
         - transform/ratecalculation/sumtogauge
         - batch
-        - batch/2
         - attributes/metrics
       receivers:
         - kubeletstats
@@ -580,7 +486,6 @@ service:
         - k8sattributes
         - resource/cluster
         - batch
-        - batch/2
         - attributes/metrics
       receivers:
         - otlp
@@ -591,9 +496,7 @@ service:
         - resourcedetection
         - resource
         - resource/cluster
-        - attributes/traces
         - k8sattributes
         - batch
-        - batch/2
       receivers:
         - otlp
