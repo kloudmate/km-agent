@@ -175,7 +175,7 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 	a.logger.Infoln("Checking for configuration updates...")
 	apmData := []APMConfig{}
 	results := rpc.GetDetectionResults()
-
+	a.logger.Infoln("available apps for instrumentation : %d", len(results))
 	for _, info := range results {
 		apmData = append(apmData, APMConfig{
 			Namespace:  info.Namespace,
@@ -212,12 +212,11 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 			a.logger.Errorln(err)
 		}
 
-		if err := a.performAPMUpdation(ctx, &updateResp); err != nil {
-			a.logger.Errorln(err)
-		}
-
 	} else {
-		a.logger.Infoln("No configuration change")
+		a.logger.Infoln("No configuration change detected for the agent")
+	}
+	if err := a.performAPMUpdation(ctx, &updateResp); err != nil {
+		a.logger.Errorln(err)
 	}
 	return nil
 }
@@ -304,11 +303,11 @@ func (drt *K8sConfigUpdater) triggerDaemonSetRollout(ctx context.Context) error 
 	return nil
 }
 
-// triggerDeploymentRollout triggers a DaemonSet rollout by patching its template annotation.
+// triggerDeploymentRollout triggers a Deployment rollout by patching its template annotation.
 func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error {
 	drt.logger.Infof("Attempting to trigger rollout for Deployment %s/%s...", drt.cfg.KubeNamespace, drt.cfg.DeploymentName)
 
-	// Get the DaemonSet to ensure it exists and get its current state
+	// Get the Deployment to ensure it exists and get its current state
 	_, err := drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("Error getting Deployment %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
@@ -346,9 +345,10 @@ func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error
 func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8sConfigUpdateResponse) error {
 
 	if !response.K8s.APMEnabled {
+		a.logger.Infof("Apm is not enabled for  %S\n", a.cfg.ClusterName)
 		return nil
 	}
-
+	a.logger.Infof("Performing APM updation to cluster :%s on %d apps", a.cfg.ClusterName, len(response.K8s.APMSettings))
 	for _, app := range response.K8s.APMSettings {
 		kind := strings.ToUpper(app.Kind)
 		annotations := instrumentation.KmCrdAnnotation(app.Language, app.Enabled)
