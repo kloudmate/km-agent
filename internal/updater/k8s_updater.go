@@ -1,6 +1,3 @@
-//go:build k8s
-// +build k8s
-
 package updater
 
 import (
@@ -11,11 +8,11 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/kloudmate/km-agent/internal/config"
 	"github.com/kloudmate/km-agent/internal/instrumentation"
 	"github.com/kloudmate/km-agent/internal/shared"
@@ -23,9 +20,11 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 )
 
 // ConfigUpdater handles configuration updates from a remote API
@@ -56,14 +55,16 @@ type K8sOtelConfigs struct {
 	DeploymentConfig map[string]interface{} `json:"deployment_config"`
 }
 
+type K8sApmConfig struct {
+	APMEnabled  bool        `json:"apm_enabled"`
+	APMSettings []APMConfig `json:"apm_settings"`
+}
+
 // ConfigUpdateResponse represents the response from the config update API
 type K8sConfigUpdateResponse struct {
 	RestartRequired bool           `json:"restart_required"`
 	K8sAPIConfigs   K8sOtelConfigs `json:"config"`
-	K8s             struct {
-		APMEnabled  bool        `json:"apm_enabled"`
-		APMSettings []APMConfig `json:"apm_settings"`
-	} `json:"k8s"`
+	K8s             K8sApmConfig   `json:"k8s"`
 }
 
 // NewK8sConfigUpdater creates a new config updater
@@ -174,7 +175,7 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 	a.logger.Infoln("Checking for configuration updates...")
 	apmData := []APMConfig{}
 	results := rpc.GetDetectionResults()
-
+	a.logger.Infoln("available apps for instrumentation : %d", len(results))
 	for _, info := range results {
 		apmData = append(apmData, APMConfig{
 			Namespace:  info.Namespace,
@@ -211,12 +212,11 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 			a.logger.Errorln(err)
 		}
 
-		if err := a.performAPMUpdation(ctx, &updateResp); err != nil {
-			a.logger.Errorln(err)
-		}
-
 	} else {
-		a.logger.Infoln("No configuration change")
+		a.logger.Infoln("No configuration change detected for the agent")
+	}
+	if err := a.performAPMUpdation(ctx, &updateResp); err != nil {
+		a.logger.Errorln(err)
 	}
 	return nil
 }
@@ -303,11 +303,11 @@ func (drt *K8sConfigUpdater) triggerDaemonSetRollout(ctx context.Context) error 
 	return nil
 }
 
-// triggerDeploymentRollout triggers a DaemonSet rollout by patching its template annotation.
+// triggerDeploymentRollout triggers a Deployment rollout by patching its template annotation.
 func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error {
 	drt.logger.Infof("Attempting to trigger rollout for Deployment %s/%s...", drt.cfg.KubeNamespace, drt.cfg.DeploymentName)
 
-	// Get the DaemonSet to ensure it exists and get its current state
+	// Get the Deployment to ensure it exists and get its current state
 	_, err := drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("Error getting Deployment %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
@@ -345,42 +345,61 @@ func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error
 func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8sConfigUpdateResponse) error {
 
 	if !response.K8s.APMEnabled {
+		a.logger.Infof("Apm is not enabled for  %S\n", a.cfg.ClusterName)
 		return nil
 	}
-
+	a.logger.Infof("Performing APM updation to cluster :%s on %d apps", a.cfg.ClusterName, len(response.K8s.APMSettings))
 	for _, app := range response.K8s.APMSettings {
 		kind := strings.ToUpper(app.Kind)
 		annotations := instrumentation.KmCrdAnnotation(app.Language, app.Enabled)
 		annotationBytes, err := json.Marshal(annotations)
 		if err != nil {
-			return fmt.Errorf("Error marshaling patch %s/%s: %v", app.Namespace, app.Deployment, err)
+			return fmt.Errorf("error marshaling patch %s/%s: %v", app.Namespace, app.Deployment, err)
 		}
 		switch kind {
 		case "DAEMONSET":
 			_, err := a.cfg.K8sClient.AppsV1().DaemonSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
 			if err != nil {
-				return fmt.Errorf("Error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
-			}
-		case "DEPLOYMENT":
-			_, err := a.cfg.K8sClient.AppsV1().Deployments(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
-			if err != nil {
-				return fmt.Errorf("Error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
 		case "REPLICASET":
 			_, err := a.cfg.K8sClient.AppsV1().ReplicaSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
 			if err != nil {
-				return fmt.Errorf("Error applying auto instrumentation on %s/%s: %v", app.Deployment, app.Deployment, err)
+				if errors.IsNotFound(err) {
+					log.Infof("replicaset not found for %s\n falling back to check for deployment", app.Deployment)
+					if err := handleDeploymentPatching(ctx, a.cfg.K8sClient, app, annotationBytes); err != nil {
+						return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+					}
+				} else {
+					return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Deployment, app.Deployment, err)
+				}
+			}
+		case "DEPLOYMENT":
+			_, err = a.cfg.K8sClient.AppsV1().Deployments(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			if err != nil {
+				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+			}
+			if err := handleDeploymentPatching(ctx, a.cfg.K8sClient, app, annotationBytes); err != nil {
+				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
 		case "STATEFULSET":
 			_, err := a.cfg.K8sClient.AppsV1().StatefulSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
 			if err != nil {
-				return fmt.Errorf("Error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
 		default:
-			return fmt.Errorf("Error applying auto instrumentation invalid KIND provided %s\n", app.Kind)
+			return fmt.Errorf("error applying auto instrumentation invalid KIND provided %s", app.Kind)
 		}
 	}
 
+	return nil
+}
+
+func handleDeploymentPatching(ctx context.Context, client *kubernetes.Clientset, app APMConfig, annotations []byte) error {
+	_, err := client.AppsV1().Deployments(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotations, v1.PatchOptions{})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -396,9 +415,4 @@ func (c *K8sConfigUpdater) otelConfigPath() string {
 
 func (c *K8sConfigUpdater) SetConfigPath() {
 	c.configPath = c.otelConfigPath()
-}
-
-func getHost() (h string) {
-	h, _ = os.Hostname()
-	return h
 }

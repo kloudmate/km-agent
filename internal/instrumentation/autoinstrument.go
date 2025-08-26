@@ -40,8 +40,8 @@ func KmCrdAnnotation(osl string, enabled bool) InstrumentAnnotiation {
 						"kubectl.kubernetes.io/restartedAt": time.Now().Format(time.RFC3339),
 						// contains location/scope of instrumentation crd
 						fmt.Sprintf("instrumentation.opentelemetry.io/inject-%s", lang): fmt.Sprintf("%s/%s", ns, crd),
-						// contains language annotation toggle
-						fmt.Sprintf("instrumentation.opentelemetry.io/inject-%s", lang): fmt.Sprintf("%t", enabled),
+						// TODO: target specific containers
+						// "instrumentation.opentelemetry.io/container-names": fmt.Sprintf("%t", enabled),
 					},
 				},
 			},
