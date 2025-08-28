@@ -1,4 +1,4 @@
-
+# OpenTelemetry Collector runs as Deployment and collects cluster metrics
 exporters:
   otlphttp:
     endpoint: ${env:COLLECTOR_ENDPOINT}
@@ -15,83 +15,11 @@ processors:
         action: insert
   attributes/logs:
     actions:
-      - action: upsert
-        from_attribute: name
-        key: source
-      - action: upsert
-        from_attribute: operator_type
-        key: source
-      - action: upsert
-        from_attribute: log.file.name
-        key: source
-      - action: upsert
-        from_attribute: service.name
-        key: source
-      - action: upsert
-        from_attribute: project.name
-        key: source
-      - action: upsert
-        from_attribute: serviceName
-        key: source
-      - action: upsert
-        from_attribute: projectName
-        key: source
-      - action: upsert
-        from_attribute: pod_name
-        key: source
-      - action: upsert
-        from_attribute: container_name
-        key: source
-      - action: upsert
-        from_attribute: namespace
-        key: source
   attributes/traces:
     actions:
-      - action: insert
-        from_attribute: db.system
-        key: km.service.name.derived
-      - action: insert
-        from_attribute: messaging.system
-        key: km.service.name.derived
-      - action: insert
-        from_attribute: rpc.system
-        key: km.service.name.derived
-      - action: insert
-        from_attribute: http.scheme
-        key: km.service.name.derived
-      - action: insert
-        from_attribute: faas.trigger
-        key: km.service.name.derived
-  batch: null
-  batch/2:
+  batch:
     send_batch_size: 10000
-    timeout: 60s
-  cumulativetodelta/ratecalculation:
-    include:
-      match_type: strict
-      metrics:
-        - system.network.io
-        - system.disk.io
-        - system.disk.operations.rate
-        - system.network.packets.rate
-        - system.network.errors.rate
-        - system.network.dropped.rate
-        - k8s.pod.network.io.rate
-        - k8s.pod.network.errors.rate
-        - k8s.node.network.io.rate
-        - k8s.node.network.errors.rate
-  deltatorate/ratecalculation:
-    metrics:
-      - system.network.io
-      - system.disk.io
-      - system.disk.operations.rate
-      - system.network.packets.rate
-      - system.network.errors.rate
-      - system.network.dropped.rate
-      - k8s.pod.network.io.rate
-      - k8s.pod.network.errors.rate
-      - k8s.node.network.io.rate
-      - k8s.node.network.errors.rate
+    timeout: 10s
   k8sattributes:
     auth_type: serviceAccount
     extract:
@@ -130,7 +58,7 @@ processors:
       - sources:
           - from: resource_attribute
             name: k8s.pod.uid
-  metricstransform/system:
+  metricstransform/system: # I don't think this applies here?
     transforms:
       - action: insert
         experimental_match_labels:
@@ -432,7 +360,6 @@ service:
         - k8sattributes
         - resource/k8s_events
         - batch
-        - batch/2
       receivers:
         - k8s_events
     logs/k8sobjects:
@@ -447,7 +374,6 @@ service:
         - transform/k8sobject
         - transform/k8sobject/namespace
         - batch
-        - batch/2
       receivers:
         - k8sobjects/1
         - k8sobjects/2
@@ -462,7 +388,6 @@ service:
         - k8sattributes
         - transform/copyservicefromlogattributes
         - batch
-        - batch/2
       receivers:
         - otlp
     metrics/k8s_cluster:
@@ -474,7 +399,6 @@ service:
         - k8sattributes
         - resource/cluster
         - batch
-        - batch/2
       receivers:
         - k8s_cluster
     metrics/otlp:
@@ -486,7 +410,6 @@ service:
         - k8sattributes
         - resource/cluster
         - batch
-        - batch/2
       receivers:
         - otlp
     traces/otlp:
@@ -499,6 +422,5 @@ service:
         - attributes/traces
         - k8sattributes
         - batch
-        - batch/2
       receivers:
         - otlp
