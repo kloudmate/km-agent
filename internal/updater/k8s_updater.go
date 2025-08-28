@@ -345,7 +345,7 @@ func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error
 func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8sConfigUpdateResponse) error {
 
 	if !response.K8s.APMEnabled {
-		a.logger.Infof("Apm is not enabled for  %S\n", a.cfg.ClusterName)
+		a.logger.Infof("Apm is not enabled for  %s\n", a.cfg.ClusterName)
 		return nil
 	}
 	a.logger.Infof("Performing APM updation to cluster :%s on %d apps", a.cfg.ClusterName, len(response.K8s.APMSettings))

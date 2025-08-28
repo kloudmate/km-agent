@@ -49,6 +49,7 @@ func NewKubeConfig(cfg K8sAgentConfig, clientset *kubernetes.Clientset, logger *
 		Version:                 version,
 		ClusterName:             cfg.ClusterName,
 		DaemonSetName:           cfg.DaemonSetName,
+		DeploymentName:          cfg.DeploymentName,
 		ConfigmapDaemonsetName:  cfg.ConfigmapDaemonsetName,
 		ConfigmapDeploymentName: cfg.ConfigmapDeploymentName,
 	}
