@@ -127,12 +127,7 @@ data:
         pod_association:
           - sources:
               - from: resource_attribute
-                name: k8s.pod.ip
-          - sources:
-              - from: resource_attribute
                 name: k8s.pod.uid
-          - sources:
-              - from: connection
       metricstransform/system:
         transforms:
           - action: insert
@@ -394,7 +389,7 @@ data:
           system: {}
       kubeletstats:
         auth_type: serviceAccount
-        collection_interval: 60s
+        collection_interval: 30s
         endpoint: ${env:KM_NODE_NAME}:10250
         extra_metadata_labels:
           - container.id
@@ -420,6 +415,8 @@ data:
           k8s.pod.cpu_request_utilization:
             enabled: true
           k8s.pod.memory_limit_utilization:
+            enabled: true
+          k8s.node.memory.usage:
             enabled: true
           k8s.pod.memory_request_utilization:
             enabled: true
@@ -482,8 +479,8 @@ data:
             - resource/cluster
             - transform/ratecalculation/copymetric
             - transform/ratecalculation/sumtogauge
-            - batch
             - attributes/metrics
+            - batch
           receivers:
             - kubeletstats
         metrics/otlp:
@@ -494,8 +491,8 @@ data:
             - resource
             - k8sattributes
             - resource/cluster
-            - batch
             - attributes/metrics
+            - batch
           receivers:
             - otlp
         traces/otlp:

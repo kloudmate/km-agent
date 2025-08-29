@@ -26,6 +26,12 @@ spec:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:latest
   java:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:latest
+    volumeMounts:
+      - name: opentelemetry-auto-instrumentation-java
+        mountPath: /otel-auto-instrumentation-java
+    env:
+      - name: JAVA_TOOL_OPTIONS
+        value: " -javaagent:/otel-auto-instrumentation-java/javaagent.jar"
   go:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-go:latest
   

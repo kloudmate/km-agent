@@ -1,7 +1,7 @@
 # OpenTelemetry Collector runs as Deployment and collects cluster metrics
 exporters:
   otlphttp:
-    endpoint: ${env:COLLECTOR_ENDPOINT}
+    endpoint: ${env:KM_COLLECTOR_ENDPOINT}
     headers:
       Authorization: ${env:KM_API_KEY}
 extensions:
@@ -15,8 +15,35 @@ processors:
         action: insert
   attributes/logs:
     actions:
+      - action: upsert
+        from_attribute: name
+        key: source
+      - action: upsert
+        from_attribute: service.name
+        key: source
+      - action: upsert
+        from_attribute: serviceName
+        key: source
+      - action: upsert
+        from_attribute: pod_name
+        key: source
+      - action: upsert
+        from_attribute: container_name
+        key: source
+      - action: upsert
+        from_attribute: namespace
+        key: source
   attributes/traces:
     actions:
+      - action: insert
+        from_attribute: messaging.system
+        key: km.service.name.derived
+      - action: insert
+        from_attribute: http.scheme
+        key: km.service.name.derived
+      - action: insert
+        from_attribute: faas.trigger
+        key: km.service.name.derived
   batch:
     send_batch_size: 10000
     timeout: 10s
@@ -51,8 +78,6 @@ processors:
         - k8s.replicaset.name
         - k8s.cronjob.name
         - k8s.job.name
-    filter:
-      node_from_env_var: KM_NODE_NAME
     passthrough: false
     pod_association:
       - sources:
@@ -203,7 +228,6 @@ processors:
     log_statements:
       - context: log
         statements:
-          # This statement is already correct
           - set(resource.attributes["service.name"], log.attributes["service.name"]) where
             log.attributes["service.name"] != nil and resource.attributes["service.name"]
             == nil
@@ -211,16 +235,13 @@ processors:
     metric_statements:
       - context: datapoint
         statements:
-          # This statement is already correct
           - delete_key(attributes, "os.type")
   transform/k8sobject:
     error_mode: ignore
     log_statements:
       - context: log
         statements:
-          # Corrected 'cache' and 'body' to 'log.cache' and 'log.body'
           - set(log.cache, log.body["object"])
-          # Corrected 'attributes' to 'log.attributes' and 'cache' to 'log.cache'
           - set(log.attributes["k8s.object.name.derived"], log.cache["metadata"]["name"])
           - set(log.attributes["k8s.object.uid.derived"], log.cache["metadata"]["uid"])
           - set(log.attributes["k8s.object.kind.derived"], log.cache["kind"])
@@ -230,9 +251,7 @@ processors:
     log_statements:
       - context: log
         statements:
-          # Corrected 'cache' and 'body' to 'log.cache' and 'log.body'
           - set(log.cache, log.body)
-          # Corrected 'attributes' to 'log.attributes' and 'cache' to 'log.cache'
           - set(log.attributes["k8s.object.name.derived"], log.cache["metadata"]["name"])
           - set(log.attributes["k8s.object.uid.derived"], log.cache["metadata"]["uid"])
           - set(log.attributes["k8s.object.kind.derived"], log.cache["kind"])
@@ -241,7 +260,6 @@ processors:
     metric_statements:
       - context: datapoint
         statements:
-          # This statement is already correct
           - set(attributes["os.type"], resource.attributes["os.type"])
   transform/ratecalculation/copymetric:
     error_mode: ignore

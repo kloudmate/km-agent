@@ -387,6 +387,12 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 			if err != nil {
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
+
+		case "POD":
+			_, err := a.cfg.K8sClient.CoreV1().Pods(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			if err != nil {
+				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+			}
 		default:
 			return fmt.Errorf("error applying auto instrumentation invalid KIND provided %s", app.Kind)
 		}
