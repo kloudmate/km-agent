@@ -1,4 +1,3 @@
-# OpenTelemetry Collector runs as Deployment and collects cluster metrics
 exporters:
   otlphttp:
     endpoint: ${env:KM_COLLECTOR_ENDPOINT}
@@ -37,13 +36,13 @@ processors:
     actions:
       - action: insert
         from_attribute: messaging.system
-        key: km.service.name.derived
+        key: km.service.name
       - action: insert
         from_attribute: http.scheme
-        key: km.service.name.derived
+        key: km.service.name
       - action: insert
         from_attribute: faas.trigger
-        key: km.service.name.derived
+        key: km.service.name
   batch:
     send_batch_size: 10000
     timeout: 10s
@@ -83,52 +82,6 @@ processors:
       - sources:
           - from: resource_attribute
             name: k8s.pod.uid
-  metricstransform/system: # I don't think this applies here?
-    transforms:
-      - action: insert
-        experimental_match_labels:
-          os.type: linux
-        include: system.memory.utilization
-        match_type: strict
-        new_name: system.memory.utilization.consumed
-        operations:
-          - action: aggregate_label_values
-            aggregated_values:
-              - used
-              - cached
-            aggregation_type: sum
-            label: state
-            new_value: consumed
-      - action: insert
-        experimental_match_labels:
-          os.type: darwin
-        include: system.memory.utilization
-        match_type: strict
-        new_name: system.memory.utilization.consumed
-        operations:
-          - action: aggregate_label_values
-            aggregated_values:
-              - used
-              - inactive
-            aggregation_type: sum
-            label: state
-            new_value: consumed
-      - action: update
-        include: system.memory.utilization.consumed
-        match_type: strict
-        operations:
-          - action: delete_label_value
-            label: state
-            label_value: free
-          - action: delete_label_value
-            label: state
-            label_value: buffered
-          - action: delete_label_value
-            label: state
-            label_value: slab_reclaimable
-          - action: delete_label_value
-            label: state
-            label_value: slab_unreclaimable
   resource:
     attributes:
       - action: upsert
@@ -178,16 +131,11 @@ processors:
       - action: update
         from_attribute: k8s.node.name
         key: host.name
-  resource/hostmetrics:
-    attributes:
-      - action: insert
-        key: is.k8s.node
-        value: "yes"
   resource/k8s_events:
     attributes:
       - action: upsert
         key: service.name
-        value: k8s-events
+        value: km-events
   resourcedetection:
     detectors:
       - env
@@ -242,55 +190,25 @@ processors:
       - context: log
         statements:
           - set(log.cache, log.body["object"])
-          - set(log.attributes["k8s.object.name.derived"], log.cache["metadata"]["name"])
-          - set(log.attributes["k8s.object.uid.derived"], log.cache["metadata"]["uid"])
-          - set(log.attributes["k8s.object.kind.derived"], log.cache["kind"])
-          - set(resource.attributes["service.name"], "k8s-yaml")
+          - set(log.attributes["k8s.object.name"], log.cache["metadata"]["name"])
+          - set(log.attributes["k8s.object.uid"], log.cache["metadata"]["uid"])
+          - set(log.attributes["k8s.object.kind"], log.cache["kind"])
+          - set(resource.attributes["service.name"], "km-deployment")
   transform/k8sobject/namespace:
     error_mode: ignore
     log_statements:
       - context: log
         statements:
           - set(log.cache, log.body)
-          - set(log.attributes["k8s.object.name.derived"], log.cache["metadata"]["name"])
-          - set(log.attributes["k8s.object.uid.derived"], log.cache["metadata"]["uid"])
-          - set(log.attributes["k8s.object.kind.derived"], log.cache["kind"])
-          - set(resource.attributes["service.name"], "k8s-yaml")
+          - set(log.attributes["k8s.object.name"], log.cache["metadata"]["name"])
+          - set(log.attributes["k8s.object.uid"], log.cache["metadata"]["uid"])
+          - set(log.attributes["k8s.object.kind"], log.cache["kind"])
+          - set(resource.attributes["service.name"], "km-deployment")
   transform/ostype:
     metric_statements:
       - context: datapoint
         statements:
           - set(attributes["os.type"], resource.attributes["os.type"])
-  transform/ratecalculation/copymetric:
-    error_mode: ignore
-    metric_statements:
-      - context: metric
-        statements:
-          - copy_metric(name="system.network.io") where name == "system.network.io"
-          - copy_metric(name="system.disk.io") where name == "system.disk.io"
-          - copy_metric(name="system.disk.operations.rate") where name == "system.disk.operations"
-          - copy_metric(name="system.network.packets.rate") where name == "system.network.packets"
-          - copy_metric(name="system.network.errors.rate") where name == "system.network.errors"
-          - copy_metric(name="system.network.dropped.rate") where name == "system.network.dropped"
-          - copy_metric(name="k8s.pod.network.io.rate") where name == "k8s.pod.network.io"
-          - copy_metric(name="k8s.pod.network.errors.rate") where name == "k8s.pod.network.errors"
-          - copy_metric(name="k8s.node.network.io.rate") where name == "k8s.node.network.io"
-          - copy_metric(name="k8s.node.network.errors.rate") where name == "k8s.node.network.errors"
-  transform/ratecalculation/sumtogauge:
-    error_mode: ignore
-    metric_statements:
-      - context: metric
-        statements:
-          - convert_sum_to_gauge() where name == "system.network.io"
-          - convert_sum_to_gauge() where name == "system.disk.io"
-          - convert_sum_to_gauge() where name == "system.disk.operations"
-          - convert_sum_to_gauge() where name == "system.network.packets"
-          - convert_sum_to_gauge() where name == "system.network.errors"
-          - convert_sum_to_gauge() where name == "system.network.dropped"
-          - convert_sum_to_gauge() where name == "k8s.pod.network.io"
-          - convert_sum_to_gauge() where name == "k8s.pod.network.errors"
-          - convert_sum_to_gauge() where name == "k8s.node.network.io"
-          - convert_sum_to_gauge() where name == "k8s.node.network.errors"
 receivers:
   k8s_cluster:
     allocatable_types_to_report:
@@ -301,6 +219,7 @@ receivers:
       - pods
     auth_type: serviceAccount
     collection_interval: 30s
+    # use distribution as openshift if deployed to redhat openshift
     distribution: kubernetes
     metrics:
       k8s.container.cpu_request:
@@ -371,12 +290,12 @@ service:
       exporters:
         - otlphttp
       processors:
+        - resource/k8s_events
         - resourcedetection
         - resource
         - resource/cluster
         - attributes/logs
         - k8sattributes
-        - resource/k8s_events
         - batch
       receivers:
         - k8s_events
@@ -387,10 +306,10 @@ service:
         - resourcedetection
         - resource
         - resource/cluster
-        - attributes/logs
         - k8sattributes
         - transform/k8sobject
         - transform/k8sobject/namespace
+        - attributes/logs
         - batch
       receivers:
         - k8sobjects/1
