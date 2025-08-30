@@ -104,38 +104,7 @@ processors:
     attributes:
       - action: upsert
         key: service.name
-        value: km-events
-  resourcedetection:
-    detectors:
-      - env
-      - system
-      - docker
-    override: false
-    system:
-      hostname_sources:
-        - os
-      resource_attributes:
-        host.arch:
-          enabled: true
-        host.cpu.cache.l2.size:
-          enabled: true
-        host.cpu.family:
-          enabled: true
-        host.cpu.model.id:
-          enabled: true
-        host.cpu.model.name:
-          enabled: true
-        host.cpu.stepping:
-          enabled: true
-        host.cpu.vendor.id:
-          enabled: true
-        host.ip:
-          enabled: true
-        host.mac:
-          enabled: true
-        os.description:
-          enabled: true
-    timeout: 2s
+        value: k8s-events
   transform/add_labels:
     log_statements:
       - context: log
@@ -148,11 +117,6 @@ processors:
           - set(resource.attributes["service.name"], log.attributes["service.name"]) where
             log.attributes["service.name"] != nil and resource.attributes["service.name"]
             == nil
-  transform/deleteostype:
-    metric_statements:
-      - context: datapoint
-        statements:
-          - delete_key(attributes, "os.type")
   transform/k8sobject:
     error_mode: ignore
     log_statements:
@@ -173,11 +137,6 @@ processors:
           - set(log.attributes["k8s.object.uid"], log.cache["metadata"]["uid"])
           - set(log.attributes["k8s.object.kind"], log.cache["kind"])
           - set(resource.attributes["service.name"], "km-deployment")
-  transform/ostype:
-    metric_statements:
-      - context: datapoint
-        statements:
-          - set(attributes["os.type"], resource.attributes["os.type"])
 receivers:
   k8s_cluster:
     allocatable_types_to_report:
@@ -260,7 +219,6 @@ service:
         - otlphttp
       processors:
         - resource/k8s_events
-        - resourcedetection
         - resource
         - resource/cluster
         - k8sattributes
@@ -271,7 +229,6 @@ service:
       exporters:
         - otlphttp
       processors:
-        - resourcedetection
         - resource
         - resource/cluster
         - k8sattributes
@@ -285,7 +242,6 @@ service:
       exporters:
         - otlphttp
       processors:
-        - resourcedetection
         - resource
         - resource/cluster
         - k8sattributes
@@ -297,7 +253,6 @@ service:
       exporters:
         - otlphttp
       processors:
-        - resourcedetection
         - resource
         - k8sattributes
         - resource/cluster
@@ -308,7 +263,6 @@ service:
       exporters:
         - otlphttp
       processors:
-        - resourcedetection
         - resource
         - k8sattributes
         - resource/cluster
@@ -319,7 +273,6 @@ service:
       exporters:
         - otlphttp
       processors:
-        - resourcedetection
         - resource
         - resource/cluster
         - k8sattributes

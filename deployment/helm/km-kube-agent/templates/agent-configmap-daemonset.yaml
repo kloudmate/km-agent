@@ -23,6 +23,41 @@ data:
           - key: cluster
             value: ${env:KM_CLUSTER_NAME}
             action: insert
+      attributes/logs:
+        actions:
+          - key: k8s.cluster.name
+            from_attribute: k8s.cluster.name
+            action: upsert
+          - key: k8s.namespace.name
+            from_attribute: k8s.namespace.name
+            action: upsert
+          - key: k8s.deployment.name
+            from_attribute: k8s.deployment.name
+            action: upsert
+          - key: k8s.node.name
+            from_attribute: k8s.node.name
+            action: upsert
+          - key: k8s.pod.name
+            from_attribute: k8s.pod.name
+            action: upsert
+          - key: service.name
+            from_attribute: k8s.deployment.name
+            action: upsert
+          - key: service.namespace
+            from_attribute: k8s.namespace.name
+            action: upsert
+          - key: service.instance.id
+            from_attribute: k8s.pod.uid
+            action: upsert
+          - key: k8s.container.name
+            from_attribute: k8s.container.name
+            action: upsert
+          - key: k8s.container.image.name
+            from_attribute: k8s.container.image.name
+            action: upsert
+          - key: k8s.container.image.tag
+            from_attribute: k8s.container.image.tag
+            action: upsert
       batch:
         send_batch_size: 10000
         timeout: 10s
@@ -377,6 +412,7 @@ data:
             - resource/cluster
             - k8sattributes
             - transform/ostype
+            - attributes/logs
             - metricstransform/system
             - transform/deleteostype
             - attributes/metrics
@@ -396,6 +432,7 @@ data:
             - resource
             - k8sattributes
             - resource/cluster
+            - attributes/logs
             - transform/ratecalculation/copymetric
             - transform/ratecalculation/sumtogauge
             - attributes/metrics
