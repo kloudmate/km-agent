@@ -12,37 +12,6 @@ processors:
       - key: cluster
         value: ${env:KM_CLUSTER_NAME}
         action: insert
-  attributes/logs:
-    actions:
-      - action: upsert
-        from_attribute: name
-        key: source
-      - action: upsert
-        from_attribute: service.name
-        key: source
-      - action: upsert
-        from_attribute: serviceName
-        key: source
-      - action: upsert
-        from_attribute: pod_name
-        key: source
-      - action: upsert
-        from_attribute: container_name
-        key: source
-      - action: upsert
-        from_attribute: namespace
-        key: source
-  attributes/traces:
-    actions:
-      - action: insert
-        from_attribute: messaging.system
-        key: km.service.name
-      - action: insert
-        from_attribute: http.scheme
-        key: km.service.name
-      - action: insert
-        from_attribute: faas.trigger
-        key: km.service.name
   batch:
     send_batch_size: 10000
     timeout: 10s
@@ -294,7 +263,6 @@ service:
         - resourcedetection
         - resource
         - resource/cluster
-        - attributes/logs
         - k8sattributes
         - batch
       receivers:
@@ -309,7 +277,6 @@ service:
         - k8sattributes
         - transform/k8sobject
         - transform/k8sobject/namespace
-        - attributes/logs
         - batch
       receivers:
         - k8sobjects/1
@@ -321,7 +288,6 @@ service:
         - resourcedetection
         - resource
         - resource/cluster
-        - attributes/logs
         - k8sattributes
         - transform/copyservicefromlogattributes
         - batch
@@ -356,7 +322,6 @@ service:
         - resourcedetection
         - resource
         - resource/cluster
-        - attributes/traces
         - k8sattributes
         - batch
       receivers:

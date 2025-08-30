@@ -236,8 +236,6 @@ processors:
           - convert_sum_to_gauge() where metric.name == "k8s.node.network.io"
           - convert_sum_to_gauge() where metric.name == "k8s.node.network.errors"
 receivers:
-  k8s_events:
-        auth_type: "serviceAccount"
   hostmetrics:
     collection_interval: 60s
     scrapers:
@@ -358,11 +356,6 @@ service:
   extensions:
     - health_check
   pipelines:
-    logs/k8sevents:
-        receivers:
-          - k8s_events
-        exporters:
-          - otlphttp
     metrics/hostmetrics:
       exporters:
         - otlphttp
