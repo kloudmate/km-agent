@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/log"
 	"github.com/kloudmate/km-agent/internal/config"
 	"github.com/kloudmate/km-agent/internal/instrumentation"
 	"github.com/kloudmate/km-agent/internal/shared"
@@ -356,40 +355,89 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 		if err != nil {
 			return fmt.Errorf("error marshaling patch %s/%s: %v", app.Namespace, app.Deployment, err)
 		}
+		// fetch existing resourse then check if annotation already exists else apply them
 		switch kind {
 		case "DAEMONSET":
-			_, err := a.cfg.K8sClient.AppsV1().DaemonSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			ds, err := a.cfg.K8sClient.AppsV1().DaemonSets(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+			}
+			if isApplied := isAnnotationSame(annotations, ds.Spec.Template.Annotations); !isApplied {
+				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
+				continue
+			}
+			_, err = a.cfg.K8sClient.AppsV1().DaemonSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
 			if err != nil {
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
 		case "REPLICASET":
-			_, err := a.cfg.K8sClient.AppsV1().ReplicaSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			rs, err := a.cfg.K8sClient.AppsV1().ReplicaSets(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+			// if err is not nil means replicaset doest not exist or has a parent deployment
 			if err != nil {
 				if errors.IsNotFound(err) {
-					log.Infof("replicaset not found for %s\n falling back to check for deployment", app.Deployment)
-					if err := handleDeploymentPatching(ctx, a.cfg.K8sClient, app, annotationBytes); err != nil {
+					// if replicaset not found means replicaset has deployment has parent so apply patch on deployment
+					dep, err := a.cfg.K8sClient.AppsV1().Deployments(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+					if err != nil {
 						return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 					}
-				} else {
+					if isApplied := isAnnotationSame(annotations, dep.Spec.Template.Annotations); !isApplied {
+						a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
+						continue
+					} else {
+						if err := handleDeploymentPatching(ctx, a.cfg.K8sClient, app, annotationBytes); err != nil {
+							return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+						}
+					}
+				}
+				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+			} else {
+				// err is nil means replicaset exist and patch can be applied on it
+				if isApplied := isAnnotationSame(annotations, rs.Spec.Template.Annotations); !isApplied {
+					a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
+					continue
+				}
+				_, err = a.cfg.K8sClient.AppsV1().ReplicaSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+				if err != nil {
 					return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Deployment, app.Deployment, err)
 				}
 			}
+
 		case "DEPLOYMENT":
-			_, err = a.cfg.K8sClient.AppsV1().Deployments(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			ds, err := a.cfg.K8sClient.AppsV1().Deployments(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
 			if err != nil {
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+			}
+			if isApplied := isAnnotationSame(annotations, ds.Spec.Template.Annotations); !isApplied {
+				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
+				continue
 			}
 			if err := handleDeploymentPatching(ctx, a.cfg.K8sClient, app, annotationBytes); err != nil {
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
 		case "STATEFULSET":
-			_, err := a.cfg.K8sClient.AppsV1().StatefulSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			ss, err := a.cfg.K8sClient.AppsV1().StatefulSets(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+			}
+			if isApplied := isAnnotationSame(annotations, ss.Spec.Template.Annotations); !isApplied {
+				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
+				continue
+			}
+			_, err = a.cfg.K8sClient.AppsV1().StatefulSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
 			if err != nil {
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
 
 		case "POD":
-			_, err := a.cfg.K8sClient.CoreV1().Pods(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
+			pod, err := a.cfg.K8sClient.CoreV1().Pods(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
+			}
+			if isApplied := isAnnotationSame(annotations, pod.Annotations); !isApplied {
+				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
+				continue
+			}
+			_, err = a.cfg.K8sClient.CoreV1().Pods(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
 			if err != nil {
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
@@ -399,6 +447,18 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 	}
 
 	return nil
+}
+
+func isAnnotationSame(annotations instrumentation.InstrumentAnnotiation, resourceMap map[string]string) bool {
+	for key, value := range annotations {
+		// Look up the key in the second map.
+		if val2, ok := resourceMap[key]; !ok || val2 != value {
+			// If the key does not exist (!ok) or the value is different (val2 != value),
+			// then map1 is not a subset of map2. Return false immediately.
+			return false
+		}
+	}
+	return true
 }
 
 func handleDeploymentPatching(ctx context.Context, client *kubernetes.Clientset, app APMConfig, annotations []byte) error {
