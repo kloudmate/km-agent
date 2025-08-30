@@ -1,5 +1,5 @@
 replicaCount: 1
-installCRDs: false.
+installCRDs: false
 
 # KloudMate platform specific arguments
 API_KEY:

@@ -20,7 +20,7 @@ func KmCrdAnnotation(osl string, enabled bool) InstrumentAnnotiation {
 	}
 	lang := ""
 	switch osl {
-	case "Node.Js":
+	case "Node.js":
 		lang = "nodejs"
 	case "Java":
 		lang = "java"
@@ -31,6 +31,11 @@ func KmCrdAnnotation(osl string, enabled bool) InstrumentAnnotiation {
 	case "dotnet":
 		lang = "dotnet"
 	}
+
+	if ns == "" || lang == "" {
+		return InstrumentAnnotiation{}
+	}
+
 	return InstrumentAnnotiation{
 		"spec": map[string]interface{}{
 			"template": map[string]interface{}{

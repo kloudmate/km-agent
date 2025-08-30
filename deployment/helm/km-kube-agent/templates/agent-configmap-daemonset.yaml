@@ -9,24 +9,20 @@ data:
   # The key here will become the filename inside the mountPath.
   # We name it exactly "agent-daemonset.yaml" so it appears as such.
   agent-daemonset.yaml: |
-
     exporters:
       otlphttp:
-        endpoint: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }}
+        endpoint: ${env:KM_COLLECTOR_ENDPOINT}
         headers:
-          Authorization: {{ .Values.API_KEY }}
+          Authorization: ${env:KM_API_KEY}
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
     processors:
-      {{- if .Values.featuresEnabled.metrics }}
       attributes/metrics:
         actions:
           - key: cluster
             value: ${env:KM_CLUSTER_NAME}
             action: insert
-      {{- end }}
-      {{- if .Values.featuresEnabled.logs }}
       attributes/logs:
         actions:
           - key: k8s.cluster.name
@@ -38,70 +34,34 @@ data:
           - key: k8s.deployment.name
             from_attribute: k8s.deployment.name
             action: upsert
+          - key: k8s.node.name
+            from_attribute: k8s.node.name
+            action: upsert
+          - key: k8s.pod.name
+            from_attribute: k8s.pod.name
+            action: upsert
           - key: service.name
+            from_attribute: k8s.deployment.name
+            action: upsert
+          - key: service.namespace
+            from_attribute: k8s.namespace.name
+            action: upsert
+          - key: service.instance.id
+            from_attribute: k8s.pod.uid
+            action: upsert
+          - key: k8s.container.name
             from_attribute: k8s.container.name
             action: upsert
-          - key: source
-            from_attribute: name
+          - key: k8s.container.image.name
+            from_attribute: k8s.container.image.name
             action: upsert
-          - key: source
-            from_attribute: operator_type
+          - key: k8s.container.image.tag
+            from_attribute: k8s.container.image.tag
             action: upsert
-          - key: source
-            from_attribute: log.file.name
-            action: upsert
-          - key: source
-            from_attribute: fluent.tag
-            action: upsert
-          - key: source
-            from_attribute: service.name
-            action: upsert
-          - key: source
-            from_attribute: project.name
-            action: upsert
-          - key: source
-            from_attribute: serviceName
-            action: upsert
-          - key: source
-            from_attribute: projectName
-            action: upsert
-          - key: source
-            from_attribute: pod_name
-            action: upsert
-          - key: source
-            from_attribute: container_name
-            action: upsert
-          - key: source
-            from_attribute: namespace
-            action: upsert
-          - key: serviceName
-            value: 'k8s-logs'
-            action: insert
-      {{- end }}      
-      {{- if .Values.featuresEnabled.traces }}
-      attributes/traces:
-        actions:
-          - action: insert
-            from_attribute: db.system
-            key: km.service.name.derived
-          - action: insert
-            from_attribute: messaging.system
-            key: km.service.name.derived
-          - action: insert
-            from_attribute: rpc.system
-            key: km.service.name.derived
-          - action: insert
-            from_attribute: http.scheme
-            key: km.service.name.derived
-          - action: insert
-            from_attribute: faas.trigger
-            key: km.service.name.derived
-      {{- end }}
-      batch: null
-      batch/2:
+      batch:
         send_batch_size: 10000
-        timeout: 60s
-      cumulativetodelta/ratecalculation:
+        timeout: 10s
+      cumulativetodelta:
         include:
           match_type: strict
           metrics:
@@ -115,7 +75,7 @@ data:
             - k8s.pod.network.errors.rate
             - k8s.node.network.io.rate
             - k8s.node.network.errors.rate
-      deltatorate/ratecalculation:
+      deltatorate:
         metrics:
           - system.network.io
           - system.disk.io
@@ -127,12 +87,9 @@ data:
           - k8s.pod.network.errors.rate
           - k8s.node.network.io.rate
           - k8s.node.network.errors.rate
-      {{- if .Values.featuresEnabled.logs }}
       groupbyattrs/filelog:
         keys:
           - k8s.pod.uid
-      {{- end }}
-      {{- if or .Values.featuresEnabled.metrics .Values.featuresEnabled.logs .Values.featuresEnabled.traces }}
       k8sattributes:
         auth_type: serviceAccount
         passthrough: true
@@ -170,13 +127,7 @@ data:
         pod_association:
           - sources:
               - from: resource_attribute
-                name: k8s.pod.ip
-          - sources:
-              - from: resource_attribute
                 name: k8s.pod.uid
-          - sources:
-              - from: connection
-      {{- end }}
       metricstransform/system:
         transforms:
           - action: insert
@@ -226,44 +177,11 @@ data:
       resource:
         attributes:
           - action: upsert
-            from_attribute: host.name
-            key: host.id
-          - action: insert
             from_attribute: k8s.node.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.namespace.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.pod.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.container.name
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.replicaset.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.statefulset.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.cronjob.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.job.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.daemonset.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.deployment.uid
-            key: k8s.cluster.name
-          - action: insert
-            key: k8s.node.ip
-            value: ${env:KM_NODE_HOST_IP}
+            key: host.id
           - action: upsert
-            key: km.agent.version
-            value: develop
+            key: k8s.cluster.name
+            value: ${env:KM_CLUSTER_NAME}
       resource/add_node_name:
         attributes:
           - action: upsert
@@ -276,16 +194,12 @@ data:
             value: ${env:KM_CLUSTER_NAME}
           - action: update
             from_attribute: k8s.node.name
-            key: host.id
-          - action: update
-            from_attribute: k8s.node.name
             key: host.name
       resource/hostmetrics:
         attributes:
           - action: insert
             key: is.k8s.node
             value: "yes"
-      {{- if .Values.featuresEnabled.metrics }}
       resourcedetection:
         detectors:
           - env
@@ -296,33 +210,9 @@ data:
           hostname_sources:
             - os
           resource_attributes:
-            host.arch:
-              enabled: true
-            host.cpu.cache.l2.size:
-              enabled: true
-            host.cpu.family:
-              enabled: true
-            host.cpu.model.id:
-              enabled: true
-            host.cpu.model.name:
-              enabled: true
-            host.cpu.stepping:
-              enabled: true
-            host.cpu.vendor.id:
-              enabled: true
             host.ip:
               enabled: true
-            host.mac:
-              enabled: true
-            os.description:
-              enabled: true
         timeout: 5s
-      {{- end }}
-      transform/add_labels:
-        log_statements:
-          - context: log
-            statements: []
-      {{- if .Values.featuresEnabled.logs }}
       transform/copyservicefromlogattributes:
         error_mode: ignore
         log_statements:
@@ -331,13 +221,6 @@ data:
               - set(resource.attributes["service.name"], log.attributes["service.name"]) where
                 log.attributes["service.name"] != nil and resource.attributes["service.name"]
                 == nil
-      transform/k8sevents:
-        log_statements:
-          - context: resource
-            statements:
-              - set(resource.attributes["service.name"], "k8s-events-km") where resource.attributes["service.name"] == nil
-      
-      {{- end }}
       transform/deleteostype:
         metric_statements:
           - context: datapoint
@@ -363,26 +246,6 @@ data:
               - merge_maps(resource.attributes, ParseKeyValue(resource.attributes["instrumentation.kloudmate.com"], "=",
                 ","), "insert")
               - delete_key(attributes, "instrumentation.kloudmate.com")
-      transform/k8sobject:
-        error_mode: ignore
-        log_statements:
-          - context: log
-            statements:
-              - set(log.cache, log.body["object"])
-              - set(log.attributes["k8s.object.name.derived"], log.cache["metadata"]["name"])
-              - set(log.attributes["k8s.object.uid.derived"], log.cache["metadata"]["uid"])
-              - set(log.attributes["k8s.object.kind.derived"], log.cache["kind"])
-              - set(resource.attributes["service.name"], "k8s-yaml")
-      transform/k8sobject/namespace:
-        error_mode: ignore
-        log_statements:
-          - context: log
-            statements:
-              - set(log.cache, log.body)
-              - set(log.attributes["k8s.object.name.derived"], log.cache["metadata"]["name"])
-              - set(log.attributes["k8s.object.uid.derived"], log.cache["metadata"]["uid"])
-              - set(log.attributes["k8s.object.kind.derived"], log.cache["kind"])
-              - set(resource.attributes["service.name"], "k8s-yaml")
       transform/ostype:
         metric_statements:
           - context: datapoint
@@ -419,28 +282,8 @@ data:
               - convert_sum_to_gauge() where metric.name == "k8s.node.network.io"
               - convert_sum_to_gauge() where metric.name == "k8s.node.network.errors"
     receivers:
-      {{- if .Values.featuresEnabled.logs }}
-      filelog:
-        exclude:
-        - /**/*.gz
-        - /var/log/pods/km-agent*/**/*.log
-        include:
-        - /var/log/pods/*/*/*.log
-        include_file_name_resolved: true
-        include_file_path: true
-        include_file_path_resolved: true
-        max_log_size: 1MiB
-        operators:
-        - id: container-parser
-          type: container
-          include_file_path: true
-        poll_interval: 10s
-      k8s_events:
-        auth_type: "serviceAccount"
-      {{- end }}
-      {{- if .Values.featuresEnabled.metrics }}
       hostmetrics:
-        collection_interval: 15s
+        collection_interval: 60s
         scrapers:
           cpu:
             metrics:
@@ -551,49 +394,14 @@ data:
             enabled: true
           k8s.pod.memory_limit_utilization:
             enabled: true
+          k8s.node.memory.usage:
+            enabled: true
           k8s.pod.memory_request_utilization:
             enabled: true
-      {{- end }}
-      {{- if .Values.featuresEnabled.apm }}
-      otlp:
-        protocols:
-          grpc:
-            endpoint: "0.0.0.0:4317"
-          http:
-            endpoint: "0.0.0.0:4318"
-      {{- end }}
     service:
       extensions:
         - health_check
       pipelines:
-        {{- if .Values.featuresEnabled.logs }}
-        logs/otlp:
-          exporters:
-            - otlphttp
-          processors:
-            - resourcedetection
-            - resource
-            - resource/cluster
-            - attributes/logs
-            - k8sattributes
-            - transform/copyservicefromlogattributes
-            - batch
-            - batch/2
-          receivers:
-            - otlp
-            - filelog
-        logs/k8sevents:
-          receivers:
-            - k8s_events
-          processors:
-            - k8sattributes
-            - transform/k8sevents
-            - batch
-            - batch/2
-          exporters:
-            - otlphttp
-        {{- end }}
-        {{- if .Values.featuresEnabled.metrics }}
         metrics/hostmetrics:
           exporters:
             - otlphttp
@@ -604,15 +412,15 @@ data:
             - resource/cluster
             - k8sattributes
             - transform/ostype
+            - attributes/logs
             - metricstransform/system
             - transform/deleteostype
             - attributes/metrics
             - transform/ratecalculation/copymetric
-            - cumulativetodelta/ratecalculation
-            - deltatorate/ratecalculation
+            - cumulativetodelta
+            - deltatorate
             - transform/ratecalculation/sumtogauge
             - batch
-            - batch/2
           receivers:
             - hostmetrics
         metrics/kubeletstats:
@@ -624,41 +432,10 @@ data:
             - resource
             - k8sattributes
             - resource/cluster
+            - attributes/logs
             - transform/ratecalculation/copymetric
-            - cumulativetodelta/ratecalculation
-            - deltatorate/ratecalculation
             - transform/ratecalculation/sumtogauge
-            - batch
-            - batch/2
             - attributes/metrics
+            - batch
           receivers:
             - kubeletstats
-        metrics/otlp:
-          exporters:
-            - otlphttp
-          processors:
-            - resourcedetection
-            - resource
-            - k8sattributes
-            - resource/cluster
-            - batch
-            - batch/2
-            - attributes/metrics
-          receivers:
-            - otlp
-        {{- end }}
-        {{- if or .Values.featuresEnabled.traces .Values.featuresEnabled.apm }}    
-        traces/otlp:
-          exporters:
-            - otlphttp
-          processors:
-            - resourcedetection
-            - resource
-            - resource/cluster
-            - attributes/traces
-            - k8sattributes
-            - batch
-            - batch/2
-          receivers:
-            - otlp
-        {{- end }}

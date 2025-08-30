@@ -1,8 +1,6 @@
-# This is for collector running as a DaemonSet in Kubernetes.
-#  It collects host metrics and kubelet stats, enriches them with Kubernetes metadata
 exporters:
   otlphttp:
-    endpoint: ${env:COLLECTOR_ENDPOINT}
+    endpoint: ${env:KM_COLLECTOR_ENDPOINT}
     headers:
       Authorization: ${env:KM_API_KEY}
 extensions:
@@ -118,12 +116,7 @@ processors:
     pod_association:
       - sources:
           - from: resource_attribute
-            name: k8s.pod.ip
-      - sources:
-          - from: resource_attribute
             name: k8s.pod.uid
-      - sources:
-          - from: connection
   metricstransform/system:
     transforms:
       - action: insert
@@ -242,26 +235,6 @@ processors:
           - merge_maps(resource.attributes, ParseKeyValue(resource.attributes["instrumentation.kloudmate.com"], "=",
             ","), "insert")
           - delete_key(attributes, "instrumentation.kloudmate.com")
-  transform/k8sobject:
-    error_mode: ignore
-    log_statements:
-      - context: log
-        statements:
-          - set(log.cache, log.body["object"])
-          - set(log.attributes["k8s.object.name.derived"], log.cache["metadata"]["name"])
-          - set(log.attributes["k8s.object.uid.derived"], log.cache["metadata"]["uid"])
-          - set(log.attributes["k8s.object.kind.derived"], log.cache["kind"])
-          - set(resource.attributes["service.name"], "k8s-yaml")
-  transform/k8sobject/namespace:
-    error_mode: ignore
-    log_statements:
-      - context: log
-        statements:
-          - set(log.cache, log.body)
-          - set(log.attributes["k8s.object.name.derived"], log.cache["metadata"]["name"])
-          - set(log.attributes["k8s.object.uid.derived"], log.cache["metadata"]["uid"])
-          - set(log.attributes["k8s.object.kind.derived"], log.cache["kind"])
-          - set(resource.attributes["service.name"], "k8s-yaml")
   transform/ostype:
     metric_statements:
       - context: datapoint
@@ -298,8 +271,6 @@ processors:
           - convert_sum_to_gauge() where metric.name == "k8s.node.network.io"
           - convert_sum_to_gauge() where metric.name == "k8s.node.network.errors"
 receivers:
-  k8s_events:
-        auth_type: "serviceAccount"
   hostmetrics:
     collection_interval: 60s
     scrapers:
@@ -385,7 +356,7 @@ receivers:
       system: {}
   kubeletstats:
     auth_type: serviceAccount
-    collection_interval: 60s
+    collection_interval: 30s
     endpoint: ${env:KM_NODE_NAME}:10250
     extra_metadata_labels:
       - container.id
@@ -412,34 +383,14 @@ receivers:
         enabled: true
       k8s.pod.memory_limit_utilization:
         enabled: true
+      k8s.node.memory.usage:
+        enabled: true
       k8s.pod.memory_request_utilization:
         enabled: true
-  otlp:
-    protocols:
-      grpc:
-        endpoint: "0.0.0.0:4317"
-      http:
-        endpoint: "0.0.0.0:4318"
 service:
   extensions:
     - health_check
   pipelines:
-    logs/otlp:
-      exporters:
-        - otlphttp
-      processors:
-        - resourcedetection
-        - resource
-        - resource/cluster
-        - attributes/logs
-        - k8sattributes
-        - transform/copyservicefromlogattributes
-        - batch
-      receivers:
-        - otlp
-    logs/k8sevents:
-        receivers:
-          - k8s_events
     metrics/hostmetrics:
       exporters:
         - otlphttp
@@ -450,6 +401,7 @@ service:
         - resource/cluster
         - k8sattributes
         - transform/ostype
+        - attributes/logs
         - metricstransform/system
         - transform/deleteostype
         - attributes/metrics
@@ -469,34 +421,10 @@ service:
         - resource
         - k8sattributes
         - resource/cluster
+        - attributes/logs
         - transform/ratecalculation/copymetric
-        - cumulativetodelta/ratecalculation
-        - deltatorate/ratecalculation
         - transform/ratecalculation/sumtogauge
-        - batch
         - attributes/metrics
+        - batch
       receivers:
         - kubeletstats
-    metrics/otlp:
-      exporters:
-        - otlphttp
-      processors:
-        - resourcedetection
-        - resource
-        - k8sattributes
-        - resource/cluster
-        - batch
-        - attributes/metrics
-      receivers:
-        - otlp
-    traces/otlp:
-      exporters:
-        - otlphttp
-      processors:
-        - resourcedetection
-        - resource
-        - resource/cluster
-        - k8sattributes
-        - batch
-      receivers:
-        - otlp

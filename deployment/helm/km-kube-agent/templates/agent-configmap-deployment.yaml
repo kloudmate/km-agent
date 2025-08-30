@@ -9,107 +9,23 @@ data:
   # The key here will become the filename inside the mountPath.
   # We name it exactly "agent-deployment.yaml" so it appears as such.
   agent-deployment.yaml: |
-
     exporters:
       otlphttp:
-        endpoint: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }}
+        endpoint: ${env:KM_COLLECTOR_ENDPOINT}
         headers:
-          Authorization: {{ .Values.API_KEY }}
+          Authorization: ${env:KM_API_KEY}
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
     processors:
-      {{- if .Values.featuresEnabled.metrics }}
       attributes/metrics:
         actions:
           - key: cluster
             value: ${env:KM_CLUSTER_NAME}
             action: insert
-      {{- end }}
-      {{- if .Values.featuresEnabled.logs }}
-      attributes/logs:
-        actions:
-          - action: upsert
-            from_attribute: name
-            key: source
-          - action: upsert
-            from_attribute: operator_type
-            key: source
-          - action: upsert
-            from_attribute: log.file.name
-            key: source
-          - action: upsert
-            from_attribute: service.name
-            key: source
-          - action: upsert
-            from_attribute: project.name
-            key: source
-          - action: upsert
-            from_attribute: serviceName
-            key: source
-          - action: upsert
-            from_attribute: projectName
-            key: source
-          - action: upsert
-            from_attribute: pod_name
-            key: source
-          - action: upsert
-            from_attribute: container_name
-            key: source
-          - action: upsert
-            from_attribute: namespace
-            key: source
-      {{- end }}      
-      {{- if .Values.featuresEnabled.traces }}
-      attributes/traces:
-        actions:
-          - action: insert
-            from_attribute: db.system
-            key: km.service.name.derived
-          - action: insert
-            from_attribute: messaging.system
-            key: km.service.name.derived
-          - action: insert
-            from_attribute: rpc.system
-            key: km.service.name.derived
-          - action: insert
-            from_attribute: http.scheme
-            key: km.service.name.derived
-          - action: insert
-            from_attribute: faas.trigger
-            key: km.service.name.derived
-      {{- end }}
-      batch: null
-      batch/2:
+      batch:
         send_batch_size: 10000
-        timeout: 60s
-      cumulativetodelta/ratecalculation:
-        include:
-          match_type: strict
-          metrics:
-            - system.network.io
-            - system.disk.io
-            - system.disk.operations.rate
-            - system.network.packets.rate
-            - system.network.errors.rate
-            - system.network.dropped.rate
-            - k8s.pod.network.io.rate
-            - k8s.pod.network.errors.rate
-            - k8s.node.network.io.rate
-            - k8s.node.network.errors.rate
-      deltatorate/ratecalculation:
-        metrics:
-          - system.network.io
-          - system.disk.io
-          - system.disk.operations.rate
-          - system.network.packets.rate
-          - system.network.errors.rate
-          - system.network.dropped.rate
-          - k8s.pod.network.io.rate
-          - k8s.pod.network.errors.rate
-          - k8s.node.network.io.rate
-          - k8s.node.network.errors.rate
-      {{- if or .Values.featuresEnabled.metrics .Values.featuresEnabled.logs .Values.featuresEnabled.traces }}
+        timeout: 10s
       k8sattributes:
         auth_type: serviceAccount
         extract:
@@ -141,60 +57,11 @@ data:
             - k8s.replicaset.name
             - k8s.cronjob.name
             - k8s.job.name
-        filter:
-          node_from_env_var: KM_NODE_NAME
         passthrough: false
         pod_association:
           - sources:
               - from: resource_attribute
                 name: k8s.pod.uid
-      {{- end }}
-      metricstransform/system:
-        transforms:
-          - action: insert
-            experimental_match_labels:
-              os.type: linux
-            include: system.memory.utilization
-            match_type: strict
-            new_name: system.memory.utilization.consumed
-            operations:
-              - action: aggregate_label_values
-                aggregated_values:
-                  - used
-                  - cached
-                aggregation_type: sum
-                label: state
-                new_value: consumed
-          - action: insert
-            experimental_match_labels:
-              os.type: darwin
-            include: system.memory.utilization
-            match_type: strict
-            new_name: system.memory.utilization.consumed
-            operations:
-              - action: aggregate_label_values
-                aggregated_values:
-                  - used
-                  - inactive
-                aggregation_type: sum
-                label: state
-                new_value: consumed
-          - action: update
-            include: system.memory.utilization.consumed
-            match_type: strict
-            operations:
-              - action: delete_label_value
-                label: state
-                label_value: free
-              - action: delete_label_value
-                label: state
-                label_value: buffered
-              - action: delete_label_value
-                label: state
-                label_value: slab_reclaimable
-              - action: delete_label_value
-                label: state
-                label_value: slab_unreclaimable
       resource:
         attributes:
           - action: upsert
@@ -244,130 +111,43 @@ data:
           - action: update
             from_attribute: k8s.node.name
             key: host.name
-      resource/hostmetrics:
-        attributes:
-          - action: insert
-            key: is.k8s.node
-            value: "yes"
       resource/k8s_events:
         attributes:
           - action: upsert
             key: service.name
             value: k8s-events
-      {{- if .Values.featuresEnabled.metrics }}
-      resourcedetection:
-        detectors:
-          - env
-          - system
-          - docker
-        override: false
-        system:
-          hostname_sources:
-            - os
-          resource_attributes:
-            host.arch:
-              enabled: true
-            host.cpu.cache.l2.size:
-              enabled: true
-            host.cpu.family:
-              enabled: true
-            host.cpu.model.id:
-              enabled: true
-            host.cpu.model.name:
-              enabled: true
-            host.cpu.stepping:
-              enabled: true
-            host.cpu.vendor.id:
-              enabled: true
-            host.ip:
-              enabled: true
-            host.mac:
-              enabled: true
-            os.description:
-              enabled: true
-        timeout: 2s
-      {{- end }}
       transform/add_labels:
         log_statements:
           - context: log
             statements: []
-      {{- if .Values.featuresEnabled.logs }}
       transform/copyservicefromlogattributes:
         error_mode: ignore
         log_statements:
           - context: log
             statements:
-              # This statement is already correct
               - set(resource.attributes["service.name"], log.attributes["service.name"]) where
                 log.attributes["service.name"] != nil and resource.attributes["service.name"]
                 == nil
-      {{- end }}
-      transform/deleteostype:
-        metric_statements:
-          - context: datapoint
-            statements:
-              # This statement is already correct
-              - delete_key(attributes, "os.type")
       transform/k8sobject:
         error_mode: ignore
         log_statements:
           - context: log
             statements:
-              # Corrected 'cache' and 'body' to 'log.cache' and 'log.body'
               - set(log.cache, log.body["object"])
-              # Corrected 'attributes' to 'log.attributes' and 'cache' to 'log.cache'
-              - set(log.attributes["k8s.object.name.derived"], log.cache["metadata"]["name"])
-              - set(log.attributes["k8s.object.uid.derived"], log.cache["metadata"]["uid"])
-              - set(log.attributes["k8s.object.kind.derived"], log.cache["kind"])
-              - set(resource.attributes["service.name"], "k8s-yaml")
+              - set(log.attributes["k8s.object.name"], log.cache["metadata"]["name"])
+              - set(log.attributes["k8s.object.uid"], log.cache["metadata"]["uid"])
+              - set(log.attributes["k8s.object.kind"], log.cache["kind"])
+              - set(resource.attributes["service.name"], "km-deployment")
       transform/k8sobject/namespace:
         error_mode: ignore
         log_statements:
           - context: log
             statements:
-              # Corrected 'cache' and 'body' to 'log.cache' and 'log.body'
               - set(log.cache, log.body)
-              # Corrected 'attributes' to 'log.attributes' and 'cache' to 'log.cache'
-              - set(log.attributes["k8s.object.name.derived"], log.cache["metadata"]["name"])
-              - set(log.attributes["k8s.object.uid.derived"], log.cache["metadata"]["uid"])
-              - set(log.attributes["k8s.object.kind.derived"], log.cache["kind"])
-              - set(resource.attributes["service.name"], "k8s-yaml")
-      transform/ostype:
-        metric_statements:
-          - context: datapoint
-            statements:
-              # This statement is already correct
-              - set(attributes["os.type"], resource.attributes["os.type"])
-      transform/ratecalculation/copymetric:
-        error_mode: ignore
-        metric_statements:
-          - context: metric
-            statements:
-              - copy_metric(name="system.network.io") where name == "system.network.io"
-              - copy_metric(name="system.disk.io") where name == "system.disk.io"
-              - copy_metric(name="system.disk.operations.rate") where name == "system.disk.operations"
-              - copy_metric(name="system.network.packets.rate") where name == "system.network.packets"
-              - copy_metric(name="system.network.errors.rate") where name == "system.network.errors"
-              - copy_metric(name="system.network.dropped.rate") where name == "system.network.dropped"
-              - copy_metric(name="k8s.pod.network.io.rate") where name == "k8s.pod.network.io"
-              - copy_metric(name="k8s.pod.network.errors.rate") where name == "k8s.pod.network.errors"
-              - copy_metric(name="k8s.node.network.io.rate") where name == "k8s.node.network.io"
-              - copy_metric(name="k8s.node.network.errors.rate") where name == "k8s.node.network.errors"
-      transform/ratecalculation/sumtogauge:
-        error_mode: ignore
-        metric_statements:
-          - context: metric
-            statements:
-              - convert_sum_to_gauge() where name == "system.network.io"
-              - convert_sum_to_gauge() where name == "system.disk.io"
-              - convert_sum_to_gauge() where name == "system.disk.operations"
-              - convert_sum_to_gauge() where name == "system.network.packets"
-              - convert_sum_to_gauge() where name == "system.network.errors"
-              - convert_sum_to_gauge() where name == "system.network.dropped"
-              - convert_sum_to_gauge() where name == "k8s.pod.network.io"
-              - convert_sum_to_gauge() where name == "k8s.pod.network.errors"
-              - convert_sum_to_gauge() where name == "k8s.node.network.io"
-              - convert_sum_to_gauge() where name == "k8s.node.network.errors"
+              - set(log.attributes["k8s.object.name"], log.cache["metadata"]["name"])
+              - set(log.attributes["k8s.object.uid"], log.cache["metadata"]["uid"])
+              - set(log.attributes["k8s.object.kind"], log.cache["kind"])
+              - set(resource.attributes["service.name"], "km-deployment")
     receivers:
       k8s_cluster:
         allocatable_types_to_report:
@@ -378,6 +158,7 @@ data:
           - pods
         auth_type: serviceAccount
         collection_interval: 30s
+        # use distribution as openshift if deployed to redhat openshift
         distribution: kubernetes
         metrics:
           k8s.container.cpu_request:
@@ -436,46 +217,37 @@ data:
             name: statefulsets
           - mode: watch
             name: configmaps
-      {{- if .Values.featuresEnabled.apm }}
       otlp:
         protocols:
           grpc:
             endpoint: "0.0.0.0:4317"
           http:
             endpoint: "0.0.0.0:4318"
-      {{- end }}
     service:
       extensions:
         - health_check
       pipelines:
-        {{- if .Values.featuresEnabled.logs }}
         logs/k8s_events:
           exporters:
             - otlphttp
           processors:
-            - resourcedetection
+            - resource/k8s_events
             - resource
             - resource/cluster
-            - attributes/logs
             - k8sattributes
-            - resource/k8s_events
             - batch
-            - batch/2
           receivers:
             - k8s_events
         logs/k8sobjects:
           exporters:
             - otlphttp
           processors:
-            - resourcedetection
             - resource
             - resource/cluster
-            - attributes/logs
             - k8sattributes
             - transform/k8sobject
             - transform/k8sobject/namespace
             - batch
-            - batch/2
           receivers:
             - k8sobjects/1
             - k8sobjects/2
@@ -483,55 +255,40 @@ data:
           exporters:
             - otlphttp
           processors:
-            - resourcedetection
             - resource
             - resource/cluster
-            - attributes/logs
             - k8sattributes
             - transform/copyservicefromlogattributes
             - batch
-            - batch/2
           receivers:
             - otlp
-        {{- end }}
-        {{- if .Values.featuresEnabled.metrics }}
         metrics/k8s_cluster:
           exporters:
             - otlphttp
           processors:
-            - resourcedetection
             - resource
             - k8sattributes
             - resource/cluster
             - batch
-            - batch/2
           receivers:
             - k8s_cluster
         metrics/otlp:
           exporters:
             - otlphttp
           processors:
-            - resourcedetection
             - resource
             - k8sattributes
             - resource/cluster
             - batch
-            - batch/2
           receivers:
             - otlp
-        {{- end }}
-        {{- if .Values.featuresEnabled.traces }}
         traces/otlp:
           exporters:
             - otlphttp
           processors:
-            - resourcedetection
             - resource
             - resource/cluster
-            - attributes/traces
             - k8sattributes
             - batch
-            - batch/2
           receivers:
-            - otlp        
-        {{- end }}
+            - otlp
