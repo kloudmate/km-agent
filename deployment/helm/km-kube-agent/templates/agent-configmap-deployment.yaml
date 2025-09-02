@@ -116,6 +116,11 @@ data:
           - action: upsert
             key: service.name
             value: k8s-events
+      resource/k8s_objects:
+        attributes:
+          - action: upsert
+            key: service.name
+            value: k8s-objects
       transform/add_labels:
         log_statements:
           - context: log
@@ -128,26 +133,71 @@ data:
               - set(resource.attributes["service.name"], log.attributes["service.name"]) where
                 log.attributes["service.name"] != nil and resource.attributes["service.name"]
                 == nil
-      transform/k8sobject:
-        error_mode: ignore
+      transform/loglevels:
         log_statements:
           - context: log
+            error_mode: ignore
             statements:
-              - set(log.cache, log.body["object"])
-              - set(log.attributes["k8s.object.name"], log.cache["metadata"]["name"])
-              - set(log.attributes["k8s.object.uid"], log.cache["metadata"]["uid"])
-              - set(log.attributes["k8s.object.kind"], log.cache["kind"])
-              - set(resource.attributes["service.name"], "km-deployment")
-      transform/k8sobject/namespace:
-        error_mode: ignore
-        log_statements:
+              - >-
+                set(log.cache, ExtractPatterns(log.body, "(?P<0>(\\{.*\\}))")) where
+                IsString(log.body)
+              - >-
+                merge_maps(log.attributes, ParseJSON(log.cache["0"]), "upsert")
+                where IsMap(log.cache)
+              - flatten(log.attributes) where IsMap(log.cache)
+              - 'merge_maps(log.attributes, log.body, "upsert") where IsMap(log.body)'
+          - conditions:
+              - severity_number == 0 and severity_text == ""
+            context: log
+            error_mode: ignore
+            statements:
+              - >-
+                set(log.cache["substr"], log.body.string) where Len(log.body.string)
+                < 256
+              - >-
+                set(log.cache["substr"], Substring(log.body.string, 0, 256)) where
+                Len(log.body.string) >= 256
+              - >-
+                set(log.cache, ExtractPatterns(log.cache["substr"],
+                "(?i)(?P<0>(alert|crit|emerg|fatal|error|err|warn|notice|debug|dbug|trace))"))
+              - >-
+                set(log.severity_number, SEVERITY_NUMBER_FATAL) where
+                IsMatch(log.cache["0"], "(?i)(alert|crit|emerg|fatal)")
+              - >-
+                set(log.severity_text, "fatal") where log.severity_number ==
+                SEVERITY_NUMBER_FATAL
+              - >-
+                set(log.severity_number, SEVERITY_NUMBER_ERROR) where
+                IsMatch(log.cache["0"], "(?i)(error|err)")
+              - >-
+                set(log.severity_text, "error") where log.severity_number ==
+                SEVERITY_NUMBER_ERROR
+              - >-
+                set(log.severity_number, SEVERITY_NUMBER_WARN) where
+                IsMatch(log.cache["0"], "(?i)(warn|notice)")
+              - >-
+                set(log.severity_text, "warn") where log.severity_number ==
+                SEVERITY_NUMBER_WARN
+              - >-
+                set(log.severity_number, SEVERITY_NUMBER_DEBUG) where
+                IsMatch(log.cache["0"], "(?i)(debug|dbug)")
+              - >-
+                set(log.severity_text, "debug") where log.severity_number ==
+                SEVERITY_NUMBER_DEBUG
+              - >-
+                set(log.severity_number, SEVERITY_NUMBER_TRACE) where
+                IsMatch(log.cache["0"], "(?i)(trace)")
+              - >-
+                set(log.severity_text, "trace") where log.severity_number ==
+                SEVERITY_NUMBER_TRACE
+              - 'set(log.severity_text, "info") where log.severity_number == 0'
+              - >-
+                set(log.severity_number, SEVERITY_NUMBER_INFO) where
+                log.severity_number == 0
           - context: log
+            error_mode: ignore
             statements:
-              - set(log.cache, log.body)
-              - set(log.attributes["k8s.object.name"], log.cache["metadata"]["name"])
-              - set(log.attributes["k8s.object.uid"], log.cache["metadata"]["uid"])
-              - set(log.attributes["k8s.object.kind"], log.cache["kind"])
-              - set(resource.attributes["service.name"], "km-deployment")
+              - 'set(log.severity_text, ConvertCase(log.severity_text, "lower"))'
     receivers:
       k8s_cluster:
         allocatable_types_to_report:
@@ -162,9 +212,9 @@ data:
         distribution: kubernetes
         metrics:
           k8s.container.cpu_request:
-            enabled: false
+            enabled: true
           k8s.container.memory_request:
-            enabled: false
+            enabled: true
           k8s.node.condition:
             enabled: true
         node_conditions_to_report:
@@ -235,6 +285,7 @@ data:
             - resource
             - resource/cluster
             - k8sattributes
+            - transform/loglevels
             - batch
           receivers:
             - k8s_events
@@ -243,10 +294,9 @@ data:
             - otlphttp
           processors:
             - resource
+            - resource/k8s_objects
             - resource/cluster
             - k8sattributes
-            - transform/k8sobject
-            - transform/k8sobject/namespace
             - batch
           receivers:
             - k8sobjects/1

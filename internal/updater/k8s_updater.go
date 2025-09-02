@@ -350,7 +350,7 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 	a.logger.Infof("Performing APM updation to cluster :%s on %d apps", a.cfg.ClusterName, len(response.K8s.APMSettings))
 	for _, app := range response.K8s.APMSettings {
 		kind := strings.ToUpper(app.Kind)
-		annotations := instrumentation.KmCrdAnnotation(app.Language, app.Enabled)
+		annotations, langAnnotation := instrumentation.KmCrdAnnotation(app.Language, app.Enabled)
 		annotationBytes, err := json.Marshal(annotations)
 		if err != nil {
 			return fmt.Errorf("error marshaling patch %s/%s: %v", app.Namespace, app.Deployment, err)
@@ -362,7 +362,7 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 			if err != nil {
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
-			if isApplied := isAnnotationSame(annotations, ds.Spec.Template.Annotations); !isApplied {
+			if isApplied := isAnnotationSame(langAnnotation, ds.Spec.Template.Annotations); isApplied {
 				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
 				continue
 			}
@@ -380,7 +380,7 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 					if err != nil {
 						return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 					}
-					if isApplied := isAnnotationSame(annotations, dep.Spec.Template.Annotations); !isApplied {
+					if isApplied := isAnnotationSame(langAnnotation, dep.Spec.Template.Annotations); isApplied {
 						a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
 						continue
 					} else {
@@ -392,7 +392,7 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			} else {
 				// err is nil means replicaset exist and patch can be applied on it
-				if isApplied := isAnnotationSame(annotations, rs.Spec.Template.Annotations); !isApplied {
+				if isApplied := isAnnotationSame(langAnnotation, rs.Spec.Template.Annotations); isApplied {
 					a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
 					continue
 				}
@@ -407,7 +407,7 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 			if err != nil {
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
-			if isApplied := isAnnotationSame(annotations, ds.Spec.Template.Annotations); !isApplied {
+			if isApplied := isAnnotationSame(langAnnotation, ds.Spec.Template.Annotations); isApplied {
 				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
 				continue
 			}
@@ -419,7 +419,7 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 			if err != nil {
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
-			if isApplied := isAnnotationSame(annotations, ss.Spec.Template.Annotations); !isApplied {
+			if isApplied := isAnnotationSame(langAnnotation, ss.Spec.Template.Annotations); isApplied {
 				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
 				continue
 			}
@@ -433,7 +433,7 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 			if err != nil {
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
-			if isApplied := isAnnotationSame(annotations, pod.Annotations); !isApplied {
+			if isApplied := isAnnotationSame(langAnnotation, pod.Annotations); isApplied {
 				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
 				continue
 			}
@@ -449,8 +449,12 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 	return nil
 }
 
-func isAnnotationSame(annotations instrumentation.InstrumentAnnotiation, resourceMap map[string]string) bool {
+func isAnnotationSame(annotations map[string]string, resourceMap map[string]string) bool {
+	const restartedAtKey = "kubectl.kubernetes.io/restartedAt"
 	for key, value := range annotations {
+		if key == restartedAtKey {
+			continue
+		}
 		// Look up the key in the second map.
 		if val2, ok := resourceMap[key]; !ok || val2 != value {
 			// If the key does not exist (!ok) or the value is different (val2 != value),
