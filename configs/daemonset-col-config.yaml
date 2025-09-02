@@ -51,6 +51,7 @@ processors:
     send_batch_size: 10000
     timeout: 10s
   cumulativetodelta:
+
     include:
       match_type: strict
       metrics:
