@@ -6,10 +6,10 @@ import (
 	"time"
 )
 
-type InstrumentAnnotiation map[string]interface{}
+type InstrumentAnnotiation map[string]any
 
 // KmCrdAnnotation annotation tells deployment to connect to km-instrumentation crd and enabled/disable the instrumentation
-func KmCrdAnnotation(osl string, enabled bool) InstrumentAnnotiation {
+func KmCrdAnnotation(osl string, enabled bool) (InstrumentAnnotiation, map[string]string) {
 	ns := os.Getenv("KM_NAMESPACE")
 	if ns == "" {
 		ns = "km-agent"
@@ -20,7 +20,7 @@ func KmCrdAnnotation(osl string, enabled bool) InstrumentAnnotiation {
 	}
 	lang := ""
 	switch osl {
-	case "Node.js":
+	case "nodejs":
 		lang = "nodejs"
 	case "Java":
 		lang = "java"
@@ -33,7 +33,7 @@ func KmCrdAnnotation(osl string, enabled bool) InstrumentAnnotiation {
 	}
 
 	if ns == "" || lang == "" {
-		return InstrumentAnnotiation{}
+		return InstrumentAnnotiation{}, nil
 	}
 
 	return InstrumentAnnotiation{
@@ -51,5 +51,5 @@ func KmCrdAnnotation(osl string, enabled bool) InstrumentAnnotiation {
 				},
 			},
 		},
-	}
+	}, map[string]string{fmt.Sprintf("instrumentation.opentelemetry.io/inject-%s", lang): fmt.Sprintf("%s/%s", ns, crd)}
 }
