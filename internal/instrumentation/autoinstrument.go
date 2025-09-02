@@ -6,10 +6,10 @@ import (
 	"time"
 )
 
-type InstrumentAnnotiation map[string]interface{}
+type InstrumentAnnotiation map[string]any
 
 // KmCrdAnnotation annotation tells deployment to connect to km-instrumentation crd and enabled/disable the instrumentation
-func KmCrdAnnotation(osl string, enabled bool) InstrumentAnnotiation {
+func KmCrdAnnotation(osl string, enabled bool) (InstrumentAnnotiation, map[string]string) {
 	ns := os.Getenv("KM_NAMESPACE")
 	if ns == "" {
 		ns = "km-agent"
@@ -20,7 +20,7 @@ func KmCrdAnnotation(osl string, enabled bool) InstrumentAnnotiation {
 	}
 	lang := ""
 	switch osl {
-	case "Node.Js":
+	case "nodejs":
 		lang = "nodejs"
 	case "Java":
 		lang = "java"
@@ -31,6 +31,11 @@ func KmCrdAnnotation(osl string, enabled bool) InstrumentAnnotiation {
 	case "dotnet":
 		lang = "dotnet"
 	}
+
+	if ns == "" || lang == "" {
+		return InstrumentAnnotiation{}, nil
+	}
+
 	return InstrumentAnnotiation{
 		"spec": map[string]interface{}{
 			"template": map[string]interface{}{
@@ -40,11 +45,11 @@ func KmCrdAnnotation(osl string, enabled bool) InstrumentAnnotiation {
 						"kubectl.kubernetes.io/restartedAt": time.Now().Format(time.RFC3339),
 						// contains location/scope of instrumentation crd
 						fmt.Sprintf("instrumentation.opentelemetry.io/inject-%s", lang): fmt.Sprintf("%s/%s", ns, crd),
-						// contains language annotation toggle
-						fmt.Sprintf("instrumentation.opentelemetry.io/inject-%s", lang): fmt.Sprintf("%t", enabled),
+						// TODO: target specific containers
+						// "instrumentation.opentelemetry.io/container-names": fmt.Sprintf("%t", enabled),
 					},
 				},
 			},
 		},
-	}
+	}, map[string]string{fmt.Sprintf("instrumentation.opentelemetry.io/inject-%s", lang): fmt.Sprintf("%s/%s", ns, crd)}
 }

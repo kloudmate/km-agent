@@ -28,9 +28,9 @@ func StartRpcServer() {
 	}
 	defer listener.Close()
 
-	log.Printf("RPC server listening on port %s\n", addr)
-	AutoCleanDetectionResults()
+	go AutoCleanDetectionResults()
 	// Accept connections and serve them concurrently
+	log.Printf("RPC server listening on port %s\n", addr)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {

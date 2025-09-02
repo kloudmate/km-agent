@@ -196,6 +196,10 @@ func (a *Agent) runConfigUpdateChecker(ctx context.Context) {
 		a.logger.Info("Config update URL not configured, skipping config update checks")
 		return
 	}
+	if a.cfg.ConfigCheckInterval <= 0 {
+		a.logger.Info("Config check interval not set or invalid, skipping config update checks")
+		return
+	}
 	a.logger.Infof("Config update URL %s started with interval %ds", a.cfg.ConfigUpdateURL, a.cfg.ConfigCheckInterval)
 	ticker := time.NewTicker(time.Duration(a.cfg.ConfigCheckInterval) * time.Second)
 	defer ticker.Stop()

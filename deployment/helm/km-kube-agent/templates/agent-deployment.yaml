@@ -16,12 +16,12 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Values.deploymentName }}
+      mapped-with: {{ .Values.deploymentName }}
       {{- toYaml .Values.configMapDeploymentLabels | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ .Values.deploymentName }}
+        mapped-with: {{ .Values.deploymentName }}
         {{- toYaml .Values.configMapDeploymentLabels | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.serviceAccountName }}

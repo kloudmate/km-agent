@@ -7,7 +7,7 @@ metadata:
     {{- toYaml .Values.serviceLabels | nindent 4 }}
 spec:
   selector:
-    mapped-with: {{ .Values.daemonsetName }}
+    mapped-with: {{ .Values.deploymentName }}
   ports:
     - name: otlp-grpc-service
       protocol: TCP
@@ -21,9 +21,9 @@ spec:
       port: 13133
       targetPort: 13133
       protocol: TCP
-    - name: cfg-updater
-      port: {{ .Values.KM_CFG_UPDATER_RPC_ADDR }}
-      targetPort: {{ .Values.KM_CFG_UPDATER_RPC_ADDR }}
-      protocol: TCP
+    # - name: cfg-updater
+    #   port: {{ .Values.KM_CFG_UPDATER_RPC_ADDR }}
+    #   targetPort: {{ .Values.KM_CFG_UPDATER_RPC_ADDR }}
+    #   protocol: TCP
   type: ClusterIP
-  internalTrafficPolicy: Local
+  internalTrafficPolicy: Cluster
