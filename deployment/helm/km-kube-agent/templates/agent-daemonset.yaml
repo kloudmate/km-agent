@@ -52,6 +52,13 @@ spec:
           #   - name: otlp-http
           #     containerPort: 4318
           #     protocol: TCP
+          resources:
+            requests:
+              cpu: "108m"
+              memory: "128Mi"
+            limits:
+              cpu: "2"
+              memory: "1Gi"
           volumeMounts:
               ## for daemonset 
             - name: agent-config-volume-daemonset
