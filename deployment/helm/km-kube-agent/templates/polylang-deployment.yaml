@@ -27,10 +27,11 @@ spec:
             value: "kube-system,kube-public,kube-node-lease,kube-service-catalog,kubernetes-dashboard,local-path-storage,tigera-operator,calico-system,cilium,cilium-system,istio-system,linkerd,linkerd-viz,gatekeeper-system,cert-manager,velero,flux-system,argocd,monitoring,ingress-nginx,aws-node,kube-system-aws,gke-system,gke-managed-cim,gke-managed-filestorecsi,gke-managed-system,gke-managed-volumepopulator,gmp-public,gmp-system,aks-system,openebs,rook-ceph,km-agent"
           - name: KM_CFG_UPDATER_RPC_ADDR
             value: {{ printf "cfg-updater-rpc-svc.km-agent.svc.cluster.local:%s" (.Values.KM_CFG_UPDATER_RPC_ADDR | toString) }}
-          # - name: KM_NODE_NAME
-          #   valueFrom:
-          #     fieldRef:
-          #       # This field path directly exposes the name of the node
-          #       # where the pod has been scheduled.
-          #       fieldPath: spec.nodeName
+        resources:
+          requests:
+            cpu: "256m"
+            memory: "256Mi"
+          limits:
+            cpu: "2"
+            memory: "1Gi"
 {{- end }}
