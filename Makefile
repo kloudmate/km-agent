@@ -8,7 +8,7 @@ SCRIPT_DIR := ./build/linux/scripts
 
 GOOS_LIST := linux
 GOARCH := amd64
-LD_FLAGS="-s -w"
+LD_FLAGS="-s -w -X main.version=$(VERSION)"
 
 ISS_FILE := ./build/windows/installer.iss
 WINDOWS_BUILD_DIR := $(BUILD_DIR)/win
