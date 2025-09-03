@@ -230,10 +230,11 @@ func main() {
 
 	// Create CLI app
 	app := &cli.App{
-		Name:   "kmagent",
-		Usage:  "KloudMate OpenTelemetry collector agent",
-		Flags:  flags,
-		Before: altsrc.InitInputSourceWithContext(flags, altsrc.NewYamlSourceFromFlagFunc("agent-config")),
+		Name:    "kmagent",
+		Usage:   "KloudMate OpenTelemetry collector agent",
+		Flags:   flags,
+		Version: version,
+		Before:  altsrc.InitInputSourceWithContext(flags, altsrc.NewYamlSourceFromFlagFunc("agent-config")),
 	}
 
 	// Setup commands
