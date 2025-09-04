@@ -1,25 +1,68 @@
 # KM-Agent
-![Agent_Banner](/docs/banner_km_agent.png)
-KloudMate Agent for OpenTelemetry Auto Instrumentation - 
 
-Purpose of KloudMate Agent is to auto instrument host system with OTel Collector. This is a wrapper on top of OTel Collector for ease of deployment and management.
+<div align="center">
 
-![comparision_otel_kloudmate](/docs/agent_otel_comparision.png)
+![KM-Agent Banner](docs/banner_km_agent.png)
 
-Right now, user has to go through various documents to understand and configure otel collector depending on components to be monitored. This is fairly complex process for someone new to OpenTelemetry. There is steep learning curve which becomes a barrier to adopting OpenTelemetry. This custom KM Agent will solve two problems:
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org/)
+[![Release](https://img.shields.io/github/release/ansh-devs/km-agent.svg)](https://github.com/ansh-devs/km-agent/releases)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/ansh-devs/km-agent/actions)
+[![Docker Pulls](https://img.shields.io/docker/pulls/kloudmate/km-agent.svg)](https://hub.docker.com/r/kloudmate/km-agent)
+
+**KloudMate Agent for OpenTelemetry Auto Instrumentation**
+
+*Simplifying OpenTelemetry adoption through automated deployment and remote configuration*
+
+ • [Official Documentation](https://docs.kloudmate.com/kloudmate-agents) 
+
+</div>
 
 
-1. Ease of installation using automated installation script (Bash script/Windows Installer).
-2. Remote configuration of the collector. User can configure the agent from a web interface without having to login into the host system.
+### Key Problems Solved
 
-### Installation Script
-Depending on type of environment, there should be different scripts (Linux, Docker, k8s etc). User will copy the command and execute on the target system to initiate installation.
+- **Complex Configuration**: Eliminates the steep learning curve of OpenTelemetry Collector configuration
+- **Manual Installation**: Provides automated installation scripts for multiple environments
+- **Configuration Management**: Enables remote configuration through a web interface without SSH access
 
-For example,
+## Features
+
+- 🚀 **Automated Installation**: One-command deployment across Linux, Docker, and Kubernetes
+- 🌐 **Remote Configuration**: Configure agents through a web interface without your target machine access
+- 📊 **Lifecycle Management**: Comprehensive management of OpenTelemetry Collector
+- 🔍 **Synthetic Monitoring**: Built-in health checks and monitoring capabilities
+- 🎯 **Multi-Platform Support**: Native support for various deployment environments
+- 📈 **Real-time Dashboards**: Unique agent identification for centralized monitoring
+
+### Installation
+
+Choose your environment and run the appropriate installation command:
+
+#### Docker Installation
+```bash
+KM_API_KEY="<YOUR_API_KEY>" KM_COLLECTOR_ENDPOINT="https://otel.kloudmate.com:4318" bash -c "$(curl -L https://cdn.kloudmate.com/scripts/install_docker.sh)"
 ```
-API_KEY="<API_KEY>" bash -c "$(curl -L https://cdn.kloudmate.com/scripts/docker-agent.sh)"
+
+#### Linux Installation
+```bash
+KM_API_KEY="<YOUR_API_KEY>" KM_COLLECTOR_ENDPOINT="https://otel.kloudmate.com:4318" bash -c "$(curl -L https://cdn.kloudmate.com/scripts/install_linux.sh)"
 ```
+
 Bash script should have various configurable arguments to configure the agent apart from API_KEY which is required for authentication at exporter. Each of the script should have corresponding uninstall command to remove the agent from the system.
+
+#### Kubernetes Installation
+```bash
+helm repo add kloudmate https://kloudmate.github.io/km-agent
+helm repo update
+helm install kloudmate-release kloudmate/km-kube-agent --namespace km-agent --create-namespace \
+--set API_KEY="<YOUR_API_KEY>" \n --set COLLECTOR_ENDPOINT="https://otel.kloudmate.com:4318" \
+--set clusterName="<YOUR_CLUSTER_NAME>" \
+--set monitoredNamespaces="<MONITORED_NS>"
+```
+
+#### Windows Installation
+Download and run the Windows (.exe) installer from our [releases page](https://github.com/kloudmate/km-agent/releases).
+
 
 ### Agent
 Agent is installed as service on the host system/docker container/demonset on a k8s. It is done during installation process. The agent is responsible for managing the lifecycle of the Collector. The Agent is not an implementation of Collector, instead, it runs and manages lifecycle of existig OTel Collector.
