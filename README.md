@@ -6,9 +6,10 @@
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org/)
-[![Release](https://img.shields.io/github/release/ansh-devs/km-agent.svg)](https://github.com/ansh-devs/km-agent/releases)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/ansh-devs/km-agent/actions)
-[![Docker Pulls](https://img.shields.io/docker/pulls/kloudmate/km-agent.svg)](https://hub.docker.com/r/kloudmate/km-agent)
+[![Release](https://img.shields.io/github/release/kloudmate/km-agent.svg)](https://github.com/kloudmate/km-agent/releases)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/kloudmate/km-agent/actions)
+
+[![GHCR Pulls](https://ghcr-badge.elias.eu.org/shield/kloudmate/km-agent/km-kube-agent)](https://ghcr-badge.elias.eu.org/shield/kloudmate/km-agent/km-kube-agent)
 
 **KloudMate Agent for OpenTelemetry Auto Instrumentation**
 
@@ -109,38 +110,94 @@ In future releases the agent can be installed in any of the following environmen
 * Azure k8s
 
 
+## Development
 
+### Building from Source
 
-# Contribution Notice
+```bash
+# Clone the repository
+git clone https://github.com/kloudmate/km-agent.git
+cd km-agent
 
-Thank you for your interest in contributing to our project! We welcome contributions that improve the quality, usability, and functionality of this open-source initiative. Before you start, please review the following guidelines to ensure a smooth collaboration.
+# Build for Linux distribution
+make build-linux-amd64
+```
 
-![welcome_contributions](/docs/contributions.png)
+## Contributing
 
-1. **Understand the Project**
-   - Familiarize yourself with the purpose, scope, and goals of the project.
-   - Read through the [Documentation](#) and [Code of Conduct](#) before proceeding.
+![Contributions Welcome](docs/contributions.png)
 
-2. **Report Issues**
-   - Check if the issue is already reported in the [Issues](#) section.
-   - If not, create a new issue with detailed steps to reproduce, expected behavior, and additional context.
+We welcome contributions that improve the quality, usability, and functionality of KM-Agent. Please read our contribution guidelines before getting started.
 
-3. **Propose Changes**
-   - Open a [discussion](#) if you're unsure about your approach.
-   - For substantial changes, start by discussing your ideas in an issue.
+### How to Contribute
 
-4. **Submit Pull Requests**
-   - Fork the repository and create a new branch for your feature or bug fix.
-   - Ensure your changes are well-documented and tested.
-   - Submit a pull request with a clear description of the problem being solved.
-
-5. **Follow Coding Standards**
-   - Use consistent style and format as defined in the [Style Guide](#).
-   - Include comments where necessary for readability and maintenance.
-
-## Getting Started
-
-1. Clone the repository:
+1. **Fork the Repository**
    ```bash
-   git clone https://github.com/kloudmate/km-agent.git
+   git fork https://github.com/kloudmate/km-agent.git
+   ```
 
+2. **Create a Feature Branch**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+
+3. **Make Your Changes**
+   - Follow our [coding standards](CONTRIBUTING.md#coding-standards)
+   - Add tests for new functionality
+   - Update documentation as needed
+
+4. **Test Your Changes**
+   ```bash
+   make test
+   make lint
+   ```
+
+5. **Submit a Pull Request**
+   - Provide a clear description of your changes
+   - Include any relevant issue numbers
+   - Ensure all tests pass
+
+### Reporting Issues
+
+Before creating an issue, please:
+
+- Check existing [issues](https://github.com/kloudmate/km-agent/issues)
+- Use our issue templates
+- Provide detailed reproduction steps
+- Include environment information
+
+### Code of Conduct
+
+This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
+
+## Community and Support
+
+### Getting Help
+
+- 📧 **Email**: support@kloudmate.com
+- 🐛 **[Issues](https://github.com/kloudmate/km-agent/issues)** - Bug reports and feature requests
+- 💻 **[Documentation](https://docs.kloudmate.com)**
+
+### Community Resources
+
+- 🌟 **[Dashboard Templates](https://github.com/kloudmate/dashboard-templates)**
+- 📝 **[Blog Posts](https://blog.kloudmate.com)**
+- 📱 **[Slack Community](https://kloudmate.slack.com)**
+
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE). See the LICENSE file for full details.
+
+## Acknowledgments
+
+-  **OpenTelemetry Community** - For the foundational observability framework
+---
+
+<div align="center">
+
+**Made with 🧡 by the KloudMate Team**
+
+[Website](https://kloudmate.com) • [Documentation](https://docs.kloudmate.com/kloudmate-agents) • [Community](https://github.com/kloudmate/km-agent/discussions) • [Support](mailto:support@kloudmate.com)
+
+</div>
