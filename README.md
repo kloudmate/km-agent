@@ -1,5 +1,6 @@
 # KM-Agent
-KloudMate Agent for OpenTelemetry auto instrumentation
+![Agent_Banner](/docs/banner_km_agent.png)
+KloudMate Agent for OpenTelemetry Auto Instrumentation - 
 
 Purpose of KloudMate Agent is to auto instrument host system with OTel Collector. This is a wrapper on top of OTel Collector for ease of deployment and management.
 
@@ -23,7 +24,10 @@ Bash script should have various configurable arguments to configure the agent ap
 ### Agent
 Agent is installed as service on the host system/docker container/demonset on a k8s. It is done during installation process. The agent is responsible for managing the lifecycle of the Collector. The Agent is not an implementation of Collector, instead, it runs and manages lifecycle of existig OTel Collector.
 
-![agent_lifecycle](/docs/lifecycle.png)
+![host_agent_lifecycle](/docs/lifecycle.png)
+
+### K8s Agent Components
+![k8s_agent_lifecycle](/docs/km_agent_k8s.png)
 
 It is also primarily responsible for watching remote configuration (via REST endpoint) and pass on the configuration to Collector when changes has been detected. It has other functionalities such as synthetic monitoring that can be used to monitor the agent's status, various logs for monitoring purpose etc.
 
