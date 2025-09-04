@@ -180,7 +180,7 @@ This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDU
 
 ### Community Resources
 
-- 🌟 **[Dashboard Templates](https://github.com/kloudmate/dashboard-templates)**
+- 🌟 **[Dashboard Templates](templates.kloudmate.com)**
 - 📝 **[Blog Posts](https://blog.kloudmate.com)**
 - 📱 **[Slack Community](https://kloudmate.slack.com)**
 
