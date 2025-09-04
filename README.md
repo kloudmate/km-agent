@@ -15,7 +15,7 @@
 
 *Simplifying OpenTelemetry adoption through automated deployment and remote configuration*
 
- • [Official Documentation](https://docs.kloudmate.com/kloudmate-agents) 
+ • [Documentation](https://docs.kloudmate.com/kloudmate-agents) 
 
 </div>
 
