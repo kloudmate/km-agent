@@ -39,11 +39,17 @@
 Choose your environment and run the appropriate installation command:
 
 #### Docker Installation
+Docker agent is containerized version of the Agent that collect host level metrics (via `hostmetricreceiver`) and logs (via the volume mounts)
+User can install the agent by running below script
+
 ```bash
 KM_API_KEY="<YOUR_API_KEY>" KM_COLLECTOR_ENDPOINT="https://otel.kloudmate.com:4318" bash -c "$(curl -L https://cdn.kloudmate.com/scripts/install_docker.sh)"
 ```
 
 #### Linux Installation
+Similar to native OTel agent, agent supports both debian and Red Hat based systems.
+User can install the agent via this automated bash script
+
 ```bash
 KM_API_KEY="<YOUR_API_KEY>" KM_COLLECTOR_ENDPOINT="https://otel.kloudmate.com:4318" bash -c "$(curl -L https://cdn.kloudmate.com/scripts/install_linux.sh)"
 ```
@@ -51,6 +57,8 @@ KM_API_KEY="<YOUR_API_KEY>" KM_COLLECTOR_ENDPOINT="https://otel.kloudmate.com:43
 Bash script should have various configurable arguments to configure the agent apart from API_KEY which is required for authentication at exporter. Each of the script should have corresponding uninstall command to remove the agent from the system.
 
 #### Kubernetes Installation
+The agent will run as DaemonSet as well as a Deployment in the cluster and add necessary components to monitor the nodes and pods
+User can install the agent using below Helm based instructioins
 ```bash
 helm repo add kloudmate https://kloudmate.github.io/km-agent
 helm repo update
@@ -64,43 +72,44 @@ helm install kloudmate-release kloudmate/km-kube-agent --namespace km-agent --cr
 Download and run the Windows (.exe) installer from our [releases page](https://github.com/kloudmate/km-agent/releases).
 
 
-### Agent
+## Supported Environments
+
+![Supported Environments](docs/environments.png)
+
+### Current Support
+- ✅ **Linux** (Debian/Ubuntu, RHEL/CentOS)
+- ✅ **Docker** (Host metrics and log collection)
+- ✅ **Kubernetes** (via DaemonSet & Deployment)
+- ✅ **Windows** (Windows Server 2016+)
+
+
+### Architecture
 Agent is installed as service on the host system/docker container/demonset on a k8s. It is done during installation process. The agent is responsible for managing the lifecycle of the Collector. The Agent is not an implementation of Collector, instead, it runs and manages lifecycle of existig OTel Collector.
 
 ![host_agent_lifecycle](/docs/lifecycle.png)
-
-### K8s Agent Components
-![k8s_agent_lifecycle](/docs/km_agent_k8s.png)
 
 It is also primarily responsible for watching remote configuration (via REST endpoint) and pass on the configuration to Collector when changes has been detected. It has other functionalities such as synthetic monitoring that can be used to monitor the agent's status, various logs for monitoring purpose etc.
 
 Each agent is uniquely identifyable so it can be used to build dashboard for the user to monitor the agents and configure them using a web interface.
 
-![deployable_environments](/docs/environments.png)
+
+### Kubernetes Agent Architecture
+
+![K8s Agent Components](docs/km_agent_k8s.png)
+
+The Kubernetes agent runs as a DaemonSet and includes:
+- **Node Monitoring**: CPU, memory, disk, and network metrics
+- **Pod Monitoring**: Container-level metrics and logs
+- **Cluster Events**: Kubernetes events and resource monitoring
+- **Service Discovery**: Automatic service endpoint detection
 
 In future releases the agent can be installed in any of the following environments as well:
 * Mac
 * ECS
 * Azure k8s
 
-**Docker**
 
-Docker agent is containerized version of the Agent that collect host level metrics (hostmetricreceiver) and logs (via volume mount)
-User should be able to install this via automated bash script
 
-**Kubernetes**
-
-The agent will run as DaemonSet in the cluster and add necessary components to monitor the nodes and pods
-User should be able to install this via automated bash script (bash/.bat/Helm)
-
-**Linux**
-
-Similar to native OTel agent, should support both debian and Red Hat based systems
-User should be able to install this via automated bash script
-
-**Windows**
-
-Installation via Windows installer
 
 # Contribution Notice
 
