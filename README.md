@@ -96,7 +96,7 @@ Each agent is uniquely identifyable so it can be used to build dashboard for the
 
 ![K8s Agent Components](docs/km_agent_k8s.png)
 
-The Kubernetes agent runs as a DaemonSet and includes:
+The Kubernetes agent runs as a Deployment & DaemonSet and includes:
 - **Node Monitoring**: CPU, memory, disk, and network metrics
 - **Pod Monitoring**: Container-level metrics and logs
 - **Cluster Events**: Kubernetes events and resource monitoring
@@ -107,19 +107,14 @@ In future releases the agent can be installed in any of the following environmen
 * ECS
 * Azure k8s
 
+<div align="center">
 
-## Development
+## Latest Enhancement to Your KloudMate Suite
+### Introducing  **KloudMate Templates** - Curated Templates for Every Use Case
+[![KM Templates](docs/banner_km_templates.png)](https://templates.kloudmate.com)
+#### Click [here](https://templates.kloudmate.com) or the above image to see available templates
+</div>
 
-### Building from Source
-
-```bash
-# Clone the repository
-git clone https://github.com/kloudmate/km-agent.git
-cd km-agent
-
-# Build for Linux distribution
-make build-linux-amd64
-```
 
 ## Contributing
 
@@ -144,13 +139,7 @@ We welcome contributions that improve the quality, usability, and functionality 
    - Add tests for new functionality
    - Update documentation as needed
 
-4. **Test Your Changes**
-   ```bash
-   make test
-   make lint
-   ```
-
-5. **Submit a Pull Request**
+4. **Submit a Pull Request**
    - Provide a clear description of your changes
    - Include any relevant issue numbers
    - Ensure all tests pass
