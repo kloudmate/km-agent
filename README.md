@@ -1,15 +1,13 @@
-# KM-Agent
-
 <div align="center">
 
 ![KM-Agent Banner](docs/banner_km_agent.png)
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/Go-1.24.4+-blue.svg)](https://golang.org/)
 [![Release](https://img.shields.io/github/release/kloudmate/km-agent.svg)](https://github.com/kloudmate/km-agent/releases)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/kloudmate/km-agent/actions)
 
-[![GHCR Pulls](https://ghcr-badge.elias.eu.org/shield/kloudmate/km-agent/km-kube-agent)](https://ghcr-badge.elias.eu.org/shield/kloudmate/km-agent/km-kube-agent)
+[![GHCR Pulls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fghcr-badge.elias.eu.org%2Fapi%2Fkloudmate%2Fkm-agent%2Fkm-kube-agent&query=downloadCount&style=flat&logo=docker&label=Image%20Pulls&color=2496ed)](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fghcr-badge.elias.eu.org%2Fapi%2Fkloudmate%2Fkm-agent%2Fkm-kube-agent&query=downloadCount&style=flat&logo=docker&label=Image%20Pulls&color=2496ed)
 
 **KloudMate Agent for OpenTelemetry Auto Instrumentation**
 
