@@ -11,15 +11,15 @@ data:
     #!/bin/sh
     set -e
 
-    if [ -z "$MONITORED_NAMESPACES" ]; then
-      echo "MONITORED_NAMESPACES env variable is not set. Skipping namespace configuration."
-      export MONITORED_NAMESPACES_YAML='[]'
+    if [ -z "$KM_K8S_MONITORED_NAMESPACES" ]; then
+      echo "KM_K8S_MONITORED_NAMESPACES env variable is not set. Skipping namespace configuration."
+      export KM_K8S_MONITORED_NAMESPACES_YAML='[]'
     else
       # This will convert the comma-separated string to a valid YAML list string
       # Eg: "ns1,ns2" -> '["ns1","ns2"]'
 
-      export MONITORED_NAMESPACES_YAML=$(echo "[\"$(echo "$MONITORED_NAMESPACES" | sed 's/,/","/g')\"]")
-      echo "Starting KloudMate Kubernetes Agent with MONITORED_NAMESPACES_YAML=${MONITORED_NAMESPACES_YAML}"
+      export KM_K8S_MONITORED_NAMESPACES_YAML=$(echo "[\"$(echo "$KM_K8S_MONITORED_NAMESPACES" | sed 's/,/","/g')\"]")
+      echo "Starting KloudMate Kubernetes Agent with KM_K8S_MONITORED_NAMESPACES_YAML=${KM_K8S_MONITORED_NAMESPACES_YAML}"
     fi
     exec ./kmagent
   # We name it exactly "agent-deployment.yaml" so it appears as such.
@@ -240,7 +240,7 @@ data:
           - NetworkUnavailable
       k8s_events:
         auth_type: serviceAccount
-        namespaces: ${env:MONITORED_NAMESPACES_YAML}
+        namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
       k8sobjects/1:
         auth_type: serviceAccount
         objects:
@@ -267,26 +267,26 @@ data:
         objects:
           - mode: watch
             name: pods
-            namespaces: ${env:MONITORED_NAMESPACES_YAML}
+            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: nodes
           - mode: watch
             name: replicasets
-            namespaces: ${env:MONITORED_NAMESPACES_YAML}
+            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: namespaces
           - mode: watch
             name: deployments
-            namespaces: ${env:MONITORED_NAMESPACES_YAML}
+            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: daemonsets
-            namespaces: ${env:MONITORED_NAMESPACES_YAML}
+            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: statefulsets
-            namespaces: ${env:MONITORED_NAMESPACES_YAML}
+            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: configmaps
-            namespaces: ${env:MONITORED_NAMESPACES_YAML}
+            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
       otlp:
         protocols:
           grpc:
