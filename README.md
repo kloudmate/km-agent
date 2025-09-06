@@ -64,8 +64,9 @@ helm repo update
 helm install kloudmate-release kloudmate/km-kube-agent --namespace km-agent --create-namespace \
 --set API_KEY="<YOUR_API_KEY>" \n --set COLLECTOR_ENDPOINT="https://otel.kloudmate.com:4318" \
 --set clusterName="<YOUR_CLUSTER_NAME>" \
---set monitoredNamespaces="<MONITORED_NS>"
+--set "monitoredNamespaces={MONITORED_NS}"
 ```
+⚠️ For the `monitoredNamespaces` flag the namespaces should be passed as comma-separated values. For example - `--set "monitoredNamespaces={bookinfo,mongodb,cassandra}"` where `bookinfo`,`mongodb` and `cassandra` are the targetted namespaces that you want to monitor.
 
 #### Windows Installation
 Download and run the Windows (.exe) installer from our [releases page](https://github.com/kloudmate/km-agent/releases).
