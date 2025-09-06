@@ -20,7 +20,7 @@ clusterRoleBindingName: km-agent-cluster-role-binding
 instrumentationCrdName: km-agent-instrumentation-crd
 configMapDaemonsetName: km-agent-configmap-daemonset
 configMapDeploymentName: km-agent-configmap-deployment 
-polylangDetectorDaemonsetName: km-agent-polylang-detector-daemonset 
+polylangDetectorName: km-agent-polylang-detector-deployment 
 
 autoMountServiceAccount: true
 autoCreateServiceAccount: true

@@ -42,6 +42,8 @@ spec:
               value: {{ .Values.configMapDeploymentName }}
             - name: KM_CLUSTER_NAME
               value: {{ .Values.clusterName }}
+            - name: MONITORED_NAMESPACES
+              value: "{{- .Values.monitoredNamespaces | join `,` -}}"
             - name: KM_NODE_NAME
               valueFrom:
                 fieldRef:
@@ -50,6 +52,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+          command: ["/bin/sh", "/etc/kmagent/start.sh"]
           ports:
             # We keep the OTLP ports to allow other components (like the
             # DaemonSet agents) to send data to this cluster agent.
@@ -74,6 +77,11 @@ spec:
               mountPath: "/etc/kmagent/agent-deployment.yaml"
               readOnly: true
               subPath: "agent-deployment.yaml"
+              ## Agent start script
+            - name: agent-config-volume-deployment
+              mountPath: "/etc/kmagent/start.sh"
+              defaultMode: 0755
+              subPath: "start.sh"
       volumes:
         - name: agent-config-volume-deployment
           configMap:
