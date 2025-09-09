@@ -66,6 +66,10 @@ type K8sConfigUpdateResponse struct {
 	K8s             K8sApmConfig   `json:"k8s"`
 }
 
+type patchData struct {
+	Data map[string]string `json:"data"`
+}
+
 // NewK8sConfigUpdater creates a new config updater
 func NewKubeConfigUpdaterClient(cfg *config.K8sAgentConfig, logger *zap.SugaredLogger) *K8sConfigUpdater {
 
@@ -242,18 +246,30 @@ func (a *K8sConfigUpdater) UpdateConfigMap(daemonSetConfig map[string]interface{
 	}, v1.UpdateOptions{})
 
 	if err != nil {
-		return fmt.Errorf("failed to update DaemonsSt configMap: %w", err)
+		return fmt.Errorf("failed to update Daemonset configMap: %w", err)
 	} else {
 		a.logger.Infoln("Successfully updated DaemonSet configMap.")
 	}
 
 	a.logger.Infoln("Attempting to update Deployment configMap.")
-	_, err = configMaps.Update(context.TODO(), &corev1.ConfigMap{
-		Data: map[string]string{"agent-deployment.yaml": string(deploymentYamlBytes)},
-		ObjectMeta: v1.ObjectMeta{
-			Name: a.cfg.ConfigmapDeploymentName,
+
+	patch := patchData{
+		Data: map[string]string{
+			"agent-deployment.yaml": string(deploymentYamlBytes),
 		},
-	}, v1.UpdateOptions{})
+	}
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		return fmt.Errorf("failed to update Daemonset configMap err patching json marshal: %w", err)
+	}
+
+	_, err = configMaps.Patch(
+		context.TODO(),
+		a.cfg.ConfigmapDeploymentName,
+		types.StrategicMergePatchType, // <-- MergePatch to ensure any script present in configmap doesn't gets overwritten.
+		patchBytes,
+		v1.PatchOptions{},
+	)
 
 	if err != nil {
 		return fmt.Errorf("failed to update Deployment configMap: %w", err)
@@ -270,7 +286,7 @@ func (drt *K8sConfigUpdater) triggerDaemonSetRollout(ctx context.Context) error 
 	// Get the DaemonSet to ensure it exists and get its current state
 	_, err := drt.cfg.K8sClient.AppsV1().DaemonSets(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DaemonSetName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("Error getting DaemonSet %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
+		return fmt.Errorf("error getting DaemonSet %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
 	}
 
 	// Prepare the patch to update the "kubectl.kubernetes.io/restartedAt" annotation.
@@ -289,13 +305,13 @@ func (drt *K8sConfigUpdater) triggerDaemonSetRollout(ctx context.Context) error 
 
 	patchBytes, err := json.Marshal(patch)
 	if err != nil {
-		return fmt.Errorf("Error marshaling patch for DaemonSet %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
+		return fmt.Errorf("error marshaling patch for DaemonSet %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
 	}
 
 	// Apply the strategic merge patch to the DaemonSet
 	_, err = drt.cfg.K8sClient.AppsV1().DaemonSets(drt.cfg.KubeNamespace).Patch(ctx, drt.cfg.DaemonSetName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
-		return fmt.Errorf("Error patching DaemonSet %s/%s to trigger rollout: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
+		return fmt.Errorf("error patching DaemonSet %s/%s to trigger rollout: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
 	}
 
 	drt.logger.Infof("Successfully triggered rollout for DaemonSet %s/%s.", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName)
@@ -309,7 +325,7 @@ func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error
 	// Get the Deployment to ensure it exists and get its current state
 	_, err := drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DeploymentName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("Error getting Deployment %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
+		return fmt.Errorf("error getting Deployment %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
 	}
 
 	// Prepare the patch to update the "kubectl.kubernetes.io/restartedAt" annotation.
@@ -328,13 +344,13 @@ func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error
 
 	patchBytes, err := json.Marshal(patch)
 	if err != nil {
-		return fmt.Errorf("Error marshaling patch for Deployment %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
+		return fmt.Errorf("error marshaling patch for Deployment %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
 	}
 
 	// Apply the strategic merge patch to the Deployment
 	_, err = drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Patch(ctx, drt.cfg.DeploymentName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
-		return fmt.Errorf("Error patching Deployment %s/%s to trigger rollout: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
+		return fmt.Errorf("error patching Deployment %s/%s to trigger rollout: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
 	}
 
 	drt.logger.Infof("Successfully triggered rollout for Deployment %s/%s.", drt.cfg.KubeNamespace, drt.cfg.DeploymentName)
@@ -344,7 +360,7 @@ func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error
 func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8sConfigUpdateResponse) error {
 
 	if !response.K8s.APMEnabled {
-		a.logger.Infof("Apm is not enabled for  %s\n", a.cfg.ClusterName)
+		a.logger.Infof("Apm is not enabled for  %s", a.cfg.ClusterName)
 		return nil
 	}
 	a.logger.Infof("Performing APM updation to cluster :%s on %d apps", a.cfg.ClusterName, len(response.K8s.APMSettings))
@@ -363,7 +379,7 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
 			if isApplied := isAnnotationSame(langAnnotation, ds.Spec.Template.Annotations); isApplied {
-				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
+				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied", app.Deployment, app.Language, app.Kind)
 				continue
 			}
 			_, err = a.cfg.K8sClient.AppsV1().DaemonSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
@@ -381,7 +397,7 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 						return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 					}
 					if isApplied := isAnnotationSame(langAnnotation, dep.Spec.Template.Annotations); isApplied {
-						a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
+						a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied", app.Deployment, app.Language, app.Kind)
 						continue
 					} else {
 						if err := handleDeploymentPatching(ctx, a.cfg.K8sClient, app, annotationBytes); err != nil {
@@ -393,7 +409,7 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 			} else {
 				// err is nil means replicaset exist and patch can be applied on it
 				if isApplied := isAnnotationSame(langAnnotation, rs.Spec.Template.Annotations); isApplied {
-					a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
+					a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied", app.Deployment, app.Language, app.Kind)
 					continue
 				}
 				_, err = a.cfg.K8sClient.AppsV1().ReplicaSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
@@ -408,7 +424,7 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
 			if isApplied := isAnnotationSame(langAnnotation, ds.Spec.Template.Annotations); isApplied {
-				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
+				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied", app.Deployment, app.Language, app.Kind)
 				continue
 			}
 			if err := handleDeploymentPatching(ctx, a.cfg.K8sClient, app, annotationBytes); err != nil {
@@ -420,7 +436,7 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
 			if isApplied := isAnnotationSame(langAnnotation, ss.Spec.Template.Annotations); isApplied {
-				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
+				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied", app.Deployment, app.Language, app.Kind)
 				continue
 			}
 			_, err = a.cfg.K8sClient.AppsV1().StatefulSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
@@ -434,7 +450,7 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 				return fmt.Errorf("error applying auto instrumentation on %s/%s: %v", app.Namespace, app.Deployment, err)
 			}
 			if isApplied := isAnnotationSame(langAnnotation, pod.Annotations); isApplied {
-				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied \n", app.Deployment, app.Language, app.Kind)
+				a.logger.Infof("[APM]: annotation for : %s using %s of kind : %s already applied", app.Deployment, app.Language, app.Kind)
 				continue
 			}
 			_, err = a.cfg.K8sClient.CoreV1().Pods(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, annotationBytes, v1.PatchOptions{})
