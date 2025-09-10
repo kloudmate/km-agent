@@ -6,7 +6,22 @@ metadata:
   labels:
     {{- toYaml .Values.configMapDeploymentLabels | nindent 4 }}
 data:
-  # The key here will become the filename inside the mountPath.
+
+  start.sh: |
+    #!/bin/sh
+    set -e
+
+    if [ -z "$KM_K8S_MONITORED_NAMESPACES" ]; then
+      echo "KM_K8S_MONITORED_NAMESPACES env variable is not set. Skipping namespace configuration."
+      export KM_K8S_MONITORED_NAMESPACES_YAML='[]'
+    else
+      # This will convert the comma-separated string to a valid YAML list string
+      # Eg: "ns1,ns2" -> '["ns1","ns2"]'
+
+      export KM_K8S_MONITORED_NAMESPACES_YAML=$(echo "[\"$(echo "$KM_K8S_MONITORED_NAMESPACES" | sed 's/,/","/g')\"]")
+      echo "Starting KloudMate Kubernetes Agent with KM_K8S_MONITORED_NAMESPACES_YAML=${KM_K8S_MONITORED_NAMESPACES_YAML}"
+    fi
+    exec ./kmagent
   # We name it exactly "agent-deployment.yaml" so it appears as such.
   agent-deployment.yaml: |
     exporters:
@@ -225,8 +240,7 @@ data:
           - NetworkUnavailable
       k8s_events:
         auth_type: serviceAccount
-        namespaces:
-          {{- .Values.monitoredNamespaces | toYaml | nindent 10 }}
+        namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
       k8sobjects/1:
         auth_type: serviceAccount
         objects:
@@ -253,20 +267,26 @@ data:
         objects:
           - mode: watch
             name: pods
+            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: nodes
           - mode: watch
             name: replicasets
+            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: namespaces
           - mode: watch
             name: deployments
+            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: daemonsets
+            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: statefulsets
+            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: configmaps
+            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
       otlp:
         protocols:
           grpc:

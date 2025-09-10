@@ -127,6 +127,6 @@ service:
       processors: [resourcedetection, resource, batch]
       exporters: [debug, otlphttp]
     logs:
-      receivers: [hostmetrics]
+      receivers: []
       processors: [resourcedetection, resource, batch]
       exporters: [otlphttp]

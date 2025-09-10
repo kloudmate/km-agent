@@ -207,6 +207,7 @@ receivers:
       - NetworkUnavailable
   k8s_events:
     auth_type: serviceAccount
+    namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML:-[]}
   k8sobjects/1:
     auth_type: serviceAccount
     objects:
@@ -233,20 +234,26 @@ receivers:
     objects:
       - mode: watch
         name: pods
+        namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML:-[]}
       - mode: watch
         name: nodes
       - mode: watch
         name: replicasets
+        namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML:-[]}
       - mode: watch
         name: namespaces
       - mode: watch
         name: deployments
+        namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML:-[]}
       - mode: watch
         name: daemonsets
+        namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML:-[]}
       - mode: watch
         name: statefulsets
+        namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML:-[]}
       - mode: watch
         name: configmaps
+        namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML:-[]}
   otlp:
     protocols:
       grpc:

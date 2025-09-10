@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.polylangDetectorDaemonsetName }}
+  name: {{ .Values.polylangDetectorName }}
   namespace: km-agent
   labels:
     {{- toYaml .Values.daemonsetLabels | nindent 4 }}
