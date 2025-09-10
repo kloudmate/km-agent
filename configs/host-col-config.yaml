@@ -17,10 +17,13 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: 0.0.0.0:4317
       http:
+        endpoint: 0.0.0.0:4318
 
 exporters:
   debug:
+    verbosity: basic
   otlphttp:
     sending_queue:
       enabled: true
@@ -59,10 +62,6 @@ processors:
         - system.network.packets.rate
         - system.network.errors.rate
         - system.network.dropped.rate
-        - k8s.pod.network.io.rate
-        - k8s.pod.network.errors.rate
-        - k8s.node.network.io.rate
-        - k8s.node.network.errors.rate
   deltatorate:
     metrics:
       - system.network.io
@@ -71,20 +70,6 @@ processors:
       - system.network.packets.rate
       - system.network.errors.rate
       - system.network.dropped.rate
-      - k8s.pod.network.io.rate
-      - k8s.pod.network.errors.rate
-      - k8s.node.network.io.rate
-      - k8s.node.network.errors.rate
-  transform/ostype:
-    metric_statements:
-      - context: datapoint
-        statements:
-          - set(attributes["os.type"], resource.attributes["os.type"])
-  transform/deleteostype:
-    metric_statements:
-      - context: datapoint
-        statements:
-          - delete_key(attributes, "os.type")        -
   transform/ratecalculation/copymetric:
     error_mode: ignore
     metric_statements:
@@ -96,10 +81,6 @@ processors:
           - copy_metric(name="system.network.packets.rate") where metric.name == "system.network.packets"
           - copy_metric(name="system.network.errors.rate") where metric.name == "system.network.errors"
           - copy_metric(name="system.network.dropped.rate") where metric.name == "system.network.dropped"
-          - copy_metric(name="k8s.pod.network.io.rate") where metric.name == "k8s.pod.network.io"
-          - copy_metric(name="k8s.pod.network.errors.rate") where metric.name == "k8s.pod.network.errors"
-          - copy_metric(name="k8s.node.network.io.rate") where metric.name == "k8s.node.network.io"
-          - copy_metric(name="k8s.node.network.errors.rate") where metric.name == "k8s.node.network.errors"
   transform/ratecalculation/sumtogauge:
     error_mode: ignore
     metric_statements:
@@ -111,10 +92,6 @@ processors:
           - convert_sum_to_gauge() where metric.name == "system.network.packets"
           - convert_sum_to_gauge() where metric.name == "system.network.errors"
           - convert_sum_to_gauge() where metric.name == "system.network.dropped"
-          - convert_sum_to_gauge() where metric.name == "k8s.pod.network.io"
-          - convert_sum_to_gauge() where metric.name == "k8s.pod.network.errors"
-          - convert_sum_to_gauge() where metric.name == "k8s.node.network.io"
-          - convert_sum_to_gauge() where metric.name == "k8s.node.network.errors"
 extensions:
   # zpages:
   #   endpoint: :55679
@@ -123,10 +100,14 @@ service:
   # extensions: [zpages]
   pipelines:
     metrics:
-      receivers: [hostmetrics]
-      processors: [resourcedetection, resource, batch]
+      receivers: [otlp, hostmetrics]
+      processors: [resourcedetection, resource, cumulativetodelta, deltatorate, transform/ratecalculation/sumtogauge, transform/ratecalculation/copymetric, batch]
       exporters: [debug, otlphttp]
     logs:
-      receivers: []
+      receivers: [otlp]
       processors: [resourcedetection, resource, batch]
-      exporters: [otlphttp]
+      exporters: [debug, otlphttp]
+    traces:
+      receivers: [otlp]
+      processors: [resourcedetection, resource, batch]
+      exporters: [debug, otlphttp]

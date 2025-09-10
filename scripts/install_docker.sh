@@ -103,6 +103,7 @@ eval docker run -d \
   -v "$DOCKER_SOCK_PATH":"$DOCKER_SOCK_PATH" \
   -v /var/log:/var/log \
   -v /var/lib/docker/containers:/var/lib/docker/containers:ro \
+  -v /:/hostfs:ro \
   $ADDITIONAL_VOLUMES \
   $IMAGE_NAME
 
