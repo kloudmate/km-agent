@@ -28,6 +28,23 @@ autoCreateServiceAccount: true
 monitoredNamespaces:
   - "default"
 
+# Tolerations for pod scheduling on tainted nodes
+# Can be customized to match the cluster's node taints
+tolerations:
+  - key: "env"
+    operator: "Equal"
+    value: "kloudmate1"
+    effect: "NoSchedule"
+  # Standard Kubernetes node lifecycle taints
+  - key: "node.kubernetes.io/not-ready"
+    operator: "Exists"
+    effect: "NoExecute"
+    tolerationSeconds: 300
+  - key: "node.kubernetes.io/unreachable"
+    operator: "Exists"
+    effect: "NoExecute"
+    tolerationSeconds: 300
+
 featuresEnabled:
   apm: true
   logs: true
@@ -181,8 +198,9 @@ opentelemetry-operator:
   admissionWebhooks:
     create: true
     servicePort: 443
+    failurePolicy: Ignore
     pods:
-      failurePolicy: Fail
+      failurePolicy: Ignore
     namePrefix: ""
     timeoutSeconds: 10
     namespaceSelector: {}
