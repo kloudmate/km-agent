@@ -2,8 +2,44 @@ apiVersion: v1
 entries:
   km-kube-agent:
   - apiVersion: v2
+    appVersion: 1.1.5
+    created: "2025-09-23T10:09:10.090240416Z"
+    dependencies:
+    - condition: cert-manager.enabled
+      name: cert-manager
+      repository: https://charts.jetstack.io
+      version: v1.18.2
+    - condition: opentelemetry-operator.enabled
+      name: opentelemetry-operator
+      repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+      version: 0.90.0
+    description: A Helm chart for Kloumate's Kubernetes flavored Agent
+    digest: 5c6256ce7129ce53dc960234fbccf80e21baeac8fb6bc7bf91187600cf78338e
+    home: https://www.kloudmate.com
+    icon: https://avatars.githubusercontent.com/u/103623326?s=48&v=4
+    keywords:
+    - kloudmate
+    - observability
+    - opentelemetry
+    - agent
+    - monitoring
+    - tracing
+    - logs
+    - metrics
+    - apm
+    maintainers:
+    - email: amitava@kloudmate.com
+      name: Amitava Saha
+    name: km-kube-agent
+    sources:
+    - https://github.com/kloudmate/km-agent
+    type: application
+    urls:
+    - https://github.com/kloudmate/km-agent/releases/download/1.1.5/km-kube-agent-1.1.5.tgz
+    version: 1.1.5
+  - apiVersion: v2
     appVersion: 1.1.4
-    created: "2025-09-09T14:43:39.484276643Z"
+    created: "2025-09-23T10:09:10.081795029Z"
     dependencies:
     - condition: cert-manager.enabled
       name: cert-manager
@@ -35,11 +71,11 @@ entries:
     - https://github.com/kloudmate/km-agent
     type: application
     urls:
-    - https://github.com/kloudmate/km-agent/releases/download/1.1.4/km-kube-agent-1.1.4.tgz
+    - https://github.com/kloudmate/km-agent/releases/download/1.1.5/km-kube-agent-1.1.4.tgz
     version: 1.1.4
   - apiVersion: v2
-    appVersion: 1.0.9
-    created: "2025-09-09T14:43:39.475479359Z"
+    appVersion: 1.1.3
+    created: "2025-09-23T10:09:10.07264545Z"
     dependencies:
     - condition: cert-manager.enabled
       name: cert-manager
@@ -50,7 +86,7 @@ entries:
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
       version: 0.90.0
     description: A Helm chart for Kloumate's Kubernetes flavored Agent
-    digest: 31d7611a8b4513e3f6cdcd7ec9352af24a6365215417ca95f199aaed6520c8b5
+    digest: 5186949eeb6319c5512782b2cdf4cde7e4a3c69466dee2e935430331b14a8fdf
     home: https://www.kloudmate.com
     icon: https://avatars.githubusercontent.com/u/103623326?s=48&v=4
     keywords:
@@ -71,11 +107,11 @@ entries:
     - https://github.com/kloudmate/km-agent
     type: application
     urls:
-    - https://github.com/kloudmate/km-agent/releases/download/1.1.4/km-kube-agent-1.0.9.tgz
-    version: 1.0.9
+    - https://github.com/kloudmate/km-agent/releases/download/1.1.5/km-kube-agent-1.1.3.tgz
+    version: 1.1.3
   - apiVersion: v2
-    appVersion: 1.0.8
-    created: "2025-09-09T14:43:39.467623672Z"
+    appVersion: 1.1.2
+    created: "2025-09-23T10:09:10.063618923Z"
     dependencies:
     - condition: cert-manager.enabled
       name: cert-manager
@@ -86,7 +122,7 @@ entries:
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
       version: 0.90.0
     description: A Helm chart for Kloumate's Kubernetes flavored Agent
-    digest: 5bc3c7bb2326ca5112147af515be114a49b40b3d91109937095b93e2c48288a3
+    digest: 431f6298a425530eab3573df28212dec267f132dad483db1d0f971a1b03d578a
     home: https://www.kloudmate.com
     icon: https://avatars.githubusercontent.com/u/103623326?s=48&v=4
     keywords:
@@ -107,11 +143,11 @@ entries:
     - https://github.com/kloudmate/km-agent
     type: application
     urls:
-    - https://github.com/kloudmate/km-agent/releases/download/1.1.4/km-kube-agent-1.0.8.tgz
-    version: 1.0.8
+    - https://github.com/kloudmate/km-agent/releases/download/1.1.5/km-kube-agent-1.1.2.tgz
+    version: 1.1.2
   - apiVersion: v2
-    appVersion: 1.0.7
-    created: "2025-09-09T14:43:39.459242029Z"
+    appVersion: 1.1.1
+    created: "2025-09-23T10:09:10.055655262Z"
     dependencies:
     - condition: cert-manager.enabled
       name: cert-manager
@@ -122,7 +158,7 @@ entries:
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
       version: 0.90.0
     description: A Helm chart for Kloumate's Kubernetes flavored Agent
-    digest: 53d0e7da78c1d8d45264ab8e55c61d16d5f9457ac15a4013623fa2b250f614c4
+    digest: 78c9841428e81e67c92534a51bed74143f39ffd711330f77d8ef6787c99c97ce
     home: https://www.kloudmate.com
     icon: https://avatars.githubusercontent.com/u/103623326?s=48&v=4
     keywords:
@@ -143,6 +179,42 @@ entries:
     - https://github.com/kloudmate/km-agent
     type: application
     urls:
-    - https://github.com/kloudmate/km-agent/releases/download/1.1.4/km-kube-agent-1.0.7.tgz
-    version: 1.0.7
-generated: "2025-09-09T14:43:39.451165645Z"
+    - https://github.com/kloudmate/km-agent/releases/download/1.1.5/km-kube-agent-1.1.1.tgz
+    version: 1.1.1
+  - apiVersion: v2
+    appVersion: 1.1.0
+    created: "2025-09-23T10:09:10.046540749Z"
+    dependencies:
+    - condition: cert-manager.enabled
+      name: cert-manager
+      repository: https://charts.jetstack.io
+      version: v1.18.2
+    - condition: opentelemetry-operator.enabled
+      name: opentelemetry-operator
+      repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+      version: 0.90.0
+    description: A Helm chart for Kloumate's Kubernetes flavored Agent
+    digest: bb3ec263d133fc4188757b0b10bc031c3d0536290379e06e5cdec57f4b1b613d
+    home: https://www.kloudmate.com
+    icon: https://avatars.githubusercontent.com/u/103623326?s=48&v=4
+    keywords:
+    - kloudmate
+    - observability
+    - opentelemetry
+    - agent
+    - monitoring
+    - tracing
+    - logs
+    - metrics
+    - apm
+    maintainers:
+    - email: amitava@kloudmate.com
+      name: Amitava Saha
+    name: km-kube-agent
+    sources:
+    - https://github.com/kloudmate/km-agent
+    type: application
+    urls:
+    - https://github.com/kloudmate/km-agent/releases/download/1.1.5/km-kube-agent-1.1.0.tgz
+    version: 1.1.0
+generated: "2025-09-23T10:09:10.036398798Z"
