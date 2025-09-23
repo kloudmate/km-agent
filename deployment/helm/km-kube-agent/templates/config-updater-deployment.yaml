@@ -23,6 +23,11 @@ spec:
       tolerations:
         {{- toYaml .Values.tolerations | nindent 8 }}
       {{- end }}
+      {{- if .Values.nodeAffinity }}
+      affinity:
+        nodeAffinity:
+          {{- toYaml .Values.nodeAffinity | nindent 10 }}
+      {{- end }}
       containers:
         - name: config-updater
           image: "{{ .Values.configUpdater.image.repository }}:{{ .Values.configUpdater.image.tag | default .Chart.AppVersion }}"

@@ -45,6 +45,30 @@ tolerations:
     effect: "NoExecute"
     tolerationSeconds: 300
 
+# Node affinity for pod scheduling preferences
+# Users can customize this to prefer certain types of nodes
+nodeAffinity:
+  preferredDuringSchedulingIgnoredDuringExecution:
+  - weight: 100
+    preference:
+      matchExpressions:
+      - key: kubernetes.io/os
+        operator: In
+        values:
+        - linux
+  - weight: 80
+    preference:
+      matchExpressions:
+      - key: node.kubernetes.io/instance-type
+        operator: NotIn
+        values:
+        - spot
+  - weight: 60
+    preference:
+      matchExpressions:
+      - key: topology.kubernetes.io/zone
+        operator: Exists
+
 featuresEnabled:
   apm: true
   logs: true

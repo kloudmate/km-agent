@@ -20,6 +20,11 @@ spec:
       tolerations:
         {{- toYaml .Values.tolerations | nindent 8 }}
       {{- end }}
+      {{- if .Values.nodeAffinity }}
+      affinity:
+        nodeAffinity:
+          {{- toYaml .Values.nodeAffinity | nindent 10 }}
+      {{- end }}
       containers:
       - name: polylang-detector
         image: "{{ .Values.polylangDetector.image.repository }}:{{ .Values.polylangDetector.image.tag | default .Chart.AppVersion }}"
