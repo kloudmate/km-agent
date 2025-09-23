@@ -15,6 +15,15 @@ spec:
         {{- toYaml .Values.daemonsetLabels | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.serviceAccountName }}
+      {{- if and .Values.tolerations (ne (typeOf .Values.tolerations) "string") (gt (len .Values.tolerations) 0) }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.nodeAffinity }}
+      affinity:
+        nodeAffinity:
+          {{- toYaml .Values.nodeAffinity | nindent 10 }}
+      {{- end }}
       containers:
         - name: kloudmate-km-kube-agent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"

@@ -19,6 +19,15 @@ spec:
         {{- toYaml .Values.configUpdaterLabels | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.serviceAccountName }}
+      {{- if and .Values.tolerations (ne (typeOf .Values.tolerations) "string") (gt (len .Values.tolerations) 0) }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.nodeAffinity }}
+      affinity:
+        nodeAffinity:
+          {{- toYaml .Values.nodeAffinity | nindent 10 }}
+      {{- end }}
       containers:
         - name: config-updater
           image: "{{ .Values.configUpdater.image.repository }}:{{ .Values.configUpdater.image.tag | default .Chart.AppVersion }}"
