@@ -31,15 +31,18 @@ jobs:
       - name: Update Chart Version
         run: |
           NEW_VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
-          
+
+          # Checkout the target branch (not detached HEAD)
+          git checkout ${{ github.event.release.target_commitish }}
+
           yq e '.version = "'"$NEW_VERSION"'"' -i deployment/helm/km-kube-agent/Chart.yaml
           yq e '.appVersion = "'"$NEW_VERSION"'"' -i deployment/helm/km-kube-agent/Chart.yaml
 
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git add deployment/helm/km-kube-agent/Chart.yaml
-          git commit -m "chore(release): update chart version to $NEW_VERSION"
-          git push origin HEAD:${{ github.event.release.target_commitish }}
+          git commit -m "chore(release): update chart version to $NEW_VERSION" || echo "No changes to commit"
+          git push origin ${{ github.event.release.target_commitish }}
 
 
 
