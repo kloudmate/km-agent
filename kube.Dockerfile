@@ -14,7 +14,6 @@ COPY . .
 # build arguments for version information
 ARG VERSION=dev
 ARG COMMIT_SHA=unknown
-ARG TARGETARCH
 
 # Use mount cache for both go modules and build cache
 RUN --mount=type=cache,target=/go/pkg/mod \
