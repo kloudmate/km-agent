@@ -1,4 +1,9 @@
 FROM golang:alpine AS buildstage
+
+# Declare build platform arguments (automatically populated by BuildKit)
+ARG TARGETARCH
+ARG TARGETOS=linux
+
 WORKDIR /app
 
 # Copy dependency files first for better caching
@@ -18,7 +23,7 @@ ARG COMMIT_SHA=unknown
 # Use mount cache for both go modules and build cache
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    GOOS=linux GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -ldflags="-X 'main.version=$VERSION' -X 'main.commit=$COMMIT_SHA'" -o kmagent cmd/kubeagent/main.go
+    GOOS=${TARGETOS} GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -ldflags="-X 'main.version=$VERSION' -X 'main.commit=$COMMIT_SHA'" -o kmagent ./cmd/kubeagent/main.go
 
 FROM alpine:latest
 COPY --from=buildstage /app/kmagent ./kmagent

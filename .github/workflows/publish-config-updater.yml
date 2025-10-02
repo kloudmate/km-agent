@@ -31,7 +31,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: kloudmate # we may use a specific user in future releases i.e - ${{ github.actor }}
+          username: kloudmate
           password: ${{ secrets.GHCR_PAT }}
 
       # extract metadata (tags, labels) for the Docker image
