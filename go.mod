@@ -3,7 +3,6 @@ module github.com/kloudmate/km-agent
 go 1.24.4
 
 require (
-	github.com/charmbracelet/log v0.4.2
 	github.com/kardianos/service v1.2.2
 	github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.125.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage v0.125.0
@@ -137,16 +136,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.30.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.34.1 // indirect
 	github.com/aws/smithy-go v1.22.4 // indirect
-	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/bboreham/go-loser v0.0.0-20230920113527-fcc2c21820a3 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.9.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
-	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
-	github.com/charmbracelet/lipgloss v1.1.0 // indirect
-	github.com/charmbracelet/x/ansi v0.8.0 // indirect
-	github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd // indirect
-	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/cncf/xds/go v0.0.0-20250501225837-2ac532fd4443 // indirect
 	github.com/containerd/containerd/api v1.9.0 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
@@ -263,12 +256,10 @@ require (
 	github.com/libp2p/go-reuseport v0.4.0 // indirect
 	github.com/lightstep/go-expohisto v1.0.0 // indirect
 	github.com/linode/linodego v1.52.1 // indirect
-	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/magefile/mage v1.15.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mdlayher/socket v0.4.1 // indirect
 	github.com/mdlayher/vsock v1.2.1 // indirect
 	github.com/microsoft/go-mssqldb v1.9.2 // indirect
@@ -282,7 +273,6 @@ require (
 	github.com/moby/sys/userns v0.1.0 // indirect
 	github.com/mongodb-forks/digest v1.1.0 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
-	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/netsampler/goflow2/v2 v2.2.3 // indirect
@@ -336,7 +326,6 @@ require (
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/redis/go-redis/v9 v9.8.0 // indirect
-	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/scaleway/scaleway-sdk-go v1.0.0-beta.33 // indirect
 	github.com/shurcooL/httpfs v0.0.0-20230704072500-f1e31cf0ba5c // indirect
@@ -359,7 +348,6 @@ require (
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
-	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect

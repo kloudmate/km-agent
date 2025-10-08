@@ -154,6 +154,11 @@ func (a *K8sConfigUpdater) StartConfigUpdateChecker(ctx context.Context) {
 	ticker := time.NewTicker(parsedTime)
 	defer ticker.Stop()
 
+	// trigger the very first config check
+	if err := a.performConfigCheck(ctx); err != nil {
+		a.logger.Errorf("Periodic config check failed: %v", err)
+	}
+
 	for {
 		select {
 		case <-ticker.C:
