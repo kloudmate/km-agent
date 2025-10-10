@@ -270,6 +270,7 @@ data:
               - convert_sum_to_gauge() where metric.name == "k8s.node.network.io"
               - convert_sum_to_gauge() where metric.name == "k8s.node.network.errors"
     receivers:
+      {{- if .Values.featuresEnabled.logs }}
       filelog:
         exclude:
           - /**/*.gz
@@ -283,6 +284,7 @@ data:
           - id: container-parser
             type: container
         poll_interval: 10s
+      {{- end }}
       hostmetrics:
         collection_interval: 60s
         scrapers:
@@ -403,6 +405,7 @@ data:
       extensions:
         - health_check
       pipelines:
+        {{- if .Values.featuresEnabled.logs }}
         logs/filelog:
           exporters:
             - otlphttp
@@ -418,6 +421,7 @@ data:
             - batch
           receivers:
             - filelog
+        {{- end }}
         metrics/hostmetrics:
           exporters:
             - otlphttp

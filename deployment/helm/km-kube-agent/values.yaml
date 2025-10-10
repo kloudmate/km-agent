@@ -1,7 +1,9 @@
 replicaCount: 1
-installCRDs: false
+installCRDs: true
 
 # KloudMate platform specific arguments
+# API Key for authenticating with KloudMate platform
+# REQUIRED: Obtain from - https://app.kloudmate.com/settings/
 API_KEY:
 COLLECTOR_ENDPOINT: https://otel.kloudmate.com:4318
 KM_UPDATE_ENDPOINT: https://api.kloudmate.com/agents/config-check
@@ -36,10 +38,10 @@ monitoredNamespaces:
 # Tolerations for pod scheduling on tainted nodes
 # Can be customized to match the cluster's node taints
 tolerations:
-  - key: "env"
-    operator: "Equal"
-    value: "kloudmate1"
-    effect: "NoSchedule"
+  # - key: "env"
+  #   operator: "Equal"
+  #   value: "kloudmate1"
+  #   effect: "NoSchedule"
   # Standard Kubernetes node lifecycle taints
   - key: "node.kubernetes.io/not-ready"
     operator: "Exists"

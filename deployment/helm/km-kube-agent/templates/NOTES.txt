@@ -129,9 +129,9 @@ Please update your values.yaml file:
 
 Then upgrade the release:
 
-  helm upgrade {{ .Release.Name }} kloudmate/km-agent -n {{ .Release.Namespace }}
+  helm upgrade kloudmate-release kloudmate/km-agent -n {{ .Release.Namespace }}
 
-To obtain your API key, visit: https://app.kloudmate.com/settings/api-keys
+To obtain your API key, visit: https://app.kloudmate.com/settings/
 
 ────────────────────────────────────────────────────────────────────
 {{- end }}
