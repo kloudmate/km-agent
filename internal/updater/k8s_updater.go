@@ -8,7 +8,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,10 +29,13 @@ import (
 
 // ConfigUpdater handles configuration updates from a remote API
 type K8sConfigUpdater struct {
-	cfg        *config.K8sAgentConfig
-	logger     *zap.SugaredLogger
-	client     *http.Client
-	configPath string
+	cfg         *config.K8sAgentConfig
+	logger      *zap.SugaredLogger
+	client      *http.Client
+	monitoredNs []string
+	logsEnabled bool
+	apmEnabled  bool
+	configPath  string
 }
 
 type K8sUpdateCheckerParams struct {
@@ -71,10 +76,42 @@ type patchData struct {
 
 // NewK8sConfigUpdater creates a new config updater
 func NewKubeConfigUpdaterClient(cfg *config.K8sAgentConfig, logger *zap.SugaredLogger) *K8sConfigUpdater {
+	monitoredEnv := string(os.Getenv("KM_K8S_MONITORED_NAMESPACES"))
+	var monitoredNs []string
+	if monitoredEnv != "" {
+		monitoredNs = strings.Split(monitoredEnv, ",")
+		// Trim whitespace from each namespace
+		for i := range monitoredNs {
+			monitoredNs[i] = strings.TrimSpace(monitoredNs[i])
+		}
+	}
+	logsval, present := os.LookupEnv("KM_LOGS_ENABLED")
+	if !present {
+		fmt.Println("Environment variable KM_LOGS_ENABLED is not set.")
+		logsval = "false"
+	}
+	logsBoolVal, err := strconv.ParseBool(logsval)
+	if err != nil {
+		fmt.Printf("Error parsing boolean value for KM_LOGS_ENABLED: %v\n", err)
+	}
 
+	apmval, present := os.LookupEnv("KM_APM_ENABLED")
+	if !present {
+		fmt.Println("Environment variable KM_APM_ENABLED is not set.")
+		apmval = "false"
+	}
+	apmBoolVal, err := strconv.ParseBool(apmval)
+	if err != nil {
+		fmt.Printf("Error parsing boolean value for KM_APM_ENABLED: %v\n", err)
+	}
+
+	logger.Infof("Monitored Namespaces : [%s]\n", strings.Join(monitoredNs, ", "))
 	return &K8sConfigUpdater{
-		cfg:    cfg,
-		logger: logger,
+		cfg:         cfg,
+		logger:      logger,
+		monitoredNs: monitoredNs,
+		logsEnabled: logsBoolVal,
+		apmEnabled:  apmBoolVal,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 			Transport: &http.Transport{
@@ -97,6 +134,9 @@ func (u *K8sConfigUpdater) CheckForUpdatesK8s(ctx context.Context, p K8sUpdateCh
 		"k8s_deployments":   p.APMData,
 		"collector_version": shared.GetCollectorVersion(),
 		"agent_version":     p.Version,
+		"logs_enabled":      u.logsEnabled,
+		"apm_enabled":       u.apmEnabled,
+		"namespaces":        u.monitoredNs,
 		"collector_status":  p.CollectorStatus,
 	}
 	jsonData, err := json.Marshal(data)
