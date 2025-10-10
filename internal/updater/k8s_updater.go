@@ -20,7 +20,6 @@ import (
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -289,7 +288,7 @@ func (drt *K8sConfigUpdater) triggerDaemonSetRollout(ctx context.Context) error 
 	drt.logger.Infof("Attempting to trigger rollout for DaemonSet %s/%s...", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName)
 
 	// Get the DaemonSet to ensure it exists and get its current state
-	_, err := drt.cfg.K8sClient.AppsV1().DaemonSets(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DaemonSetName, metav1.GetOptions{})
+	_, err := drt.cfg.K8sClient.AppsV1().DaemonSets(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DaemonSetName, v1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("error getting DaemonSet %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
 	}
@@ -314,7 +313,7 @@ func (drt *K8sConfigUpdater) triggerDaemonSetRollout(ctx context.Context) error 
 	}
 
 	// Apply the strategic merge patch to the DaemonSet
-	_, err = drt.cfg.K8sClient.AppsV1().DaemonSets(drt.cfg.KubeNamespace).Patch(ctx, drt.cfg.DaemonSetName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	_, err = drt.cfg.K8sClient.AppsV1().DaemonSets(drt.cfg.KubeNamespace).Patch(ctx, drt.cfg.DaemonSetName, types.StrategicMergePatchType, patchBytes, v1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("error patching DaemonSet %s/%s to trigger rollout: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
 	}
@@ -328,7 +327,7 @@ func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error
 	drt.logger.Infof("Attempting to trigger rollout for Deployment %s/%s...", drt.cfg.KubeNamespace, drt.cfg.DeploymentName)
 
 	// Get the Deployment to ensure it exists and get its current state
-	_, err := drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DeploymentName, metav1.GetOptions{})
+	_, err := drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DeploymentName, v1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("error getting Deployment %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
 	}
@@ -353,7 +352,7 @@ func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error
 	}
 
 	// Apply the strategic merge patch to the Deployment
-	_, err = drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Patch(ctx, drt.cfg.DeploymentName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	_, err = drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Patch(ctx, drt.cfg.DeploymentName, types.StrategicMergePatchType, patchBytes, v1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("error patching Deployment %s/%s to trigger rollout: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
 	}
