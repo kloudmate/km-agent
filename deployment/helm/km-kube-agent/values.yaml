@@ -8,6 +8,12 @@ KM_UPDATE_ENDPOINT: https://api.kloudmate.com/agents/config-check
 KM_CONFIG_CHECK_INTERVAL: 30s
 KM_CFG_UPDATER_RPC_ADDR: 5501
 
+featuresEnabled:
+  apm: true
+  logs: true
+  metrics: true
+  traces: true
+
 # names of components to be installed.
 clusterName: km-cluster
 daemonsetName: km-agent-daemonset
@@ -22,11 +28,10 @@ configMapDaemonsetName: km-agent-configmap-daemonset
 configMapDeploymentName: km-agent-configmap-deployment 
 polylangDetectorName: km-agent-polylang-detector-deployment 
 
-autoMountServiceAccount: true
+# this will handle installation of service account
 autoCreateServiceAccount: true
 
 monitoredNamespaces:
-  - "default"
 
 # Tolerations for pod scheduling on tainted nodes
 # Can be customized to match the cluster's node taints
@@ -69,11 +74,6 @@ nodeAffinity:
       - key: topology.kubernetes.io/zone
         operator: Exists
 
-featuresEnabled:
-  apm: true
-  logs: true
-  metrics: true
-  traces: true
 
 # image settings for kube agent
 image:

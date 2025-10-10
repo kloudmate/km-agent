@@ -6,8 +6,6 @@ metadata:
   labels:
     {{- toYaml .Values.configMapDaemonsetLabels | nindent 4 }}
 data:
-  # The key here will become the filename inside the mountPath.
-  # We name it exactly "agent-daemonset.yaml" so it appears as such.
   agent-daemonset.yaml: |
     exporters:
       otlphttp:
@@ -92,20 +90,10 @@ data:
           - k8s.pod.uid
       k8sattributes:
         auth_type: serviceAccount
-        passthrough: true
+        passthrough: false
         filter:
           node_from_env_var: KM_NODE_NAME
         extract:
-          annotations:
-            - from: pod
-              key: instrumentation.kloudmate.com
-              tag_name: instrumentation.kloudmate.com
-            - from: namespace
-              key: instrumentation.kloudmate.com
-              tag_name: instrumentation.kloudmate.com
-            - from: node
-              key: instrumentation.kloudmate.com
-              tag_name: instrumentation.kloudmate.com
           metadata:
             - k8s.pod.name
             - k8s.pod.uid
@@ -282,6 +270,19 @@ data:
               - convert_sum_to_gauge() where metric.name == "k8s.node.network.io"
               - convert_sum_to_gauge() where metric.name == "k8s.node.network.errors"
     receivers:
+      filelog:
+        exclude:
+          - /**/*.gz
+        include:
+          - /var/log/pods/*/*/*.log
+        include_file_name_resolved: true
+        include_file_path: true
+        include_file_path_resolved: true
+        max_log_size: 1MiB
+        operators:
+          - id: container-parser
+            type: container
+        poll_interval: 10s
       hostmetrics:
         collection_interval: 60s
         scrapers:
@@ -402,6 +403,21 @@ data:
       extensions:
         - health_check
       pipelines:
+        logs/filelog:
+          exporters:
+            - otlphttp
+          processors:
+            - resource
+            - resource/add_node_name
+            - resource/cluster
+            - attributes/logs
+            - groupbyattrs/filelog
+            - k8sattributes
+            - transform/copyservicefromlogattributes
+            - transform/extractattributes
+            - batch
+          receivers:
+            - filelog
         metrics/hostmetrics:
           exporters:
             - otlphttp

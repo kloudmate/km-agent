@@ -30,7 +30,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: KM_API_KEY
-              value: {{ .Values.API_KEY }}
+              value: {{ required "Api Key is required" .Values.API_KEY }}
             - name: KM_COLLECTOR_ENDPOINT
               value: {{ .Values.COLLECTOR_ENDPOINT | default "https://otel.kloudmate.com:4318" }}
             - name: KM_CONFIG_CHECK_INTERVAL

@@ -42,6 +42,8 @@ spec:
             value: "kube-system,kube-public,kube-node-lease,kube-service-catalog,kubernetes-dashboard,local-path-storage,tigera-operator,calico-system,cilium,cilium-system,istio-system,linkerd,linkerd-viz,gatekeeper-system,cert-manager,velero,flux-system,argocd,monitoring,ingress-nginx,aws-node,kube-system-aws,gke-system,gke-managed-cim,gke-managed-filestorecsi,gke-managed-system,gke-managed-volumepopulator,gmp-public,gmp-system,aks-system,openebs,rook-ceph,km-agent"
           - name: KM_CFG_UPDATER_RPC_ADDR
             value: {{ printf "cfg-updater-rpc-svc.km-agent.svc.cluster.local:%s" (.Values.KM_CFG_UPDATER_RPC_ADDR | toString) }}
+          - name: KM_MONITORED_NS
+            value: '{{ if kindIs "slice" .Values.monitoredNamespaces }}{{ .Values.monitoredNamespaces | join "," }}{{ else }}{{ .Values.monitoredNamespaces }}{{ end }}'
         volumeMounts:
         # Mount docker/containerd socket for crictl access
         - name: container-runtime

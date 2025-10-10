@@ -1,32 +1,137 @@
+{{- if .Values.API_KEY }}
+┌───────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                   │
+│   ██╗  ██╗██╗      ██████╗ ██╗   ██╗██████╗ ███╗   ███╗ █████╗ ████████╗███████╗  │
+│   ██║ ██╔╝██║     ██╔═══██╗██║   ██║██╔══██╗████╗ ████║██╔══██╗╚══██╔══╝██╔════╝  │
+│   █████╔╝ ██║     ██║   ██║██║   ██║██║  ██║██╔████╔██║███████║   ██║   █████╗    │
+│   ██╔═██╗ ██║     ██║   ██║██║   ██║██║  ██║██║╚██╔╝██║██╔══██║   ██║   ██╔══╝    │
+│   ██║  ██╗███████╗╚██████╔╝╚██████╔╝██████╔╝██║ ╚═╝ ██║██║  ██║   ██║   ███████╗  │
+│   ╚═╝  ╚═╝╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝  │
+│                                                                                   │
+│                      KloudMate Agent Successfully Deployed!                       │
+│                                                                                   │
+└───────────────────────────────────────────────────────────────────────────────────┘
 
-########################
-Your {{ .Chart.Name }} application has been deployed to the {{ .Release.Namespace }} namespace.
+✅ Installation Complete!
 
-########################
+KloudMate Agent has been successfully deployed to your cluster.
 
-🔑 Important Configuration
-1. API Key: Ensure your API_KEY (currently {{ .Values.API_KEY }}) is correctly set in your values.yaml or via --set. This is crucial for the agent to communicate with the Kloudmate backend.
+📊 SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Cluster Name:           {{ .Values.clusterName }}
+  Namespace:              {{ .Release.Namespace }}
+  Release Name:           {{ .Release.Name }}
+  DaemonSet:              {{ .Values.daemonsetName }}
+  Deployment:             {{ .Values.deploymentName }}
+  Service Account:        {{ .Values.serviceAccountName }}
+  Collector Endpoint:     {{ .Values.COLLECTOR_ENDPOINT }}
 
-2. Collector Endpoint: The COLLECTOR_ENDPOINT (currently {{ .Values.COLLECTOR_ENDPOINT | default "not set" }}) should point to your Kloudmate backend or an intermediate collector.
-
-3. Configuration Check Interval: The agent checks for configuration updates every {{ .Values.KM_CONFIG_CHECK_INTERVAL }}.
-
-########################
-
-🌐 OpenTelemetry Operator (If Enabled)
-{{- if (index .Values "opentelemetry-operator" | default dict).enabled }}
-The OpenTelemetry Operator has been installed (or is managed) as part of this chart.
-
-CRDs: The necessary OpenTelemetry CRDs are managed ({{ if ((index .Values "opentelemetry-operator" | default dict).crds | default dict).create }}and created{{ else }}but not created by this chart{{ end }}).
-
-Admission Webhooks: Admission webhooks are {{ if ((index .Values "opentelemetry-operator" | default dict).admissionWebhooks | default dict).create }}enabled{{ else }}disabled{{ end }} for sidecar injection and other functionalities.
-{{- else }}
-The OpenTelemetry Operator is not enabled or installed by this chart (opentelemetry-operator.enabled: false).
+🔧 ENABLED FEATURES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{{- if .Values.featuresEnabled.apm }}
+  ✓ APM (Application Performance Monitoring)
+{{- end }}
+{{- if .Values.featuresEnabled.logs }}
+  ✓ Logs Collection
+{{- end }}
+{{- if .Values.featuresEnabled.metrics }}
+  ✓ Metrics Collection
+{{- end }}
+{{- if .Values.featuresEnabled.traces }}
+  ✓ Tracing
 {{- end }}
 
-########################
+📦 DEPLOYED COMPONENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  → Node Agent (DaemonSet):     {{ .Values.daemonsetName }}
+  → Cluster Agent (Deployment): {{ .Values.deploymentName }}
+  → Config Updater:             {{ .Values.configUpdaterName }}
+  → Polylang Detector:          {{ .Values.polylangDetectorName }}
+  → Agent Service:              {{ .Values.agentServiceName }}
+{{- if index .Values "opentelemetry-operator" "enabled" }}
+  → OpenTelemetry Operator:     Enabled
+{{- end }}
 
-📜 Further Information
-Kloudmate Agent Documentation: [https://docs.kloudmate.com/{{ .Chart.Name }}]
-Kubernetes DaemonSets: [https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/]
-Thank you for installing {{ .Chart.Name }}!
+🔍 VERIFY YOUR INSTALLATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Check if all pods are running:
+
+   kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/part-of=kloudmate-platform
+
+2. Check agent logs (DaemonSet):
+
+   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Values.daemonsetName }} --tail=50
+
+3. Check agent logs (Deployment):
+
+   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Values.deploymentName }} --tail=50
+
+4. View service details:
+
+   kubectl get svc {{ .Values.agentServiceName }} -n {{ .Release.Namespace }}
+
+📖 NEXT STEPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. The agent will automatically start collecting telemetry data from your cluster
+2. Data will be visible on your KloudMate dashboard shortly.
+3. Configuration updates occur every {{ .Values.KM_CONFIG_CHECK_INTERVAL }}
+{{- if .Values.monitoredNamespaces }}
+4. Monitored namespaces: {{ .Values.monitoredNamespaces | join ", " }}
+{{- else }}
+4. Currently monitoring all namespaces (no specific namespaces configured)
+{{- end }}
+
+🔗 USEFUL LINKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Dashboard:               https://app.kloudmate.com
+   Documentation:           https://docs.kloudmate.com
+   Ready Made Templates:    https://templates.kloudmate.com
+
+💡 TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The agent supports dynamic configuration updates from the KloudMate platform.
+
+If you encounter any issues:
+
+• Pods not starting? Check resource availability and node affinity settings
+• No data in dashboard? Verify API_KEY and COLLECTOR_ENDPOINT configuration
+• Permission errors? Ensure the service account has proper RBAC permissions
+
+For detailed troubleshooting, run:
+
+  kubectl describe pod -n {{ .Release.Namespace }} -l app.kubernetes.io/part-of=kloudmate-platform
+  
+────────────────────────────────────────────────────────────────────
+
+Thank you for choosing KloudMate! 🎉
+Kloudmate Agent Documentation: [https://docs.kloudmate.com/kubernetes-agent]
+For questions or feedback, reach out to us at hello@kloudmate.com
+
+────────────────────────────────────────────────────────────────────
+
+{{- else }}
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│                          ⚠️  WARNING ⚠️                        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+❌ API_KEY NOT CONFIGURED
+
+The KloudMate agent requires an API_KEY to authenticate with the platform.
+
+Please update your values.yaml file:
+
+  API_KEY: "your-kloudmate-api-key"
+
+Then upgrade the release:
+
+  helm upgrade {{ .Release.Name }} kloudmate/km-agent -n {{ .Release.Namespace }}
+
+To obtain your API key, visit: https://app.kloudmate.com/settings/api-keys
+
+────────────────────────────────────────────────────────────────────
+{{- end }}
