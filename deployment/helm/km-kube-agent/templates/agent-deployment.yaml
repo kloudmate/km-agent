@@ -89,10 +89,10 @@ spec:
               ## Agent start script
             - name: agent-config-volume-deployment
               mountPath: "/etc/kmagent/start.sh"
-              defaultMode: 0755
               subPath: "start.sh"
       volumes:
         - name: agent-config-volume-deployment
           configMap:
             ## for deployment
             name: {{ .Values.configMapDeploymentName }}
+            defaultMode: 0755

@@ -69,7 +69,7 @@ spec:
               cpu: "2"
               memory: "1Gi"
           volumeMounts:
-              ## for daemonset 
+              ## for daemonset
             - name: agent-config-volume-daemonset
               mountPath: "/etc/kmagent/agent-daemonset.yaml"
               readOnly: true
@@ -80,9 +80,9 @@ spec:
             - name: rootfs
               mountPath: /host
               readOnly: true
-              volumeMounts:
             - name: varlogpods
               mountPath: /var/log/pods
+              readOnly: true
           livenessProbe:
             httpGet:
               path: /

@@ -12,7 +12,7 @@ KM_CFG_UPDATER_RPC_ADDR: 5501
 
 featuresEnabled:
   apm: true
-  logs: true
+  logs: false
   metrics: true
   traces: true
 
@@ -262,3 +262,6 @@ cert-manager:
   crds:
     enabled: false
     keep: true
+  config:
+    privateKey:
+      rotationPolicy: Always

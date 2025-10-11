@@ -193,6 +193,12 @@ processors:
         host.ip:
           enabled: true
     timeout: 5s
+  transform/addservicename:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        statements:
+          - set(attributes["service.name"], "k8s-events") where attributes["service.name"] == nil
   transform/copyservicefromlogattributes:
     error_mode: ignore
     log_statements:
@@ -206,26 +212,6 @@ processors:
       - context: datapoint
         statements:
           - delete_key(attributes, "os.type")
-  transform/extractattributes:
-    error_mode: ignore
-    log_statements:
-      - context: resource
-        statements:
-          - merge_maps(resource.attributes, ParseKeyValue(resource.attributes["instrumentation.kloudmate.com"], "=",
-            ","), "insert")
-          - delete_key(attributes, "instrumentation.kloudmate.com")
-    metric_statements:
-      - context: resource
-        statements:
-          - merge_maps(resource.attributes, ParseKeyValue(resource.attributes["instrumentation.kloudmate.com"], "=",
-            ","), "insert")
-          - delete_key(attributes, "instrumentation.kloudmate.com")
-    trace_statements:
-      - context: resource
-        statements:
-          - merge_maps(resource.attributes, ParseKeyValue(resource.attributes["instrumentation.kloudmate.com"], "=",
-            ","), "insert")
-          - delete_key(attributes, "instrumentation.kloudmate.com")
   transform/ostype:
     metric_statements:
       - context: datapoint
@@ -272,8 +258,171 @@ receivers:
     include_file_path_resolved: true
     max_log_size: 1MiB
     operators:
+      # parse container log format (timestamp + stream + log)
       - id: container-parser
         type: container
+
+      # recombine multiline logs (stack traces, etc.)
+      - id: recombine-multiline
+        type: recombine
+        combine_field: body
+        is_first_entry: body matches "^(\\d{4}-\\d{2}-\\d{2}|\\[|\\{|[A-Z]+\\s|\\w+:\\s)"
+        combine_with: "\n"
+        max_log_size: 1048576
+        overwrite_with: newest
+        source_identifier: attributes["log.file.path"]
+
+      # try JSON parsing first
+      - id: parser-json
+        type: json_parser
+        parse_from: body
+        parse_to: attributes.parsed_json
+        on_error: send
+
+      # extract timestamp from JSON if available
+      - id: extract-timestamp-json
+        type: move
+        from: attributes.parsed_json.timestamp
+        to: attributes.timestamp_extracted
+        if: attributes.parsed_json != nil and attributes.parsed_json.timestamp != nil
+      - id: extract-timestamp-json-time
+        type: move
+        from: attributes.parsed_json.time
+        to: attributes.timestamp_extracted
+        if: attributes.parsed_json != nil and attributes.parsed_json.time != nil and attributes.timestamp_extracted == nil
+      - id: extract-timestamp-json-ts
+        type: move
+        from: attributes.parsed_json.ts
+        to: attributes.timestamp_extracted
+        if: attributes.parsed_json != nil and attributes.parsed_json.ts != nil and attributes.timestamp_extracted == nil
+
+      # extract log level from JSON
+      - id: extract-level-json
+        type: move
+        from: attributes.parsed_json.level
+        to: attributes.log_level
+        if: attributes.parsed_json != nil and attributes.parsed_json.level != nil
+      - id: extract-level-json-severity
+        type: move
+        from: attributes.parsed_json.severity
+        to: attributes.log_level
+        if: attributes.parsed_json != nil and attributes.parsed_json.severity != nil and attributes.log_level == nil
+      - id: extract-level-json-loglevel
+        type: move
+        from: attributes.parsed_json.log_level
+        to: attributes.log_level
+        if: attributes.parsed_json != nil and attributes.parsed_json.log_level != nil and attributes.log_level == nil
+
+      # extract message from JSON
+      - id: extract-message-json
+        type: move
+        from: attributes.parsed_json.message
+        to: attributes.message
+        if: attributes.parsed_json != nil and attributes.parsed_json.message != nil
+      - id: extract-message-json-msg
+        type: move
+        from: attributes.parsed_json.msg
+        to: attributes.message
+        if: attributes.parsed_json != nil and attributes.parsed_json.msg != nil and attributes.message == nil
+
+      # extract trace context from JSON
+      - id: extract-traceid-json
+        type: move
+        from: attributes.parsed_json.trace_id
+        to: attributes.trace_id
+        if: attributes.parsed_json != nil and attributes.parsed_json.trace_id != nil
+      - id: extract-traceid-json-traceid
+        type: move
+        from: attributes.parsed_json.traceId
+        to: attributes.trace_id
+        if: attributes.parsed_json != nil and attributes.parsed_json.traceId != nil and attributes.trace_id == nil
+      - id: extract-spanid-json
+        type: move
+        from: attributes.parsed_json.span_id
+        to: attributes.span_id
+        if: attributes.parsed_json != nil and attributes.parsed_json.span_id != nil
+      - id: extract-spanid-json-spanid
+        type: move
+        from: attributes.parsed_json.spanId
+        to: attributes.span_id
+        if: attributes.parsed_json != nil and attributes.parsed_json.spanId != nil and attributes.span_id == nil
+
+      # flatten remaining JSON fields as attributes
+      - id: flatten-json
+        type: flatten
+        field: attributes.parsed_json
+        if: attributes.parsed_json != nil
+
+      # parse plain text logs - extract timestamp
+      - id: parser-timestamp-iso8601
+        type: regex_parser
+        parse_from: body
+        regex: '^(?P<timestamp>\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)'
+        parse_to: attributes.timestamp_match
+        on_error: send
+        if: attributes.timestamp_extracted == nil
+      - id: move-timestamp-iso8601
+        type: move
+        from: attributes.timestamp_match.timestamp
+        to: attributes.timestamp_extracted
+        if: attributes.timestamp_match != nil and attributes.timestamp_match.timestamp != nil
+
+      # parse log level from plain text
+      - id: parser-loglevel-plain
+        type: regex_parser
+        parse_from: body
+        regex: '\b(?P<level>TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|CRITICAL)\b'
+        parse_to: attributes.level_match
+        on_error: send
+        if: attributes.log_level == nil
+      - id: move-loglevel-plain
+        type: move
+        from: attributes.level_match.level
+        to: attributes.log_level
+        if: attributes.level_match != nil and attributes.level_match.level != nil
+
+      # parse trace context from plain text
+      - id: parser-traceid-plain
+        type: regex_parser
+        parse_from: body
+        regex: 'trace[_-]?id[=:]\s*(?P<trace_id>[a-f0-9]{32}|[a-f0-9]{16})'
+        parse_to: attributes.trace_match
+        on_error: send
+        if: attributes.trace_id == nil
+      - id: move-traceid-plain
+        type: move
+        from: attributes.trace_match.trace_id
+        to: attributes.trace_id
+        if: attributes.trace_match != nil and attributes.trace_match.trace_id != nil
+
+      # parse timestamp and set as log timestamp
+      - id: time-parser
+        type: time_parser
+        parse_from: attributes.timestamp_extracted
+        layout_type: gotime
+        layout: '2006-01-02T15:04:05.999999999Z07:00'
+        on_error: send
+        if: attributes.timestamp_extracted != nil
+      - id: time-parser-alt1
+        type: time_parser
+        parse_from: attributes.timestamp_extracted
+        layout_type: gotime
+        layout: '2006-01-02 15:04:05.999999999'
+        on_error: send
+        if: attributes.timestamp_extracted != nil
+
+      # normalize log level to severity
+      - id: severity-parser
+        type: severity_parser
+        parse_from: attributes.log_level
+        if: attributes.log_level != nil
+
+      # set default severity to INFO if not detected
+      - id: set-default-severity
+        type: add
+        field: attributes.severity
+        value: "info"
+        if: attributes.severity == nil or attributes.severity == ""
     poll_interval: 10s
   hostmetrics:
     collection_interval: 60s
@@ -405,8 +554,8 @@ service:
         - attributes/logs
         - groupbyattrs/filelog
         - k8sattributes
+        - transform/addservicename
         - transform/copyservicefromlogattributes
-        - transform/extractattributes
         - batch
       receivers:
         - filelog
