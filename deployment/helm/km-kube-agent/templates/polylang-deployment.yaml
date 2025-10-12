@@ -1,6 +1,6 @@
 {{- if .Values.featuresEnabled.apm -}}
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
   name: {{ .Values.polylangDetectorName }}
   namespace: km-agent
@@ -16,6 +16,7 @@ spec:
         {{- toYaml .Values.daemonsetLabels | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.serviceAccountName }}
+      hostPID: true  # Required for /proc filesystem access to inspect container processes
       {{- if and .Values.tolerations (ne (typeOf .Values.tolerations) "string") (gt (len .Values.tolerations) 0) }}
       tolerations:
         {{- toYaml .Values.tolerations | nindent 8 }}
@@ -30,11 +31,13 @@ spec:
         image: "{{ .Values.polylangDetector.image.repository }}:{{ .Values.polylangDetector.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.polylangDetector.image.pullPolicy }}
         securityContext:
-          # Can run without privileged if using crictl method
-          privileged: false
+          # Required for eBPF-based process detection
+          privileged: true
           capabilities:
             add:
-            - SYS_PTRACE   # Still useful for some process inspection
+            - SYS_ADMIN    # Required for eBPF operations
+            - SYS_PTRACE   # Required for process inspection
+            - SYS_RESOURCE # Required for eBPF resource limits
         env:
           - name: KM_SVC_ACCOUNT_NAME
             value: {{ .Values.serviceAccountName }}
@@ -45,7 +48,14 @@ spec:
           - name: KM_MONITORED_NS
             value: '{{ if kindIs "slice" .Values.monitoredNamespaces }}{{ .Values.monitoredNamespaces | join "," }}{{ else }}{{ .Values.monitoredNamespaces }}{{ end }}'
         volumeMounts:
-        # Mount docker/containerd socket for crictl access
+        # eBPF requires kernel debug/trace filesystems
+        - name: sys-kernel-debug
+          mountPath: /sys/kernel/debug
+          readOnly: false
+        - name: sys-kernel-tracing
+          mountPath: /sys/kernel/tracing
+          readOnly: false
+        # Mount docker/containerd socket for optional container inspection
         - name: container-runtime
           mountPath: /var/run/containerd/containerd.sock
           readOnly: true
@@ -55,12 +65,22 @@ spec:
           readOnly: true
         resources:
           requests:
-            cpu: "256m"
-            memory: "256Mi"
+            cpu: "100m"
+            memory: "128Mi"
           limits:
             cpu: "500m"
-            memory: "640Mi"
+            memory: "512Mi"
       volumes:
+      # eBPF kernel debug/trace filesystems (REQUIRED for eBPF)
+      - name: sys-kernel-debug
+        hostPath:
+          path: /sys/kernel/debug
+          type: Directory
+      - name: sys-kernel-tracing
+        hostPath:
+          path: /sys/kernel/tracing
+          type: Directory
+      # Container runtime sockets (optional for container inspection)
       - name: container-runtime
         hostPath:
           path: /var/run/containerd/containerd.sock
