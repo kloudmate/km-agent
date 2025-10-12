@@ -251,6 +251,7 @@ receivers:
   filelog:
     exclude:
       - /**/*.gz
+      - /var/log/pods/km-agent_*/**/*.log
     include:
       - /var/log/pods/*/*/*.log
     include_file_name_resolved: true
