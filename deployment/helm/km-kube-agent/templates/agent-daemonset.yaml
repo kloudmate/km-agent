@@ -24,6 +24,7 @@ spec:
         nodeAffinity:
           {{- toYaml .Values.nodeAffinity | nindent 10 }}
       {{- end }}
+      hostPID: true  # Required for polylang-detector to access /proc filesystem
       containers:
         - name: kloudmate-km-kube-agent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -95,6 +96,51 @@ spec:
               port: 13133
             initialDelaySeconds: 5
             periodSeconds: 10
+        {{- if .Values.featuresEnabled.apm }}
+        - name: polylang-detector
+          image: "{{ .Values.polylangDetector.image.repository }}:{{ .Values.polylangDetector.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.polylangDetector.image.pullPolicy }}
+          securityContext:
+            # Required for eBPF-based process detection
+            privileged: true
+            capabilities:
+              add:
+              - SYS_ADMIN    # Required for eBPF operations
+              - SYS_PTRACE   # Required for process inspection
+              - SYS_RESOURCE # Required for eBPF resource limits
+          env:
+            - name: KM_SVC_ACCOUNT_NAME
+              value: {{ .Values.serviceAccountName }}
+            - name: KM_IGNORED_NS
+              value: "kube-system,kube-public,kube-node-lease,kube-service-catalog,kubernetes-dashboard,local-path-storage,tigera-operator,calico-system,cilium,cilium-system,istio-system,linkerd,linkerd-viz,gatekeeper-system,cert-manager,velero,flux-system,argocd,monitoring,ingress-nginx,aws-node,kube-system-aws,gke-system,gke-managed-cim,gke-managed-filestorecsi,gke-managed-system,gke-managed-volumepopulator,gmp-public,gmp-system,aks-system,openebs,rook-ceph,km-agent"
+            - name: KM_CFG_UPDATER_RPC_ADDR
+              value: {{ printf "cfg-updater-rpc-svc.km-agent.svc.cluster.local:%s" (.Values.KM_CFG_UPDATER_RPC_ADDR | toString) }}
+            - name: KM_MONITORED_NS
+              value: '{{ if kindIs "slice" .Values.monitoredNamespaces }}{{ .Values.monitoredNamespaces | join "," }}{{ else }}{{ .Values.monitoredNamespaces }}{{ end }}'
+          volumeMounts:
+            # eBPF requires kernel debug/trace filesystems
+            - name: sys-kernel-debug
+              mountPath: /sys/kernel/debug
+              readOnly: false
+            - name: sys-kernel-tracing
+              mountPath: /sys/kernel/tracing
+              readOnly: false
+            # Mount docker/containerd socket for optional container inspection
+            - name: container-runtime
+              mountPath: /var/run/containerd/containerd.sock
+              readOnly: true
+            # Optional: mount docker socket as fallback
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+              readOnly: true
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+        {{- end }}
       volumes:
         - name: agent-config-volume-daemonset
           configMap:
@@ -109,3 +155,23 @@ spec:
         - name: varlogpods
           hostPath:
             path: /var/log/pods
+        {{- if .Values.featuresEnabled.apm }}
+        # eBPF kernel debug/trace filesystems (REQUIRED for polylang-detector eBPF)
+        - name: sys-kernel-debug
+          hostPath:
+            path: /sys/kernel/debug
+            type: Directory
+        - name: sys-kernel-tracing
+          hostPath:
+            path: /sys/kernel/tracing
+            type: Directory
+        # Container runtime sockets (optional for container inspection)
+        - name: container-runtime
+          hostPath:
+            path: /var/run/containerd/containerd.sock
+            type: Socket
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
+        {{- end }}
