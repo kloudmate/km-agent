@@ -9,6 +9,7 @@ COLLECTOR_ENDPOINT: https://otel.kloudmate.com:4318
 KM_UPDATE_ENDPOINT: https://api.kloudmate.com/agents/config-check
 KM_CONFIG_CHECK_INTERVAL: 30s
 KM_CFG_UPDATER_RPC_ADDR: 5501
+KM_XLOG_PATHS: []
 
 featuresEnabled:
   apm: true

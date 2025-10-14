@@ -259,6 +259,10 @@ data:
       filelog:
         exclude:
           - /**/*.gz
+          - /var/log/pods/km-agent_*/**/*.log
+          {{- range .Values.KM_XLOG_PATHS }}
+          - {{ . }}
+          {{- end }}
         include:
           - /var/log/pods/*/*/*.log
         include_file_name_resolved: true
@@ -514,7 +518,10 @@ data:
               process.owner:
                 enabled: true
           processes: {}
-          system: {}
+          system:
+            metrics:
+              system.uptime:
+                enabled: true
       kubeletstats:
         auth_type: serviceAccount
         collection_interval: 30s
@@ -553,7 +560,7 @@ data:
         - health_check
       pipelines:
         {{- if .Values.featuresEnabled.logs }}
-        logs/filelog:
+        logs/containers:
           exporters:
             - otlphttp
           processors:

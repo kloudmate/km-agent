@@ -252,6 +252,7 @@ receivers:
     exclude:
       - /**/*.gz
       - /var/log/pods/km-agent_*/**/*.log
+      - ${env:KM_XLOG_PATHS:-/___no_exclude___}
     include:
       - /var/log/pods/*/*/*.log
     include_file_name_resolved: true
@@ -507,7 +508,10 @@ receivers:
           process.owner:
             enabled: true
       processes: {}
-      system: {}
+      system:
+        metrics:
+          system.uptime:
+            enabled: true
   kubeletstats:
     auth_type: serviceAccount
     collection_interval: 30s
@@ -545,7 +549,7 @@ service:
   extensions:
     - health_check
   pipelines:
-    logs/filelog:
+    logs/containers:
       exporters:
         - otlphttp
       processors:
