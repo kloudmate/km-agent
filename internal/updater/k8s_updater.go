@@ -8,7 +8,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,7 +22,6 @@ import (
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -28,10 +29,13 @@ import (
 
 // ConfigUpdater handles configuration updates from a remote API
 type K8sConfigUpdater struct {
-	cfg        *config.K8sAgentConfig
-	logger     *zap.SugaredLogger
-	client     *http.Client
-	configPath string
+	cfg         *config.K8sAgentConfig
+	logger      *zap.SugaredLogger
+	client      *http.Client
+	monitoredNs []string
+	logsEnabled bool
+	apmEnabled  bool
+	configPath  string
 }
 
 type K8sUpdateCheckerParams struct {
@@ -72,10 +76,42 @@ type patchData struct {
 
 // NewK8sConfigUpdater creates a new config updater
 func NewKubeConfigUpdaterClient(cfg *config.K8sAgentConfig, logger *zap.SugaredLogger) *K8sConfigUpdater {
+	monitoredEnv := string(os.Getenv("KM_K8S_MONITORED_NAMESPACES"))
+	var monitoredNs []string
+	if monitoredEnv != "" {
+		monitoredNs = strings.Split(monitoredEnv, ",")
+		// Trim whitespace from each namespace
+		for i := range monitoredNs {
+			monitoredNs[i] = strings.TrimSpace(monitoredNs[i])
+		}
+	}
+	logsval, present := os.LookupEnv("KM_LOGS_ENABLED")
+	if !present {
+		fmt.Println("Environment variable KM_LOGS_ENABLED is not set.")
+		logsval = "false"
+	}
+	logsBoolVal, err := strconv.ParseBool(logsval)
+	if err != nil {
+		fmt.Printf("Error parsing boolean value for KM_LOGS_ENABLED: %v\n", err)
+	}
 
+	apmval, present := os.LookupEnv("KM_APM_ENABLED")
+	if !present {
+		fmt.Println("Environment variable KM_APM_ENABLED is not set.")
+		apmval = "false"
+	}
+	apmBoolVal, err := strconv.ParseBool(apmval)
+	if err != nil {
+		fmt.Printf("Error parsing boolean value for KM_APM_ENABLED: %v\n", err)
+	}
+
+	logger.Infof("Monitored Namespaces : [%s]\n", strings.Join(monitoredNs, ", "))
 	return &K8sConfigUpdater{
-		cfg:    cfg,
-		logger: logger,
+		cfg:         cfg,
+		logger:      logger,
+		monitoredNs: monitoredNs,
+		logsEnabled: logsBoolVal,
+		apmEnabled:  apmBoolVal,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 			Transport: &http.Transport{
@@ -98,6 +134,9 @@ func (u *K8sConfigUpdater) CheckForUpdatesK8s(ctx context.Context, p K8sUpdateCh
 		"k8s_deployments":   p.APMData,
 		"collector_version": shared.GetCollectorVersion(),
 		"agent_version":     p.Version,
+		"logs_enabled":      u.logsEnabled,
+		"apm_enabled":       u.apmEnabled,
+		"namespaces":        u.monitoredNs,
 		"collector_status":  p.CollectorStatus,
 	}
 	jsonData, err := json.Marshal(data)
@@ -154,6 +193,11 @@ func (a *K8sConfigUpdater) StartConfigUpdateChecker(ctx context.Context) {
 	ticker := time.NewTicker(parsedTime)
 	defer ticker.Stop()
 
+	// trigger the very first config check
+	if err := a.performConfigCheck(ctx); err != nil {
+		a.logger.Errorf("Periodic config check failed: %v", err)
+	}
+
 	for {
 		select {
 		case <-ticker.C:
@@ -188,6 +232,8 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 			Enabled:    info.Enabled,
 		})
 	}
+	bites, _ := json.Marshal(apmData)
+	a.logger.Info(string(bites))
 	params := K8sUpdateCheckerParams{
 		Version:          a.cfg.Version,
 		CollectorVersion: shared.GetCollectorVersion(),
@@ -284,7 +330,7 @@ func (drt *K8sConfigUpdater) triggerDaemonSetRollout(ctx context.Context) error 
 	drt.logger.Infof("Attempting to trigger rollout for DaemonSet %s/%s...", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName)
 
 	// Get the DaemonSet to ensure it exists and get its current state
-	_, err := drt.cfg.K8sClient.AppsV1().DaemonSets(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DaemonSetName, metav1.GetOptions{})
+	_, err := drt.cfg.K8sClient.AppsV1().DaemonSets(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DaemonSetName, v1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("error getting DaemonSet %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
 	}
@@ -309,7 +355,7 @@ func (drt *K8sConfigUpdater) triggerDaemonSetRollout(ctx context.Context) error 
 	}
 
 	// Apply the strategic merge patch to the DaemonSet
-	_, err = drt.cfg.K8sClient.AppsV1().DaemonSets(drt.cfg.KubeNamespace).Patch(ctx, drt.cfg.DaemonSetName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	_, err = drt.cfg.K8sClient.AppsV1().DaemonSets(drt.cfg.KubeNamespace).Patch(ctx, drt.cfg.DaemonSetName, types.StrategicMergePatchType, patchBytes, v1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("error patching DaemonSet %s/%s to trigger rollout: %v", drt.cfg.KubeNamespace, drt.cfg.DaemonSetName, err)
 	}
@@ -323,7 +369,7 @@ func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error
 	drt.logger.Infof("Attempting to trigger rollout for Deployment %s/%s...", drt.cfg.KubeNamespace, drt.cfg.DeploymentName)
 
 	// Get the Deployment to ensure it exists and get its current state
-	_, err := drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DeploymentName, metav1.GetOptions{})
+	_, err := drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Get(ctx, drt.cfg.DeploymentName, v1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("error getting Deployment %s/%s: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
 	}
@@ -348,7 +394,7 @@ func (drt *K8sConfigUpdater) triggerDeploymentRollout(ctx context.Context) error
 	}
 
 	// Apply the strategic merge patch to the Deployment
-	_, err = drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Patch(ctx, drt.cfg.DeploymentName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	_, err = drt.cfg.K8sClient.AppsV1().Deployments(drt.cfg.KubeNamespace).Patch(ctx, drt.cfg.DeploymentName, types.StrategicMergePatchType, patchBytes, v1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("error patching Deployment %s/%s to trigger rollout: %v", drt.cfg.KubeNamespace, drt.cfg.DeploymentName, err)
 	}
@@ -365,6 +411,9 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 	}
 	a.logger.Infof("Performing APM updation to cluster :%s on %d apps", a.cfg.ClusterName, len(response.K8s.APMSettings))
 	for _, app := range response.K8s.APMSettings {
+		if !app.Enabled {
+			continue
+		}
 		kind := strings.ToUpper(app.Kind)
 		annotations, langAnnotation := instrumentation.KmCrdAnnotation(app.Language, app.Enabled)
 		annotationBytes, err := json.Marshal(annotations)
@@ -462,6 +511,152 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 		}
 	}
 
+	// Handle removal of instrumentation for disabled apps
+	for _, app := range response.K8s.APMSettings {
+		if app.Enabled {
+			continue
+		}
+		kind := strings.ToUpper(app.Kind)
+		_, langAnnotation := instrumentation.KmCrdAnnotation(app.Language, app.Enabled)
+
+		// Build a patch to remove the annotations
+		removePatch := map[string]interface{}{
+			"spec": map[string]interface{}{
+				"template": map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"annotations": buildRemoveAnnotationsPatch(langAnnotation),
+					},
+				},
+			},
+		}
+
+		removePatchBytes, err := json.Marshal(removePatch)
+		if err != nil {
+			a.logger.Errorf("[APM]: error marshaling remove patch for %s/%s: %v", app.Namespace, app.Deployment, err)
+			continue
+		}
+
+		switch kind {
+		case "DAEMONSET":
+			ds, err := a.cfg.K8sClient.AppsV1().DaemonSets(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+			if err != nil {
+				a.logger.Warnf("[APM]: error getting DaemonSet %s/%s for removal: %v", app.Namespace, app.Deployment, err)
+				continue
+			}
+			if !hasAnyAnnotation(langAnnotation, ds.Spec.Template.Annotations) {
+				a.logger.Infof("[APM]: annotation for %s using %s of kind %s already removed or not present", app.Deployment, app.Language, app.Kind)
+				continue
+			}
+			_, err = a.cfg.K8sClient.AppsV1().DaemonSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, removePatchBytes, v1.PatchOptions{})
+			if err != nil {
+				a.logger.Errorf("[APM]: error removing auto instrumentation from %s/%s: %v", app.Namespace, app.Deployment, err)
+			} else {
+				a.logger.Infof("[APM]: successfully removed instrumentation from DaemonSet %s/%s", app.Namespace, app.Deployment)
+			}
+
+		case "REPLICASET":
+			rs, err := a.cfg.K8sClient.AppsV1().ReplicaSets(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+			if err != nil {
+				if errors.IsNotFound(err) {
+					// ReplicaSet not found, try Deployment
+					dep, err := a.cfg.K8sClient.AppsV1().Deployments(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+					if err != nil {
+						a.logger.Warnf("[APM]: error getting Deployment %s/%s for removal: %v", app.Namespace, app.Deployment, err)
+						continue
+					}
+					if !hasAnyAnnotation(langAnnotation, dep.Spec.Template.Annotations) {
+						a.logger.Infof("[APM]: annotation for %s using %s of kind %s already removed or not present", app.Deployment, app.Language, app.Kind)
+						continue
+					}
+					if err := handleDeploymentRemoval(ctx, a.cfg.K8sClient, app, removePatchBytes); err != nil {
+						a.logger.Errorf("[APM]: error removing auto instrumentation from %s/%s: %v", app.Namespace, app.Deployment, err)
+					} else {
+						a.logger.Infof("[APM]: successfully removed instrumentation from Deployment %s/%s", app.Namespace, app.Deployment)
+					}
+				} else {
+					a.logger.Warnf("[APM]: error getting ReplicaSet %s/%s for removal: %v", app.Namespace, app.Deployment, err)
+				}
+				continue
+			}
+			if !hasAnyAnnotation(langAnnotation, rs.Spec.Template.Annotations) {
+				a.logger.Infof("[APM]: annotation for %s using %s of kind %s already removed or not present", app.Deployment, app.Language, app.Kind)
+				continue
+			}
+			_, err = a.cfg.K8sClient.AppsV1().ReplicaSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, removePatchBytes, v1.PatchOptions{})
+			if err != nil {
+				a.logger.Errorf("[APM]: error removing auto instrumentation from %s/%s: %v", app.Namespace, app.Deployment, err)
+			} else {
+				a.logger.Infof("[APM]: successfully removed instrumentation from ReplicaSet %s/%s", app.Namespace, app.Deployment)
+			}
+
+		case "DEPLOYMENT":
+			dep, err := a.cfg.K8sClient.AppsV1().Deployments(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+			if err != nil {
+				a.logger.Warnf("[APM]: error getting Deployment %s/%s for removal: %v", app.Namespace, app.Deployment, err)
+				continue
+			}
+			if !hasAnyAnnotation(langAnnotation, dep.Spec.Template.Annotations) {
+				a.logger.Infof("[APM]: annotation for %s using %s of kind %s already removed or not present", app.Deployment, app.Language, app.Kind)
+				continue
+			}
+			if err := handleDeploymentRemoval(ctx, a.cfg.K8sClient, app, removePatchBytes); err != nil {
+				a.logger.Errorf("[APM]: error removing auto instrumentation from %s/%s: %v", app.Namespace, app.Deployment, err)
+			} else {
+				a.logger.Infof("[APM]: successfully removed instrumentation from Deployment %s/%s", app.Namespace, app.Deployment)
+			}
+
+		case "STATEFULSET":
+			ss, err := a.cfg.K8sClient.AppsV1().StatefulSets(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+			if err != nil {
+				a.logger.Warnf("[APM]: error getting StatefulSet %s/%s for removal: %v", app.Namespace, app.Deployment, err)
+				continue
+			}
+			if !hasAnyAnnotation(langAnnotation, ss.Spec.Template.Annotations) {
+				a.logger.Infof("[APM]: annotation for %s using %s of kind %s already removed or not present", app.Deployment, app.Language, app.Kind)
+				continue
+			}
+			_, err = a.cfg.K8sClient.AppsV1().StatefulSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, removePatchBytes, v1.PatchOptions{})
+			if err != nil {
+				a.logger.Errorf("[APM]: error removing auto instrumentation from %s/%s: %v", app.Namespace, app.Deployment, err)
+			} else {
+				a.logger.Infof("[APM]: successfully removed instrumentation from StatefulSet %s/%s", app.Namespace, app.Deployment)
+			}
+
+		case "POD":
+			pod, err := a.cfg.K8sClient.CoreV1().Pods(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+			if err != nil {
+				a.logger.Warnf("[APM]: error getting Pod %s/%s for removal: %v", app.Namespace, app.Deployment, err)
+				continue
+			}
+			if !hasAnyAnnotation(langAnnotation, pod.Annotations) {
+				a.logger.Infof("[APM]: annotation for %s using %s of kind %s already removed or not present", app.Deployment, app.Language, app.Kind)
+				continue
+			}
+
+			// For Pods, the patch structure is different (no spec.template)
+			podRemovePatch := map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"annotations": buildRemoveAnnotationsPatch(langAnnotation),
+				},
+			}
+			podRemovePatchBytes, err := json.Marshal(podRemovePatch)
+			if err != nil {
+				a.logger.Errorf("[APM]: error marshaling remove patch for Pod %s/%s: %v", app.Namespace, app.Deployment, err)
+				continue
+			}
+
+			_, err = a.cfg.K8sClient.CoreV1().Pods(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, podRemovePatchBytes, v1.PatchOptions{})
+			if err != nil {
+				a.logger.Errorf("[APM]: error removing auto instrumentation from %s/%s: %v", app.Namespace, app.Deployment, err)
+			} else {
+				a.logger.Infof("[APM]: successfully removed instrumentation from Pod %s/%s", app.Namespace, app.Deployment)
+			}
+
+		default:
+			a.logger.Warnf("[APM]: invalid KIND provided for removal: %s", app.Kind)
+		}
+	}
+
 	return nil
 }
 
@@ -487,6 +682,34 @@ func handleDeploymentPatching(ctx context.Context, client *kubernetes.Clientset,
 		return err
 	}
 	return nil
+}
+
+func handleDeploymentRemoval(ctx context.Context, client *kubernetes.Clientset, app APMConfig, removePatch []byte) error {
+	_, err := client.AppsV1().Deployments(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, removePatch, v1.PatchOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// buildRemoveAnnotationsPatch creates a patch that sets annotation values to null for removal
+func buildRemoveAnnotationsPatch(annotations map[string]string) map[string]interface{} {
+	patch := make(map[string]interface{})
+	for key := range annotations {
+		// In Kubernetes strategic merge patch, setting a value to null removes it
+		patch[key] = nil
+	}
+	return patch
+}
+
+// hasAnyAnnotation checks if any of the annotation keys exist in the resource's annotations
+func hasAnyAnnotation(targetAnnotations map[string]string, resourceAnnotations map[string]string) bool {
+	for key := range targetAnnotations {
+		if _, exists := resourceAnnotations[key]; exists {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *K8sConfigUpdater) otelConfigPath() string {
