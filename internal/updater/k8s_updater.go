@@ -232,6 +232,8 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 			Enabled:    info.Enabled,
 		})
 	}
+	bites, _ := json.Marshal(apmData)
+	a.logger.Info(string(bites))
 	params := K8sUpdateCheckerParams{
 		Version:          a.cfg.Version,
 		CollectorVersion: shared.GetCollectorVersion(),
@@ -409,6 +411,9 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 	}
 	a.logger.Infof("Performing APM updation to cluster :%s on %d apps", a.cfg.ClusterName, len(response.K8s.APMSettings))
 	for _, app := range response.K8s.APMSettings {
+		if !app.Enabled {
+			continue
+		}
 		kind := strings.ToUpper(app.Kind)
 		annotations, langAnnotation := instrumentation.KmCrdAnnotation(app.Language, app.Enabled)
 		annotationBytes, err := json.Marshal(annotations)
@@ -506,6 +511,152 @@ func (a *K8sConfigUpdater) performAPMUpdation(ctx context.Context, response *K8s
 		}
 	}
 
+	// Handle removal of instrumentation for disabled apps
+	for _, app := range response.K8s.APMSettings {
+		if app.Enabled {
+			continue
+		}
+		kind := strings.ToUpper(app.Kind)
+		_, langAnnotation := instrumentation.KmCrdAnnotation(app.Language, app.Enabled)
+
+		// Build a patch to remove the annotations
+		removePatch := map[string]interface{}{
+			"spec": map[string]interface{}{
+				"template": map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"annotations": buildRemoveAnnotationsPatch(langAnnotation),
+					},
+				},
+			},
+		}
+
+		removePatchBytes, err := json.Marshal(removePatch)
+		if err != nil {
+			a.logger.Errorf("[APM]: error marshaling remove patch for %s/%s: %v", app.Namespace, app.Deployment, err)
+			continue
+		}
+
+		switch kind {
+		case "DAEMONSET":
+			ds, err := a.cfg.K8sClient.AppsV1().DaemonSets(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+			if err != nil {
+				a.logger.Warnf("[APM]: error getting DaemonSet %s/%s for removal: %v", app.Namespace, app.Deployment, err)
+				continue
+			}
+			if !hasAnyAnnotation(langAnnotation, ds.Spec.Template.Annotations) {
+				a.logger.Infof("[APM]: annotation for %s using %s of kind %s already removed or not present", app.Deployment, app.Language, app.Kind)
+				continue
+			}
+			_, err = a.cfg.K8sClient.AppsV1().DaemonSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, removePatchBytes, v1.PatchOptions{})
+			if err != nil {
+				a.logger.Errorf("[APM]: error removing auto instrumentation from %s/%s: %v", app.Namespace, app.Deployment, err)
+			} else {
+				a.logger.Infof("[APM]: successfully removed instrumentation from DaemonSet %s/%s", app.Namespace, app.Deployment)
+			}
+
+		case "REPLICASET":
+			rs, err := a.cfg.K8sClient.AppsV1().ReplicaSets(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+			if err != nil {
+				if errors.IsNotFound(err) {
+					// ReplicaSet not found, try Deployment
+					dep, err := a.cfg.K8sClient.AppsV1().Deployments(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+					if err != nil {
+						a.logger.Warnf("[APM]: error getting Deployment %s/%s for removal: %v", app.Namespace, app.Deployment, err)
+						continue
+					}
+					if !hasAnyAnnotation(langAnnotation, dep.Spec.Template.Annotations) {
+						a.logger.Infof("[APM]: annotation for %s using %s of kind %s already removed or not present", app.Deployment, app.Language, app.Kind)
+						continue
+					}
+					if err := handleDeploymentRemoval(ctx, a.cfg.K8sClient, app, removePatchBytes); err != nil {
+						a.logger.Errorf("[APM]: error removing auto instrumentation from %s/%s: %v", app.Namespace, app.Deployment, err)
+					} else {
+						a.logger.Infof("[APM]: successfully removed instrumentation from Deployment %s/%s", app.Namespace, app.Deployment)
+					}
+				} else {
+					a.logger.Warnf("[APM]: error getting ReplicaSet %s/%s for removal: %v", app.Namespace, app.Deployment, err)
+				}
+				continue
+			}
+			if !hasAnyAnnotation(langAnnotation, rs.Spec.Template.Annotations) {
+				a.logger.Infof("[APM]: annotation for %s using %s of kind %s already removed or not present", app.Deployment, app.Language, app.Kind)
+				continue
+			}
+			_, err = a.cfg.K8sClient.AppsV1().ReplicaSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, removePatchBytes, v1.PatchOptions{})
+			if err != nil {
+				a.logger.Errorf("[APM]: error removing auto instrumentation from %s/%s: %v", app.Namespace, app.Deployment, err)
+			} else {
+				a.logger.Infof("[APM]: successfully removed instrumentation from ReplicaSet %s/%s", app.Namespace, app.Deployment)
+			}
+
+		case "DEPLOYMENT":
+			dep, err := a.cfg.K8sClient.AppsV1().Deployments(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+			if err != nil {
+				a.logger.Warnf("[APM]: error getting Deployment %s/%s for removal: %v", app.Namespace, app.Deployment, err)
+				continue
+			}
+			if !hasAnyAnnotation(langAnnotation, dep.Spec.Template.Annotations) {
+				a.logger.Infof("[APM]: annotation for %s using %s of kind %s already removed or not present", app.Deployment, app.Language, app.Kind)
+				continue
+			}
+			if err := handleDeploymentRemoval(ctx, a.cfg.K8sClient, app, removePatchBytes); err != nil {
+				a.logger.Errorf("[APM]: error removing auto instrumentation from %s/%s: %v", app.Namespace, app.Deployment, err)
+			} else {
+				a.logger.Infof("[APM]: successfully removed instrumentation from Deployment %s/%s", app.Namespace, app.Deployment)
+			}
+
+		case "STATEFULSET":
+			ss, err := a.cfg.K8sClient.AppsV1().StatefulSets(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+			if err != nil {
+				a.logger.Warnf("[APM]: error getting StatefulSet %s/%s for removal: %v", app.Namespace, app.Deployment, err)
+				continue
+			}
+			if !hasAnyAnnotation(langAnnotation, ss.Spec.Template.Annotations) {
+				a.logger.Infof("[APM]: annotation for %s using %s of kind %s already removed or not present", app.Deployment, app.Language, app.Kind)
+				continue
+			}
+			_, err = a.cfg.K8sClient.AppsV1().StatefulSets(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, removePatchBytes, v1.PatchOptions{})
+			if err != nil {
+				a.logger.Errorf("[APM]: error removing auto instrumentation from %s/%s: %v", app.Namespace, app.Deployment, err)
+			} else {
+				a.logger.Infof("[APM]: successfully removed instrumentation from StatefulSet %s/%s", app.Namespace, app.Deployment)
+			}
+
+		case "POD":
+			pod, err := a.cfg.K8sClient.CoreV1().Pods(app.Namespace).Get(ctx, app.Deployment, v1.GetOptions{})
+			if err != nil {
+				a.logger.Warnf("[APM]: error getting Pod %s/%s for removal: %v", app.Namespace, app.Deployment, err)
+				continue
+			}
+			if !hasAnyAnnotation(langAnnotation, pod.Annotations) {
+				a.logger.Infof("[APM]: annotation for %s using %s of kind %s already removed or not present", app.Deployment, app.Language, app.Kind)
+				continue
+			}
+
+			// For Pods, the patch structure is different (no spec.template)
+			podRemovePatch := map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"annotations": buildRemoveAnnotationsPatch(langAnnotation),
+				},
+			}
+			podRemovePatchBytes, err := json.Marshal(podRemovePatch)
+			if err != nil {
+				a.logger.Errorf("[APM]: error marshaling remove patch for Pod %s/%s: %v", app.Namespace, app.Deployment, err)
+				continue
+			}
+
+			_, err = a.cfg.K8sClient.CoreV1().Pods(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, podRemovePatchBytes, v1.PatchOptions{})
+			if err != nil {
+				a.logger.Errorf("[APM]: error removing auto instrumentation from %s/%s: %v", app.Namespace, app.Deployment, err)
+			} else {
+				a.logger.Infof("[APM]: successfully removed instrumentation from Pod %s/%s", app.Namespace, app.Deployment)
+			}
+
+		default:
+			a.logger.Warnf("[APM]: invalid KIND provided for removal: %s", app.Kind)
+		}
+	}
+
 	return nil
 }
 
@@ -531,6 +682,34 @@ func handleDeploymentPatching(ctx context.Context, client *kubernetes.Clientset,
 		return err
 	}
 	return nil
+}
+
+func handleDeploymentRemoval(ctx context.Context, client *kubernetes.Clientset, app APMConfig, removePatch []byte) error {
+	_, err := client.AppsV1().Deployments(app.Namespace).Patch(ctx, app.Deployment, types.StrategicMergePatchType, removePatch, v1.PatchOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// buildRemoveAnnotationsPatch creates a patch that sets annotation values to null for removal
+func buildRemoveAnnotationsPatch(annotations map[string]string) map[string]interface{} {
+	patch := make(map[string]interface{})
+	for key := range annotations {
+		// In Kubernetes strategic merge patch, setting a value to null removes it
+		patch[key] = nil
+	}
+	return patch
+}
+
+// hasAnyAnnotation checks if any of the annotation keys exist in the resource's annotations
+func hasAnyAnnotation(targetAnnotations map[string]string, resourceAnnotations map[string]string) bool {
+	for key := range targetAnnotations {
+		if _, exists := resourceAnnotations[key]; exists {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *K8sConfigUpdater) otelConfigPath() string {
