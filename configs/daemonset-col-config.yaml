@@ -29,9 +29,6 @@ processors:
       - key: k8s.pod.name
         from_attribute: k8s.pod.name
         action: upsert
-      - key: service.name
-        from_attribute: k8s.deployment.name
-        action: upsert
       - key: service.namespace
         from_attribute: k8s.namespace.name
         action: upsert
@@ -104,6 +101,7 @@ processors:
         - k8s.replicaset.name
         - k8s.cronjob.name
         - k8s.job.name
+        - k8s.container.name
     pod_association:
       - sources:
           - from: resource_attribute
@@ -198,7 +196,7 @@ processors:
     log_statements:
       - context: log
         statements:
-          - set(attributes["service.name"], "k8s-events") where attributes["service.name"] == nil
+          - set(attributes["service.name"], resource.attributes["k8s.container.name"]) where resource.attributes["k8s.container.name"] != nil
   transform/copyservicefromlogattributes:
     error_mode: ignore
     log_statements:
@@ -248,7 +246,7 @@ processors:
           - convert_sum_to_gauge() where metric.name == "k8s.node.network.io"
           - convert_sum_to_gauge() where metric.name == "k8s.node.network.errors"
 receivers:
-  filelog:
+  filelog/containers:
     exclude:
       - /**/*.gz
       - /var/log/pods/km-agent_*/**/*.log
@@ -413,18 +411,17 @@ receivers:
         on_error: send
         if: attributes.timestamp_extracted != nil
 
+      # set default log level if not detected
+      - id: set-default-loglevel
+        type: add
+        field: attributes.log_level
+        value: "info"
+        if: attributes.log_level == nil
+
       # normalize log level to severity
       - id: severity-parser
         type: severity_parser
         parse_from: attributes.log_level
-        if: attributes.log_level != nil
-
-      # set default severity to INFO if not detected
-      - id: set-default-severity
-        type: add
-        field: attributes.severity
-        value: "info"
-        if: attributes.severity == nil or attributes.severity == ""
     poll_interval: 10s
   hostmetrics:
     collection_interval: 60s
@@ -563,7 +560,7 @@ service:
         - transform/copyservicefromlogattributes
         - batch
       receivers:
-        - filelog
+        - filelog/containers
     metrics/hostmetrics:
       exporters:
         - otlphttp

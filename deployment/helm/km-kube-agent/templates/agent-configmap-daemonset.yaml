@@ -38,9 +38,6 @@ data:
           - key: k8s.pod.name
             from_attribute: k8s.pod.name
             action: upsert
-          - key: service.name
-            from_attribute: k8s.deployment.name
-            action: upsert
           - key: service.namespace
             from_attribute: k8s.namespace.name
             action: upsert
@@ -112,6 +109,7 @@ data:
             - k8s.replicaset.name
             - k8s.cronjob.name
             - k8s.job.name
+            - k8s.container.name
         pod_association:
           - sources:
               - from: resource_attribute
@@ -214,7 +212,7 @@ data:
         log_statements:
           - context: log
             statements:
-              - set(attributes["service.name"], "k8s-events") where attributes["service.name"] == nil
+              - set(attributes["service.name"], resource.attributes["k8s.container.name"]) where resource.attributes["k8s.container.name"] != nil
       transform/deleteostype:
         metric_statements:
           - context: datapoint
@@ -256,7 +254,7 @@ data:
               - convert_sum_to_gauge() where metric.name == "k8s.node.network.io"
               - convert_sum_to_gauge() where metric.name == "k8s.node.network.errors"
     receivers:
-      filelog:
+      filelog/containers:
         exclude:
           - /**/*.gz
           - /var/log/pods/km-agent_*/**/*.log
@@ -423,18 +421,15 @@ data:
             on_error: send
             if: attributes.timestamp_extracted != nil
 
-          # normalize log level to severity
-          - id: severity-parser
-            type: severity_parser
-            parse_from: attributes.log_level
-            if: attributes.log_level != nil
-
-          # set default severity to INFO if not detected
-          - id: set-default-severity
+          - field: attributes.log_level
+            id: set-default-loglevel
+            if: attributes.log_level == nil
             type: add
-            field: attributes.severity
-            value: "info"
-            if: attributes.severity == nil or attributes.severity == ""
+            value: info
+
+          - id: severity-parser
+            parse_from: attributes.log_level
+            type: severity_parser
         poll_interval: 10s
       hostmetrics:
         collection_interval: 60s
@@ -574,7 +569,7 @@ data:
             - transform/copyservicefromlogattributes
             - batch
           receivers:
-            - filelog
+            - filelog/containers
         {{- end }}
         metrics/hostmetrics:
           exporters:
