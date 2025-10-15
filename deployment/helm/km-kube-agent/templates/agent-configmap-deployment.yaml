@@ -43,16 +43,6 @@ data:
       k8sattributes:
         auth_type: serviceAccount
         extract:
-          annotations:
-            - from: pod
-              key: instrumentation.kloudmate.com
-              tag_name: instrumentation.kloudmate.com
-            - from: namespace
-              key: instrumentation.kloudmate.com
-              tag_name: instrumentation.kloudmate.com
-            - from: node
-              key: instrumentation.kloudmate.com
-              tag_name: instrumentation.kloudmate.com
           metadata:
             - k8s.pod.name
             - k8s.pod.uid
