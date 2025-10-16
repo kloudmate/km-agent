@@ -276,7 +276,7 @@ data:
           - id: recombine-multiline
             type: recombine
             combine_field: body
-            is_first_entry: body matches "^(\\d{4}-\\d{2}-\\d{2}|\\[|\\{|[A-Z]+\\s|\\w+:\\s)"
+            is_first_entry: body matches "^(\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}|\\{)"
             combine_with: "\n"
             max_log_size: 1048576
             overwrite_with: newest
@@ -381,7 +381,7 @@ data:
           - id: parser-loglevel-plain
             type: regex_parser
             parse_from: body
-            regex: '\b(?P<level>TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|CRITICAL)\b'
+            regex: '(?i)\b(?P<level>trace|debug|info|warn|warning|error|fatal|critical)\b'
             parse_to: attributes.level_match
             on_error: send
             if: attributes.log_level == nil
