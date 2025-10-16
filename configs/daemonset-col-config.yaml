@@ -371,7 +371,7 @@ receivers:
       - id: parser-loglevel-plain
         type: regex_parser
         parse_from: body
-        regex: '(?i)\b(?P<level>TRACE|trace|DEBUG|debug|INFO|info|WARN|warn|WARNING|warning|ERROR|error|FATAL|fatal|CRITICAL|critical)\b'
+        regex: '(?i)\b(?P<level>trace|debug|info|warn|warning|error|fatal|critical)\b'
         parse_to: attributes.level_match
         on_error: send
         if: attributes.log_level == nil
