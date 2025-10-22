@@ -779,8 +779,8 @@ github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformpro
 github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.137.0/go.mod h1:/9FuutTkrG+QHUAwDvVyJFko5SHtsySNouDiOfx3b9o=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/apachereceiver v0.125.0 h1:YKJgxk7VsnCzbH6YV4dRZB/KidKfIUcMQkkafGWu1WA=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/apachereceiver v0.125.0/go.mod h1:dqLxCwtR6om+dztCpse+1L2/uJmwRhQjFxLrd1uCGDE=
-github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awscloudwatchmetricsreceiver v0.131.0 h1:R7xmwiqf8ORFp6VwspoLHdsbIVpn2Ub+3rUNCZq/H9c=
-github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awscloudwatchmetricsreceiver v0.131.0/go.mod h1:L0MOfTRyEXV75Ss0MfsEgcGmfHMm+64At04od5t5Caw=
+github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awscloudwatchmetricsreceiver v0.133.0 h1:duIzt6VeXD9m4wBZbGdW/enY7ASTbghKQn3kQIsQSco=
+github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awscloudwatchmetricsreceiver v0.133.0/go.mod h1:kZ8zAWrk7iSlvP8clt44EdNC1SMa/ho6bM5MFbalLLA=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awscloudwatchreceiver v0.131.0 h1:vxJqRciJchzh3IcX5UHcsH7EJvzyIQRGC+JVbJNSnK4=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awscloudwatchreceiver v0.131.0/go.mod h1:L+1ZDEVZJLNyp3tTbY7gcJNAR3egEoj8H9u5t6bKcQQ=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awscontainerinsightreceiver v0.137.0 h1:FS5Zy5Inrrn1YCesVTly8ajPf01aJBoIaFmXgJEU7mg=
