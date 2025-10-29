@@ -31,4 +31,4 @@ jobs:
           # For invalidating everything, use "/*" instead of "/assets/file.txt"
           aws cloudfront create-invalidation \
             --distribution-id ${{ secrets.CDN_DISTRIBUTION_ID }} \
-            --paths "/scripts/*.sh"
+            --paths "/scripts/*"
