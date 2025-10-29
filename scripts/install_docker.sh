@@ -96,7 +96,7 @@ eval docker run -d \
   --pid host \
   --restart always \
   --network host \
-  --name km-agent-${KM_API_KEY:3:3} \
+  --name km-agent \
   -e KM_COLLECTOR_ENDPOINT="$KM_COLLECTOR_ENDPOINT" \
   -e KM_API_KEY="$KM_API_KEY" \
   -e FILELOG_PATHS="$FILELOG_PATHS" \
