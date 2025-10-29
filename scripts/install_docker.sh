@@ -96,13 +96,14 @@ eval docker run -d \
   --pid host \
   --restart always \
   --network host \
-  --name km-agent-${KM_API_KEY:3:3} \
+  --name km-agent \
   -e KM_COLLECTOR_ENDPOINT="$KM_COLLECTOR_ENDPOINT" \
   -e KM_API_KEY="$KM_API_KEY" \
   -e FILELOG_PATHS="$FILELOG_PATHS" \
   -v "$DOCKER_SOCK_PATH":"$DOCKER_SOCK_PATH" \
   -v /var/log:/var/log \
   -v /var/lib/docker/containers:/var/lib/docker/containers:ro \
+  -v /:/hostfs:ro \
   $ADDITIONAL_VOLUMES \
   $IMAGE_NAME
 

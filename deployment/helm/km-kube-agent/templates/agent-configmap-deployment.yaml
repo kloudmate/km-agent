@@ -13,16 +13,15 @@ data:
 
     if [ -z "$KM_K8S_MONITORED_NAMESPACES" ]; then
       echo "KM_K8S_MONITORED_NAMESPACES env variable is not set. Skipping namespace configuration."
-      export KM_K8S_MONITORED_NAMESPACES_YAML='[]'
+      export KM_K8S_MONITORED_NAMESPACES_YAML='all'
     else
-      # This will convert the comma-separated string to a valid YAML list string
-      # Eg: "ns1,ns2" -> '["ns1","ns2"]'
+      # convert the string to a valid YAML. Eg: "ns1,ns2" -> '["ns1","ns2"]'.
 
       export KM_K8S_MONITORED_NAMESPACES_YAML=$(echo "[\"$(echo "$KM_K8S_MONITORED_NAMESPACES" | sed 's/,/","/g')\"]")
       echo "Starting KloudMate Kubernetes Agent with KM_K8S_MONITORED_NAMESPACES_YAML=${KM_K8S_MONITORED_NAMESPACES_YAML}"
     fi
     exec ./kmagent
-  # We name it exactly "agent-deployment.yaml" so it appears as such.
+
   agent-deployment.yaml: |
     exporters:
       otlphttp:
@@ -44,16 +43,6 @@ data:
       k8sattributes:
         auth_type: serviceAccount
         extract:
-          annotations:
-            - from: pod
-              key: instrumentation.kloudmate.com
-              tag_name: instrumentation.kloudmate.com
-            - from: namespace
-              key: instrumentation.kloudmate.com
-              tag_name: instrumentation.kloudmate.com
-            - from: node
-              key: instrumentation.kloudmate.com
-              tag_name: instrumentation.kloudmate.com
           metadata:
             - k8s.pod.name
             - k8s.pod.uid
@@ -82,36 +71,9 @@ data:
           - action: upsert
             from_attribute: host.name
             key: host.id
-          - action: insert
-            from_attribute: k8s.node.uid
+          - action: upsert
             key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.namespace.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.pod.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.container.name
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.replicaset.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.statefulset.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.cronjob.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.job.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.daemonset.uid
-            key: k8s.cluster.name
-          - action: insert
-            from_attribute: k8s.deployment.uid
-            key: k8s.cluster.name
+            value: ${env:KM_CLUSTER_NAME}
           - action: upsert
             key: km.agent.version
             value: ${env:KM_AGENT_VERSION}
@@ -126,16 +88,86 @@ data:
           - action: update
             from_attribute: k8s.node.name
             key: host.name
-      resource/k8s_events:
-        attributes:
-          - action: upsert
-            key: service.name
-            value: k8s-events
-      resource/k8s_objects:
-        attributes:
-          - action: upsert
-            key: service.name
-            value: k8s-objects
+      transform/setservicename:
+        error_mode: ignore
+        log_statements:
+          - context: resource
+            statements:
+              # Set service.name based on K8s resource type:
+              # - "k8s-events" if log contains event.domain or event.name (from k8s_events receiver)
+              # - "k8s-objects" if log contains @message.object (from k8sobjects receiver)
+              - set(attributes["service.name"], "k8s-events") where attributes["event.domain"] == "k8s" and attributes["service.name"] == nil
+              - set(attributes["service.name"], "k8s-objects") where attributes["@message.object.kind"] != nil and attributes["service.name"] == nil
+      transform/loglevels:
+        log_statements:
+          - context: log
+            error_mode: ignore
+            statements:
+              # JSON parsing: Extends log attributes with the fields from structured log body content, either as an OTEL map or
+              # as a string containing JSON content.
+              - set(log.cache, ExtractPatterns(log.body, "(?P<0>(\\{.*\\}))")) where
+                IsString(log.body)
+              - merge_maps(log.attributes, ParseJSON(log.cache["0"]), "upsert")
+                where IsMap(log.cache) and log.cache["0"] != nil
+              - flatten(log.attributes) where IsMap(log.cache) and log.cache["0"] != nil
+              - merge_maps(log.attributes, log.body, "upsert") where IsMap(log.body)
+          - context: log
+            error_mode: ignore
+            conditions:
+              - severity_number == 0 and severity_text == ""
+            statements:
+              # Check for severity/level in attributes first (from JSON parsing)
+              - set(log.severity_text, log.attributes["severity"]) where log.attributes["severity"] != nil
+              - set(log.severity_text, log.attributes["level"]) where log.attributes["level"] != nil and log.severity_text == ""
+              - set(log.severity_text, log.attributes["log_level"]) where log.attributes["log_level"] != nil and log.severity_text == ""
+              - set(log.severity_text, log.attributes["@message"]["severity"]) where IsMap(log.attributes["@message"]) and log.attributes["@message"]["severity"] != nil and log.severity_text == ""
+              - set(log.severity_text, log.attributes["@message"]["level"]) where IsMap(log.attributes["@message"]) and log.attributes["@message"]["level"] != nil and log.severity_text == ""
+
+              # Detect event type from k8s objects and map to severity
+              - set(log.severity_text, "warn") where log.attributes["@message"]["type"] == "DELETED" or log.attributes["event"]["type"] == "DELETED"
+              - set(log.severity_text, "info") where (log.attributes["@message"]["type"] == "ADDED" or log.attributes["@message"]["type"] == "MODIFIED" or log.attributes["event"]["type"] == "ADDED" or log.attributes["event"]["type"] == "MODIFIED") and log.severity_text == ""
+
+              # Infer: extract the first log level keyword from the first 256 characters of the body
+              - set(log.cache["substr"], log.body.string) where IsString(log.body) and Len(log.body.string) < 256 and log.severity_text == ""
+              - set(log.cache["substr"], Substring(log.body.string, 0, 256)) where IsString(log.body) and Len(log.body.string) >= 256 and log.severity_text == ""
+              - set(log.cache, ExtractPatterns(log.cache["substr"], "(?i)(?P<0>(alert|crit|emerg|fatal|error|err|warn|notice|debug|dbug|trace))")) where log.cache["substr"] != nil
+
+              # Infer: detect FATAL
+              - set(log.severity_number, SEVERITY_NUMBER_FATAL) where
+                IsMatch(log.cache["0"], "(?i)(alert|crit|emerg|fatal)") or IsMatch(log.severity_text, "(?i)(alert|crit|emerg|fatal)")
+              - set(log.severity_text, "fatal") where log.severity_number ==
+                SEVERITY_NUMBER_FATAL
+              # Infer: detect ERROR
+              - set(log.severity_number, SEVERITY_NUMBER_ERROR) where
+                (IsMatch(log.cache["0"], "(?i)(error|err)") or IsMatch(log.severity_text, "(?i)(error|err)")) and log.severity_number == 0
+              - set(log.severity_text, "error") where log.severity_number ==
+                SEVERITY_NUMBER_ERROR
+              # Infer: detect WARN
+              - set(log.severity_number, SEVERITY_NUMBER_WARN) where
+                (IsMatch(log.cache["0"], "(?i)(warn|notice)") or IsMatch(log.severity_text, "(?i)(warn|notice|warning)")) and log.severity_number == 0
+              - set(log.severity_text, "warn") where log.severity_number ==
+                SEVERITY_NUMBER_WARN
+              # Infer: detect DEBUG
+              - set(log.severity_number, SEVERITY_NUMBER_DEBUG) where
+                (IsMatch(log.cache["0"], "(?i)(debug|dbug)") or IsMatch(log.severity_text, "(?i)(debug|dbug)")) and log.severity_number == 0
+              - set(log.severity_text, "debug") where log.severity_number ==
+                SEVERITY_NUMBER_DEBUG
+              # Infer: detect TRACE
+              - set(log.severity_number, SEVERITY_NUMBER_TRACE) where
+                (IsMatch(log.cache["0"], "(?i)(trace)") or IsMatch(log.severity_text, "(?i)(trace)")) and log.severity_number == 0
+              - set(log.severity_text, "trace") where log.severity_number ==
+                SEVERITY_NUMBER_TRACE
+              # Infer: detect INFO
+              - set(log.severity_number, SEVERITY_NUMBER_INFO) where
+                IsMatch(log.severity_text, "(?i)(info)") and log.severity_number == 0
+              # Infer: else - default to INFO
+              - set(log.severity_text, "info") where log.severity_number == 0
+              - set(log.severity_number, SEVERITY_NUMBER_INFO) where log.severity_number == 0
+          - context: log
+            error_mode: ignore
+            statements:
+              # Normalize the severity_text case
+              - set(log.severity_text, ConvertCase(log.severity_text, "lower"))
       transform/add_labels:
         log_statements:
           - context: log
@@ -148,71 +180,6 @@ data:
               - set(resource.attributes["service.name"], log.attributes["service.name"]) where
                 log.attributes["service.name"] != nil and resource.attributes["service.name"]
                 == nil
-      transform/loglevels:
-        log_statements:
-          - context: log
-            error_mode: ignore
-            statements:
-              - >-
-                set(log.cache, ExtractPatterns(log.body, "(?P<0>(\\{.*\\}))")) where
-                IsString(log.body)
-              - >-
-                merge_maps(log.attributes, ParseJSON(log.cache["0"]), "upsert")
-                where IsMap(log.cache)
-              - flatten(log.attributes) where IsMap(log.cache)
-              - 'merge_maps(log.attributes, log.body, "upsert") where IsMap(log.body)'
-          - conditions:
-              - severity_number == 0 and severity_text == ""
-            context: log
-            error_mode: ignore
-            statements:
-              - >-
-                set(log.cache["substr"], log.body.string) where Len(log.body.string)
-                < 256
-              - >-
-                set(log.cache["substr"], Substring(log.body.string, 0, 256)) where
-                Len(log.body.string) >= 256
-              - >-
-                set(log.cache, ExtractPatterns(log.cache["substr"],
-                "(?i)(?P<0>(alert|crit|emerg|fatal|error|err|warn|notice|debug|dbug|trace))"))
-              - >-
-                set(log.severity_number, SEVERITY_NUMBER_FATAL) where
-                IsMatch(log.cache["0"], "(?i)(alert|crit|emerg|fatal)")
-              - >-
-                set(log.severity_text, "fatal") where log.severity_number ==
-                SEVERITY_NUMBER_FATAL
-              - >-
-                set(log.severity_number, SEVERITY_NUMBER_ERROR) where
-                IsMatch(log.cache["0"], "(?i)(error|err)")
-              - >-
-                set(log.severity_text, "error") where log.severity_number ==
-                SEVERITY_NUMBER_ERROR
-              - >-
-                set(log.severity_number, SEVERITY_NUMBER_WARN) where
-                IsMatch(log.cache["0"], "(?i)(warn|notice)")
-              - >-
-                set(log.severity_text, "warn") where log.severity_number ==
-                SEVERITY_NUMBER_WARN
-              - >-
-                set(log.severity_number, SEVERITY_NUMBER_DEBUG) where
-                IsMatch(log.cache["0"], "(?i)(debug|dbug)")
-              - >-
-                set(log.severity_text, "debug") where log.severity_number ==
-                SEVERITY_NUMBER_DEBUG
-              - >-
-                set(log.severity_number, SEVERITY_NUMBER_TRACE) where
-                IsMatch(log.cache["0"], "(?i)(trace)")
-              - >-
-                set(log.severity_text, "trace") where log.severity_number ==
-                SEVERITY_NUMBER_TRACE
-              - 'set(log.severity_text, "info") where log.severity_number == 0'
-              - >-
-                set(log.severity_number, SEVERITY_NUMBER_INFO) where
-                log.severity_number == 0
-          - context: log
-            error_mode: ignore
-            statements:
-              - 'set(log.severity_text, ConvertCase(log.severity_text, "lower"))'
     receivers:
       k8s_cluster:
         allocatable_types_to_report:
@@ -240,7 +207,9 @@ data:
           - NetworkUnavailable
       k8s_events:
         auth_type: serviceAccount
-        namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
+        {{- if .Values.monitoredNamespaces }}
+        namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML:-"all"}
+        {{- end }}
       k8sobjects/1:
         auth_type: serviceAccount
         objects:
@@ -267,26 +236,20 @@ data:
         objects:
           - mode: watch
             name: pods
-            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: nodes
           - mode: watch
             name: replicasets
-            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: namespaces
           - mode: watch
             name: deployments
-            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: daemonsets
-            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: statefulsets
-            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
           - mode: watch
             name: configmaps
-            namespaces: ${env:KM_K8S_MONITORED_NAMESPACES_YAML}
       otlp:
         protocols:
           grpc:
@@ -301,10 +264,10 @@ data:
           exporters:
             - otlphttp
           processors:
-            - resource/k8s_events
             - resource
             - resource/cluster
             - k8sattributes
+            - transform/setservicename
             - transform/loglevels
             - batch
           receivers:
@@ -314,9 +277,10 @@ data:
             - otlphttp
           processors:
             - resource
-            - resource/k8s_objects
             - resource/cluster
             - k8sattributes
+            - transform/setservicename
+            - transform/loglevels
             - batch
           receivers:
             - k8sobjects/1

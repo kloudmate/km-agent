@@ -17,10 +17,13 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: 0.0.0.0:4317
       http:
+        endpoint: 0.0.0.0:4318
 
 exporters:
   debug:
+    verbosity: basic
   otlphttp:
     sending_queue:
       enabled: true
@@ -49,6 +52,46 @@ processors:
       - key: service.name
         action: insert
         from_attribute: host.name
+  cumulativetodelta:
+    include:
+      match_type: strict
+      metrics:
+        - system.network.io
+        - system.disk.io
+        - system.disk.operations.rate
+        - system.network.packets.rate
+        - system.network.errors.rate
+        - system.network.dropped.rate
+  deltatorate:
+    metrics:
+      - system.network.io
+      - system.disk.io
+      - system.disk.operations.rate
+      - system.network.packets.rate
+      - system.network.errors.rate
+      - system.network.dropped.rate
+  transform/ratecalculation/copymetric:
+    error_mode: ignore
+    metric_statements:
+      - context: metric
+        statements:
+          - copy_metric(name="system.network.io.rate") where metric.name == "system.network.io"
+          - copy_metric(name="system.disk.io.rate") where metric.name == "system.disk.io"
+          - copy_metric(name="system.disk.operations.rate") where metric.name == "system.disk.operations"
+          - copy_metric(name="system.network.packets.rate") where metric.name == "system.network.packets"
+          - copy_metric(name="system.network.errors.rate") where metric.name == "system.network.errors"
+          - copy_metric(name="system.network.dropped.rate") where metric.name == "system.network.dropped"
+  transform/ratecalculation/sumtogauge:
+    error_mode: ignore
+    metric_statements:
+      - context: metric
+        statements:
+          - convert_sum_to_gauge() where metric.name == "system.network.io"
+          - convert_sum_to_gauge() where metric.name == "system.disk.io"
+          - convert_sum_to_gauge() where metric.name == "system.disk.operations"
+          - convert_sum_to_gauge() where metric.name == "system.network.packets"
+          - convert_sum_to_gauge() where metric.name == "system.network.errors"
+          - convert_sum_to_gauge() where metric.name == "system.network.dropped"
 extensions:
   # zpages:
   #   endpoint: :55679
@@ -57,10 +100,14 @@ service:
   # extensions: [zpages]
   pipelines:
     metrics:
-      receivers: [hostmetrics]
-      processors: [resourcedetection, resource, batch]
+      receivers: [otlp, hostmetrics]
+      processors: [resourcedetection, resource, cumulativetodelta, deltatorate, transform/ratecalculation/sumtogauge, transform/ratecalculation/copymetric, batch]
       exporters: [debug, otlphttp]
     logs:
-      receivers: []
+      receivers: [otlp]
       processors: [resourcedetection, resource, batch]
-      exporters: [otlphttp]
+      exporters: [debug, otlphttp]
+    traces:
+      receivers: [otlp]
+      processors: [resourcedetection, resource, batch]
+      exporters: [debug, otlphttp]

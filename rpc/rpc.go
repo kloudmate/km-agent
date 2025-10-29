@@ -37,8 +37,6 @@ func GetDetectionResults() []detector.ContainerInfo {
 	for _, info := range DetectionCache {
 		allResults = append(allResults, info)
 	}
-	// You can add logic here to clear the cache if needed
-	// For example: detectionCache = make(map[string]ContainerInfo)
 	return allResults
 }
 
@@ -47,23 +45,17 @@ func AutoCleanDetectionResults() {
 	t := time.NewTicker(time.Second * 90)
 	defer t.Stop()
 	for {
-		var usableContainers []detector.ContainerInfo
-		// time threshold to remove any entry older than 5 minutes (5 minutes)
+		<-t.C
 		fiveMinutesAgo := time.Now().Add(-5 * time.Minute)
-		for _, container := range DetectionCache {
+		cacheMutex.Lock()
+		newCache := make(map[string]detector.ContainerInfo)
+		for key, container := range DetectionCache { // Use key from DetectionCache
 			if !container.DetectedAt.Before(fiveMinutesAgo) {
-				usableContainers = append(usableContainers, container)
+				newCache[key] = container
 			}
 		}
-		newCache := make(map[string]detector.ContainerInfo)
-		for k, v := range usableContainers {
-			newCache[string(rune(k))] = v
-		}
-		cacheMutex.Lock()
 		DetectionCache = newCache
 		cacheMutex.Unlock()
-
-		<-t.C
-
+		log.Printf("Cache cleanup: %d entries remaining", len(newCache))
 	}
 }

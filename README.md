@@ -68,7 +68,25 @@ helm install kloudmate-release kloudmate/km-kube-agent --namespace km-agent --cr
 ```
 ⚠️ For the `monitoredNamespaces` flag the namespaces should be passed as comma-separated values. For example - `--set "monitoredNamespaces={bookinfo,mongodb,cassandra}"` where `bookinfo`,`mongodb` and `cassandra` are the targetted namespaces that you want to monitor.
 
-#### Windows Installation
+#### Installing the Agent on Nodes with Taints
+If your Kubernetes cluster uses taints on nodes, the agent daemonset pods must have corresponding tolerations to be scheduled successfully. By default, the agent does not apply any tolerations. You can configure tolerations during installation using Helm parameters.
+The helm installation command in this case will look like this - 
+```bash
+helm install kloudmate-release kloudmate/km-kube-agent --namespace km-agent --create-namespace \
+--set API_KEY="<YOUR_API_KEY>" --set COLLECTOR_ENDPOINT="https://otel.kloudmate.com:4318" \
+--set clusterName="<YOUR_CLUSTER_NAME>" \
+--set "monitoredNamespaces={MONITORED_NS}" \
+--set tolerations[0].key="env" --set tolerations[0].operator="Equal" --set tolerations[0].value="uat" --set tolerations[0].effect="NoSchedule" \
+--set tolerations[1].key="env" --set tolerations[1].operator="Equal" --set tolerations[1].value="sb-uat-node" --set tolerations[1].effect="NoSchedule" \
+```
+In the above example, two tolerations are provided to match the taints configured on the cluster’s nodes. This ensures the agent daemonset pods can be scheduled across all desired nodes.
+
+#### Notes
+- You can define as many tolerations as needed by incrementing the index (`tolerations[0]`, `tolerations[1]`, etc.).
+- The values of key, operator, value, and effect should match the taints applied to your nodes.
+- If your cluster has no taints, you can skip these parameters. By default, the agent daemonset pods will be automatically scheduled on untainted nodes.
+
+### Windows Installation
 Download and run the Windows (.exe) installer from our [releases page](https://github.com/kloudmate/km-agent/releases).
 
 

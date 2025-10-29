@@ -25,6 +25,7 @@ km-agent/usr/local/bin
 # Go workspace file
 go.work
 go.work.sum
+vendor
 
 # env file
 .env

@@ -1,12 +1,21 @@
 replicaCount: 1
-installCRDs: false
+installCRDs: true
 
 # KloudMate platform specific arguments
+# API Key for authenticating with KloudMate platform
+# REQUIRED: Obtain from - https://app.kloudmate.com/settings/
 API_KEY:
 COLLECTOR_ENDPOINT: https://otel.kloudmate.com:4318
 KM_UPDATE_ENDPOINT: https://api.kloudmate.com/agents/config-check
 KM_CONFIG_CHECK_INTERVAL: 30s
 KM_CFG_UPDATER_RPC_ADDR: 5501
+KM_XLOG_PATHS: []
+
+featuresEnabled:
+  apm: true
+  logs: false
+  metrics: true
+  traces: true
 
 # names of components to be installed.
 clusterName: km-cluster
@@ -22,17 +31,52 @@ configMapDaemonsetName: km-agent-configmap-daemonset
 configMapDeploymentName: km-agent-configmap-deployment 
 polylangDetectorName: km-agent-polylang-detector-deployment 
 
-autoMountServiceAccount: true
+# this will handle installation of service account
 autoCreateServiceAccount: true
 
 monitoredNamespaces:
-  - "default"
 
-featuresEnabled:
-  apm: true
-  logs: true
-  metrics: true
-  traces: true
+# Tolerations for pod scheduling on tainted nodes
+# Can be customized to match the cluster's node taints
+tolerations:
+  # - key: "env"
+  #   operator: "Equal"
+  #   value: "kloudmate1"
+  #   effect: "NoSchedule"
+  # Standard Kubernetes node lifecycle taints
+  - key: "node.kubernetes.io/not-ready"
+    operator: "Exists"
+    effect: "NoExecute"
+    tolerationSeconds: 300
+  - key: "node.kubernetes.io/unreachable"
+    operator: "Exists"
+    effect: "NoExecute"
+    tolerationSeconds: 300
+
+# Node affinity for pod scheduling preferences
+# Users can customize this to prefer certain types of nodes
+nodeAffinity:
+  preferredDuringSchedulingIgnoredDuringExecution:
+  - weight: 100
+    preference:
+      matchExpressions:
+      - key: kubernetes.io/os
+        operator: In
+        values:
+        - linux
+  - weight: 80
+    preference:
+      matchExpressions:
+      - key: node.kubernetes.io/instance-type
+        operator: NotIn
+        values:
+        - spot
+  - weight: 60
+    preference:
+      matchExpressions:
+      - key: topology.kubernetes.io/zone
+        operator: Exists
+
 
 # image settings for kube agent
 image:
@@ -181,8 +225,9 @@ opentelemetry-operator:
   admissionWebhooks:
     create: true
     servicePort: 443
+    failurePolicy: Ignore
     pods:
-      failurePolicy: Fail
+      failurePolicy: Ignore
     namePrefix: ""
     timeoutSeconds: 10
     namespaceSelector: {}
@@ -218,3 +263,6 @@ cert-manager:
   crds:
     enabled: false
     keep: true
+  config:
+    privateKey:
+      rotationPolicy: Always

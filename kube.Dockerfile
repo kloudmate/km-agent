@@ -1,13 +1,31 @@
 FROM golang:alpine AS buildstage
-RUN mkdir /app
-COPY . /app
+
+# Declare build platform arguments (automatically populated by BuildKit)
+ARG TARGETARCH
+ARG TARGETOS=linux
+
 WORKDIR /app
+
+# Copy dependency files first for better caching
+COPY go.mod go.sum ./
+
+# Copy source code and vendor directory
+COPY . .
+
+# Vendor dependencies and patch kube-openapi
+RUN go mod vendor && \
+    if [ -f "vendor/k8s.io/kube-openapi/pkg/util/proto/document_v3.go" ]; then \
+        sed -i 's|"gopkg.in/yaml.v3"|"go.yaml.in/yaml/v3"|g' vendor/k8s.io/kube-openapi/pkg/util/proto/document_v3.go; \
+        echo "Patched kube-openapi yaml import"; \
+    fi
 
 # build arguments for version information
 ARG VERSION=dev
 ARG COMMIT_SHA=unknown
 
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-X 'main.version=$VERSION' -X 'main.commit=$COMMIT_SHA'" -o kmagent cmd/kubeagent/main.go
+# Use mount cache for build cache only (vendor is already in place)
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    GOOS=${TARGETOS} GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -mod=vendor -ldflags="-w -s -X 'main.version=$VERSION' -X 'main.commit=$COMMIT_SHA'" -o kmagent ./cmd/kubeagent/main.go
 
 FROM alpine:latest
 COPY --from=buildstage /app/kmagent ./kmagent
