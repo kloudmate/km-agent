@@ -7,11 +7,6 @@ extensions:
   health_check:
     endpoint: 0.0.0.0:13133
 processors:
-  attributes/metrics:
-    actions:
-      - key: cluster
-        value: ${env:KM_CLUSTER_NAME}
-        action: insert
   batch:
     send_batch_size: 10000
     timeout: 10s
