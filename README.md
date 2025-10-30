@@ -33,6 +33,10 @@
 - 🎯 **Multi-Platform Support**: Native support for various deployment environments
 - 📈 **Real-time Dashboards**: Unique agent identification for centralized monitoring
 
+### Supported OpenTelemetry Components
+
+The KloudMate Agent includes a set of OpenTelemetry Collector components including receivers, processors, exporters, and extensions. For a complete list of all supported components with description and documentation links, see the [Supported Components Documentation](internal/shared/COMPONENTS.md).
+
 ### Installation
 
 Choose your environment and run the appropriate installation command:
