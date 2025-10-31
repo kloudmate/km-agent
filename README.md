@@ -33,6 +33,10 @@
 - 🎯 **Multi-Platform Support**: Native support for various deployment environments
 - 📈 **Real-time Dashboards**: Unique agent identification for centralized monitoring
 
+### Supported OpenTelemetry Components
+
+The KloudMate Agent includes a set of OpenTelemetry Collector components including receivers, processors, exporters, and extensions. For a complete list of all supported components with description and documentation links, see the [Supported Components Documentation](internal/shared/COMPONENTS.md).
+
 ### Installation
 
 Choose your environment and run the appropriate installation command:
@@ -64,9 +68,19 @@ helm repo update
 helm install kloudmate-release kloudmate/km-kube-agent --namespace km-agent --create-namespace \
 --set API_KEY="<YOUR_API_KEY>" \n --set COLLECTOR_ENDPOINT="https://otel.kloudmate.com:4318" \
 --set clusterName="<YOUR_CLUSTER_NAME>" \
---set "monitoredNamespaces={MONITORED_NS}"
+--set "monitoredNamespaces={MONITORED_NS}" \
+--set featuresEnabled.apm=true \
+--set featuresEnabled.logs=true
 ```
 ⚠️ For the `monitoredNamespaces` flag the namespaces should be passed as comma-separated values. For example - `--set "monitoredNamespaces={bookinfo,mongodb,cassandra}"` where `bookinfo`,`mongodb` and `cassandra` are the targetted namespaces that you want to monitor.
+
+**Note**: To enable APM (Application Performance Monitoring) and logs collection, set the `featuresEnabled.apm` and `featuresEnabled.logs` flags to `true`. By default, metrics and traces are enabled. You can customize these settings based on your monitoring requirements:
+- `featuresEnabled.apm=true` - Enables application performance monitoring
+- `featuresEnabled.logs=true` - Enables log collection
+- `featuresEnabled.metrics=true` - Enables metrics collection (enabled by default)
+- `featuresEnabled.traces=true` - Enables trace collection (enabled by default)
+
+⚠️ **Configuration Management**: Manually updating the ConfigMaps for the DaemonSet or Deployment agents is **not recommended**, as these configurations may be overwritten by updates sent from KloudMate APIs. The recommended approach is to use the **KloudMate Agent Config Editor** - a web-based YAML editor that ensures your configurations are properly synchronized and persisted across your infrastructure.
 
 #### Installing the Agent on Nodes with Taints
 If your Kubernetes cluster uses taints on nodes, the agent daemonset pods must have corresponding tolerations to be scheduled successfully. By default, the agent does not apply any tolerations. You can configure tolerations during installation using Helm parameters.
