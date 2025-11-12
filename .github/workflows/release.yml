@@ -38,6 +38,14 @@ jobs:
           echo "Using release tag version: $VERSION_NUMBER"
           echo "VERSION=$VERSION_NUMBER" >> $GITHUB_ENV
 
+      - name: Vendor dependencies and patch kube-openapi
+        run: |
+          go mod vendor
+          if [ -f "vendor/k8s.io/kube-openapi/pkg/util/proto/document_v3.go" ]; then
+            sed -i 's|"gopkg.in/yaml.v3"|"go.yaml.in/yaml/v3"|g' vendor/k8s.io/kube-openapi/pkg/util/proto/document_v3.go
+            echo "Patched kube-openapi yaml import"
+          fi
+
       - name: Build Linux .deb package
         run: make VERSION=${{ env.VERSION }} package-linux-deb
 
