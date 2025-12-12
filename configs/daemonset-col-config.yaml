@@ -543,6 +543,9 @@ receivers:
       k8s.pod.memory_request_utilization:
         enabled: true
 service:
+  telemetry:
+    metrics:
+      level: none
   extensions:
     - health_check
   pipelines:

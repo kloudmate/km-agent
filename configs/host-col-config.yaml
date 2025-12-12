@@ -97,6 +97,9 @@ extensions:
   #   endpoint: :55679
 
 service:
+  telemetry:
+    metrics:
+      level: none
   # extensions: [zpages]
   pipelines:
     metrics:
