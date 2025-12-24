@@ -20,6 +20,7 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage"
 	"go.opentelemetry.io/collector/extension/memorylimiterextension"
 	"go.opentelemetry.io/collector/extension/zpagesextension"
+	"go.opentelemetry.io/collector/service/telemetry/otelconftelemetry"
 
 	"go.opentelemetry.io/collector/exporter/debugexporter"
 	"go.opentelemetry.io/collector/exporter/nopexporter"
@@ -168,5 +169,6 @@ func Components() (otelcol.Factories, error) {
 		return otelcol.Factories{}, err
 	}
 
+	factories.Telemetry = otelconftelemetry.NewFactory()
 	return factories, nil
 }
