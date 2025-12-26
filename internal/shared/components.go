@@ -6,15 +6,21 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatorateprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/filterprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/groupbyattrsprocessor"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/groupbytraceprocessor"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/isolationforestprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/k8sattributesprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/metricstransformprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/probabilisticsamplerprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourcedetectionprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourceprocessor"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/spanprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/journaldreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8seventsreceiver"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8slogreceiver"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/windowseventlogreceiver"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/windowsperfcountersreceiver"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage"
@@ -31,6 +37,8 @@ import (
 	"go.opentelemetry.io/collector/processor/memorylimiterprocessor"
 	"go.opentelemetry.io/collector/receiver/otlpreceiver"
 
+	"github.com/open-telemetry/opentelemetry-collector-contrib/connector/spanmetricsconnector"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/extension/cgroupruntimeextension"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/apachereceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awscloudwatchmetricsreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awscloudwatchreceiver"
@@ -60,10 +68,12 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/rabbitmqreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/redisreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/saphanareceiver"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/snmpreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/sqlqueryreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/sqlserverreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/syslogreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/vcenterreceiver"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/windowsservicereceiver"
 
 	"go.opentelemetry.io/collector/connector"
 
@@ -86,6 +96,7 @@ func Components() (otelcol.Factories, error) {
 		zpagesextension.NewFactory(),
 		filestorage.NewFactory(),
 		healthcheckextension.NewFactory(),
+		cgroupruntimeextension.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
@@ -128,6 +139,11 @@ func Components() (otelcol.Factories, error) {
 		syslogreceiver.NewFactory(),
 		vcenterreceiver.NewFactory(),
 		iisreceiver.NewFactory(),
+		k8slogreceiver.NewFactory(),
+		windowseventlogreceiver.NewFactory(),
+		windowsperfcountersreceiver.NewFactory(),
+		snmpreceiver.NewFactory(),
+		windowsservicereceiver.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
@@ -159,12 +175,17 @@ func Components() (otelcol.Factories, error) {
 		memorylimiterprocessor.NewFactory(),
 		transformprocessor.NewFactory(),
 		groupbyattrsprocessor.NewFactory(),
+		spanprocessor.NewFactory(),
+		groupbytraceprocessor.NewFactory(),
+		isolationforestprocessor.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
 	}
 
-	factories.Connectors, err = otelcol.MakeFactoryMap[connector.Factory]()
+	factories.Connectors, err = otelcol.MakeFactoryMap[connector.Factory](
+		spanmetricsconnector.NewFactory(),
+	)
 	if err != nil {
 		return otelcol.Factories{}, err
 	}
