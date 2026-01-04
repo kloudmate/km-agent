@@ -4,7 +4,8 @@ cd ..
 
 :: Build the Go binary
 echo Building Go binary...
-go build -o builds/bin/kmagent.exe cmd/kmagent/kmagent.go
+set GOOS=windows
+go build -tags windows -ldflags="-s -w" -o builds/bin/kmagent.exe ./cmd/kmagent
 
 :: Check if build was successful
 if %ERRORLEVEL% NEQ 0 (
