@@ -41,12 +41,12 @@ build: build-linux-amd64
 build-linux-amd64:
 	@echo ">>> Building $(APP_NAME) for Linux AMD64..."
 	mkdir -p $(BUILD_DIR)/linux/amd64
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags=${LD_FLAGS} -o $(BUILD_DIR)/linux/amd64/$(APP_NAME) $(SRC_DIR)
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags linux -ldflags=${LD_FLAGS} -o $(BUILD_DIR)/linux/amd64/$(APP_NAME) $(SRC_DIR)
 
 build-windows:
 	@echo ">>> Building $(APP_NAME) for Windows..."
 	mkdir -p $(BUILD_DIR)/win
-	GOOS=windows CGO_ENABLED=0 go build -ldflags=${LD_FLAGS} -o $(BUILD_DIR)/win/$(APP_NAME).exe $(SRC_DIR)
+	GOOS=windows CGO_ENABLED=0 go build -tags windows -ldflags=${LD_FLAGS} -o $(BUILD_DIR)/win/$(APP_NAME).exe $(SRC_DIR)
 	@echo ">>> Windows executable built at $(WINDOWS_EXE_HOST_PATH)"
 
 package-linux-deb: build-linux-amd64
