@@ -9,14 +9,14 @@
 
 [![GHCR Pulls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fghcr-badge.elias.eu.org%2Fapi%2Fkloudmate%2Fkm-agent%2Fkm-kube-agent&query=downloadCount&style=flat&logo=docker&label=Image%20Pulls&color=2496ed)](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fghcr-badge.elias.eu.org%2Fapi%2Fkloudmate%2Fkm-agent%2Fkm-kube-agent&query=downloadCount&style=flat&logo=docker&label=Image%20Pulls&color=2496ed)
 
-**KloudMate Agent for OpenTelemetry Auto Instrumentation**
+**KloudMate Agent - A OpenTelemetry Collector Distribution**
 
-*Simplifying OpenTelemetry adoption through automated deployment and remote configuration*
-
- • [Documentation](https://docs.kloudmate.com/kloudmate-agents) 
-
+*An OpenTelemetry Collector distribution with automated deployment, remote configuration, and auto-instrumentation support*
 </div>
 
+## About
+
+**KM-Agent is an [OpenTelemetry Collector distribution](https://opentelemetry.io/docs/concepts/distributions/)** that extends the upstream OpenTelemetry Collector with additional capabilities for simplified deployment, remote configuration management, and automated instrumentation. It bundles a curated set of receivers, processors, exporters, and extensions optimized for observability in Kubernetes, Linux, Docker, and Windows environments.
 
 ### Key Problems Solved
 
@@ -32,6 +32,10 @@
 - 🔍 **Synthetic Monitoring**: Built-in health checks and monitoring capabilities
 - 🎯 **Multi-Platform Support**: Native support for various deployment environments
 - 📈 **Real-time Dashboards**: Unique agent identification for centralized monitoring
+
+### Supported OpenTelemetry Components
+
+The KloudMate Agent includes a set of OpenTelemetry Collector components including receivers, processors, exporters, and extensions. For a complete list of all supported components with description and documentation links, see the [Supported Components Documentation](internal/shared/COMPONENTS.md).
 
 ### Installation
 
@@ -56,17 +60,37 @@ KM_API_KEY="<YOUR_API_KEY>" KM_COLLECTOR_ENDPOINT="https://otel.kloudmate.com:43
 Bash script should have various configurable arguments to configure the agent apart from API_KEY which is required for authentication at exporter. Each of the script should have corresponding uninstall command to remove the agent from the system.
 
 #### Kubernetes Installation
-The agent will run as DaemonSet as well as a Deployment in the cluster and add necessary components to monitor the nodes and pods
-User can install the agent using below Helm based instructioins
+- The agent will run as DaemonSet as well as a Deployment in the cluster and add necessary components to monitor the nodes and pods.
+- you must install `kloudmate-crd` before running helm install command:
+
+```bash
+ kubectl apply -f https://raw.githubusercontent.com/kloudmate/km-agent/refs/heads/develop/deployment/helm/km-kube-agent/crds/crd-otel-instrumentation.yaml
+```
+
+You can then install the agent using below Helm commands
 ```bash
 helm repo add kloudmate https://kloudmate.github.io/km-agent
 helm repo update
 helm install kloudmate-release kloudmate/km-kube-agent --namespace km-agent --create-namespace \
 --set API_KEY="<YOUR_API_KEY>" \n --set COLLECTOR_ENDPOINT="https://otel.kloudmate.com:4318" \
 --set clusterName="<YOUR_CLUSTER_NAME>" \
---set "monitoredNamespaces={MONITORED_NS}"
+--set "monitoredNamespaces={MONITORED_NS}" \
+--set featuresEnabled.apm=true \
+--set featuresEnabled.logs=true
 ```
-⚠️ For the `monitoredNamespaces` flag the namespaces should be passed as comma-separated values. For example - `--set "monitoredNamespaces={bookinfo,mongodb,cassandra}"` where `bookinfo`,`mongodb` and `cassandra` are the targetted namespaces that you want to monitor.
+##### ⚠️NOTE:
+- For the `monitoredNamespaces` flag the namespaces should be passed as comma-separated values. For example - `--set "monitoredNamespaces={bookinfo,mongodb,cassandra}"` where `bookinfo`,`mongodb` and `cassandra` are the targetted namespaces that you want to monitor.
+
+> 🚨 **Note:** For private GKE clusters, you will need to either add a firewall rule that allows master nodes access to port `9443/tcp` on worker nodes, or change the existing rule that allows access to port `80/tcp`, `443/tcp` and `10254/tcp` to also allow access to port `9443/tcp`. More information can be found in the [Official GCP Documentation](https://cloud.google.com/load-balancing/docs/tcp/setting-up-tcp#config-hc-firewall). See the [GKE documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/private-clusters#add_firewall_rules) on adding rules and the [Kubernetes issue](https://github.com/kubernetes/kubernetes/issues/79739) for more detail.
+
+
+**Note**: To enable APM (Application Performance Monitoring) and logs collection, set the `featuresEnabled.apm` and `featuresEnabled.logs` flags to `true`. By default, metrics and traces are enabled. You can customize these settings based on your monitoring requirements:
+- `featuresEnabled.apm=true` - Enables application performance monitoring
+- `featuresEnabled.logs=true` - Enables log collection
+- `featuresEnabled.metrics=true` - Enables metrics collection (enabled by default)
+- `featuresEnabled.traces=true` - Enables trace collection (enabled by default)
+
+⚠️ **Configuration Management**: Manually updating the ConfigMaps for the DaemonSet or Deployment agents is **not recommended**, as these configurations may be overwritten by updates sent from KloudMate APIs. The recommended approach is to use the **KloudMate Agent Config Editor** - a web-based YAML editor that ensures your configurations are properly synchronized and persisted across your infrastructure.
 
 #### Installing the Agent on Nodes with Taints
 If your Kubernetes cluster uses taints on nodes, the agent daemonset pods must have corresponding tolerations to be scheduled successfully. By default, the agent does not apply any tolerations. You can configure tolerations during installation using Helm parameters.

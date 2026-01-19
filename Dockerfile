@@ -11,15 +11,15 @@ COPY go.mod go.sum ./
 COPY . .
 
 # Vendor dependencies and patch kube-openapi
-RUN go mod vendor && \
-    if [ -f "vendor/k8s.io/kube-openapi/pkg/util/proto/document_v3.go" ]; then \
-        sed -i 's|"gopkg.in/yaml.v3"|"go.yaml.in/yaml/v3"|g' vendor/k8s.io/kube-openapi/pkg/util/proto/document_v3.go; \
-        echo "Patched kube-openapi yaml import"; \
-    fi
+# RUN go mod vendor && \
+#     if [ -f "vendor/k8s.io/kube-openapi/pkg/util/proto/document_v3.go" ]; then \
+#         sed -i 's|"gopkg.in/yaml.v3"|"go.yaml.in/yaml/v3"|g' vendor/k8s.io/kube-openapi/pkg/util/proto/document_v3.go; \
+#         echo "Patched kube-openapi yaml import"; \
+#     fi
 
 ARG VERSION=dev
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -mod=vendor -a -ldflags "-w -s -X 'main.version=${VERSION}'" -o /kmagent ./cmd/kmagent/...
+    go build -a -tags linux -ldflags "-w -s -X 'main.version=${VERSION}'" -o /kmagent ./cmd/kmagent/...
 
 FROM gcr.io/distroless/static-debian11
 

@@ -9,7 +9,7 @@ extensions:
 processors:
   attributes/metrics:
     actions:
-      - key: cluster
+      - key: k8s.cluster.name
         value: ${env:KM_CLUSTER_NAME}
         action: insert
   attributes/logs:
@@ -543,6 +543,9 @@ receivers:
       k8s.pod.memory_request_utilization:
         enabled: true
 service:
+  telemetry:
+    metrics:
+      level: none
   extensions:
     - health_check
   pipelines:

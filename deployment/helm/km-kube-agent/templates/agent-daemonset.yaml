@@ -19,11 +19,6 @@ spec:
       tolerations:
         {{- toYaml .Values.tolerations | nindent 8 }}
       {{- end }}
-      {{- if .Values.nodeAffinity }}
-      affinity:
-        nodeAffinity:
-          {{- toYaml .Values.nodeAffinity | nindent 10 }}
-      {{- end }}
       hostPID: true  # Required for polylang-detector to access /proc filesystem
       containers:
         - name: kloudmate-km-kube-agent
@@ -83,6 +78,12 @@ spec:
               readOnly: true
             - name: varlogpods
               mountPath: /var/log/pods
+              readOnly: true
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+              readOnly: true
+            - name: container-runtime
+              mountPath: /var/run/containerd/containerd.sock
               readOnly: true
           livenessProbe:
             httpGet:
@@ -166,6 +167,7 @@ spec:
             path: /sys/kernel/tracing
             type: Directory
         # Container runtime sockets (optional for container inspection)
+        {{- end }}
         - name: container-runtime
           hostPath:
             path: /var/run/containerd/containerd.sock
@@ -173,5 +175,4 @@ spec:
         - name: docker-socket
           hostPath:
             path: /var/run/docker.sock
-            type: Socket
-        {{- end }}
+            type: ""  # Empty type allows mount to be optional when Docker is not available
