@@ -9,14 +9,14 @@
 
 [![GHCR Pulls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fghcr-badge.elias.eu.org%2Fapi%2Fkloudmate%2Fkm-agent%2Fkm-kube-agent&query=downloadCount&style=flat&logo=docker&label=Image%20Pulls&color=2496ed)](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fghcr-badge.elias.eu.org%2Fapi%2Fkloudmate%2Fkm-agent%2Fkm-kube-agent&query=downloadCount&style=flat&logo=docker&label=Image%20Pulls&color=2496ed)
 
-**KloudMate Agent for OpenTelemetry Auto Instrumentation**
+**KloudMate Agent - A OpenTelemetry Collector Distribution**
 
-*Simplifying OpenTelemetry adoption through automated deployment and remote configuration*
-
- • [Documentation](https://docs.kloudmate.com/kloudmate-agents) 
-
+*An OpenTelemetry Collector distribution with automated deployment, remote configuration, and auto-instrumentation support*
 </div>
 
+## About
+
+**KM-Agent is an [OpenTelemetry Collector distribution](https://opentelemetry.io/docs/concepts/distributions/)** that extends the upstream OpenTelemetry Collector with additional capabilities for simplified deployment, remote configuration management, and automated instrumentation. It bundles a curated set of receivers, processors, exporters, and extensions optimized for observability in Kubernetes, Linux, Docker, and Windows environments.
 
 ### Key Problems Solved
 
