@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   publish-helm-chart:
+    if: contains(fromJSON('["develop", "master"]'), github.event.release.target_commitish)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main branch
