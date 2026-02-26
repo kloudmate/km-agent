@@ -35,7 +35,7 @@ spec:
           {{- toYaml .Values.nodeAffinity | nindent 10 }}
       {{- end }}
       containers:
-        - name: kloudmate-km-kube-agent-cluster
+        - name: km-agent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:

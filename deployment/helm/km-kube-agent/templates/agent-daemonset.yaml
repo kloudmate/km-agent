@@ -19,11 +19,48 @@ spec:
       tolerations:
         {{- toYaml .Values.tolerations | nindent 8 }}
       {{- end }}
-      hostPID: true  # Required for polylang-detector to access /proc filesystem
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      initContainers:
+        - name: sysctl-tuning
+          image: busybox:1.36
+          securityContext:
+            privileged: true
+          command:
+            - sh
+            - -c
+            - |
+              # Increase socket option memory for BPF programs
+              # Required for socket filter attachment (JIT size ~22KB)
+              sysctl -w net.core.optmem_max=131072
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi
       containers:
-        - name: kloudmate-km-kube-agent
+        - name: km-agent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            runAsUser: 0
+            privileged: true
+            capabilities:
+              add:
+                - SYS_PTRACE
+                - SYS_RESOURCE
+                - NET_ADMIN
+                - SYS_ADMIN
+                - NET_RAW
+                - BPF
+                - PERFMON
+                - CAP_SYS_ADMIN
+                - DAC_READ_SEARCH
+                - CHECKPOINT_RESTORE
           env:
             - name: KM_API_KEY
               value: {{ required "Api Key is required" .Values.API_KEY }}
@@ -50,13 +87,15 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-          # ports:
-          #   - name: otlp-grpc
-          #     containerPort: 4317
-          #     protocol: TCP
-          #   - name: otlp-http
-          #     containerPort: 4318
-          #     protocol: TCP
+          ports:
+            - name: otlp-grpc
+              containerPort: 4317
+              hostPort: 4317
+              protocol: TCP
+            - name: otlp-http
+              containerPort: 4318
+              hostPort: 4318
+              protocol: TCP
           resources:
             requests:
               cpu: "108m"
@@ -85,6 +124,17 @@ spec:
             - name: container-runtime
               mountPath: /var/run/containerd/containerd.sock
               readOnly: true
+            - name: sys-fs-cgroup
+              mountPath: /sys/fs/cgroup
+            - name: security
+              mountPath: /sys/kernel/security
+              readOnly: true
+            - name: sys-kernel-debug
+              mountPath: /sys/kernel/debug
+              readOnly: false
+            - name: sys-kernel-tracing
+              mountPath: /sys/kernel/tracing
+              readOnly: false
           livenessProbe:
             httpGet:
               path: /
@@ -97,51 +147,7 @@ spec:
               port: 13133
             initialDelaySeconds: 5
             periodSeconds: 10
-        {{- if .Values.featuresEnabled.apm }}
-        - name: polylang-detector
-          image: "{{ .Values.polylangDetector.image.repository }}:{{ .Values.polylangDetector.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.polylangDetector.image.pullPolicy }}
-          securityContext:
-            # Required for eBPF-based process detection
-            privileged: true
-            capabilities:
-              add:
-              - SYS_ADMIN    # Required for eBPF operations
-              - SYS_PTRACE   # Required for process inspection
-              - SYS_RESOURCE # Required for eBPF resource limits
-          env:
-            - name: KM_SVC_ACCOUNT_NAME
-              value: {{ .Values.serviceAccountName }}
-            - name: KM_IGNORED_NS
-              value: "kube-system,kube-public,kube-node-lease,kube-service-catalog,kubernetes-dashboard,local-path-storage,tigera-operator,calico-system,cilium,cilium-system,istio-system,linkerd,linkerd-viz,gatekeeper-system,cert-manager,velero,flux-system,argocd,monitoring,ingress-nginx,aws-node,kube-system-aws,gke-system,gke-managed-cim,gke-managed-filestorecsi,gke-managed-system,gke-managed-volumepopulator,gmp-public,gmp-system,aks-system,openebs,rook-ceph,km-agent"
-            - name: KM_CFG_UPDATER_RPC_ADDR
-              value: {{ printf "cfg-updater-rpc-svc.km-agent.svc.cluster.local:%s" (.Values.KM_CFG_UPDATER_RPC_ADDR | toString) }}
-            - name: KM_MONITORED_NS
-              value: '{{ if kindIs "slice" .Values.monitoredNamespaces }}{{ .Values.monitoredNamespaces | join "," }}{{ else }}{{ .Values.monitoredNamespaces }}{{ end }}'
-          volumeMounts:
-            # eBPF requires kernel debug/trace filesystems
-            - name: sys-kernel-debug
-              mountPath: /sys/kernel/debug
-              readOnly: false
-            - name: sys-kernel-tracing
-              mountPath: /sys/kernel/tracing
-              readOnly: false
-            # Mount docker/containerd socket for optional container inspection
-            - name: container-runtime
-              mountPath: /var/run/containerd/containerd.sock
-              readOnly: true
-            # Optional: mount docker socket as fallback
-            - name: docker-socket
-              mountPath: /var/run/docker.sock
-              readOnly: true
-          resources:
-            requests:
-              cpu: "100m"
-              memory: "128Mi"
-            limits:
-              cpu: "500m"
-              memory: "512Mi"
-        {{- end }}
+        
       volumes:
         - name: agent-config-volume-daemonset
           configMap:
@@ -156,8 +162,6 @@ spec:
         - name: varlogpods
           hostPath:
             path: /var/log/pods
-        {{- if .Values.featuresEnabled.apm }}
-        # eBPF kernel debug/trace filesystems (REQUIRED for polylang-detector eBPF)
         - name: sys-kernel-debug
           hostPath:
             path: /sys/kernel/debug
@@ -166,6 +170,15 @@ spec:
           hostPath:
             path: /sys/kernel/tracing
             type: Directory
+        - name: sys-fs-cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+            type: Directory
+        - name: security
+          hostPath:
+            path: /sys/kernel/security
+            type: Directory
+        {{- if .Values.featuresEnabled.apm }}
         # Container runtime sockets (optional for container inspection)
         {{- end }}
         - name: container-runtime

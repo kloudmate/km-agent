@@ -45,11 +45,11 @@ KloudMate Agent has been successfully deployed to your cluster.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   → Node Agent (DaemonSet):     {{ .Values.daemonsetName }}
   → Cluster Agent (Deployment): {{ .Values.deploymentName }}
-  → Config Updater:             {{ .Values.configUpdaterName }}
+  → Fleet Manager:             {{ .Values.configUpdaterName }}
   → Polylang Detector:          {{ .Values.polylangDetectorName }}
   → Agent Service:              {{ .Values.agentServiceName }}
 {{- if index .Values "opentelemetry-operator" "enabled" }}
-  → OpenTelemetry Operator:     Enabled
+  → KloudMate Operator:     Enabled
 {{- end }}
 
 🔍 VERIFY YOUR INSTALLATION
