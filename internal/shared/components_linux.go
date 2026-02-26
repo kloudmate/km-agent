@@ -3,6 +3,7 @@
 package shared
 
 import (
+	"components.kloudmate.com/receiver/ebpfreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/extension/cgroupruntimeextension"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/dockerstatsreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/journaldreceiver"
@@ -38,5 +39,6 @@ func linuxReceivers() []receiver.Factory {
 	return []receiver.Factory{
 		dockerstatsreceiver.NewFactory(),
 		journaldreceiver.NewFactory(),
+		ebpfreceiver.NewFactory(),
 	}
 }

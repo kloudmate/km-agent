@@ -2,91 +2,72 @@ name: Build and Upload Release Assets
 
 on:
   release:
-    types: [created] # Runs when a release is created or edited
+    types: [created]
 
 permissions:
-  contents: write # Needed to write release assets
+  contents: write
 
 jobs:
   build-assets:
     name: Build and Upload Assets
-    # Prevent running on prereleases unless intended
-    # if: github.event.release.prerelease == false
     runs-on: ubuntu-latest
     steps:
-      # Check out the specific Git reference (tag) associated with the release
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name }} # Check out the code AT THE TAG
-
+          ref: ${{ github.event.release.tag_name }}
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-
       - name: Install Linux packaging tools
         run: |
           sudo apt-get update
           sudo apt-get install -y rpm
-
-      # Extract version from the release tag name
       - name: Determine Version
         id: get_version
         run: |
           VERSION_NUMBER=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
           echo "Using release tag version: $VERSION_NUMBER"
           echo "VERSION=$VERSION_NUMBER" >> $GITHUB_ENV
-
-      # - name: Vendor dependencies and patch kube-openapi
-      #   run: |
-      #     go mod vendor
-      #     if [ -f "vendor/k8s.io/kube-openapi/pkg/util/proto/document_v3.go" ]; then
-      #       sed -i 's|"gopkg.in/yaml.v3"|"go.yaml.in/yaml/v3"|g' vendor/k8s.io/kube-openapi/pkg/util/proto/document_v3.go
-      #       echo "Patched kube-openapi yaml import"
-      #     fi
-
+      - name: Clone private ebpf module
+        run: |
+          git clone https://x-access-token:${{ secrets.GHCR_PAT }}@github.com/kloudmate/kloudmate-ebpf-programs.git /tmp/km-ebpf
       - name: Build Linux .deb package
         run: make VERSION=${{ env.VERSION }} package-linux-deb
-
       - name: Build Linux .rpm package
         run: make VERSION=${{ env.VERSION }} package-linux-rpm
-
       - name: Build Windows Installer package (using Docker via make)
         run: make VERSION=${{ env.VERSION }} package-windows
-
-      - name: List build artifacts # For debugging verification
+      - name: List build artifacts
         run: |
           ls -l dist/
-          ls -l dist/rpm/RPMS/x86_64/ # Adjust arch if needed
+          ls -l dist/rpm/RPMS/x86_64/
           ls -l dist/win/
-      # Use a different action to upload assets to the *existing* release
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ github.event.release.upload_url }} # URL for uploading assets to the triggering release
+          upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./dist/kmagent_${{ env.VERSION }}_amd64.deb
           asset_name: kmagent_${{ env.VERSION }}_amd64.deb
           asset_content_type: application/vnd.debian.binary-package
-
       - name: Upload RPM Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./dist/rpm/RPMS/x86_64/kmagent-${{ env.VERSION }}-1.x86_64.rpm # Adjust name/path pattern!
-          asset_name: kmagent-${{ env.VERSION }}-1.x86_64.rpm # Adjust name!
+          asset_path: ./dist/rpm/RPMS/x86_64/kmagent-${{ env.VERSION }}-1.x86_64.rpm
+          asset_name: kmagent-${{ env.VERSION }}-1.x86_64.rpm
           asset_content_type: application/x-rpm
-
       - name: Upload Windows Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./dist/win/kmagent-${{ env.VERSION }}-setup.exe # Adjust name pattern!
-          asset_name: kmagent-${{ env.VERSION }}-setup.exe # Adjust name!
+          asset_path: ./dist/win/kmagent-${{ env.VERSION }}-setup.exe
+          asset_name: kmagent-${{ env.VERSION }}-setup.exe
           asset_content_type: application/vnd.microsoft.portable-executable
