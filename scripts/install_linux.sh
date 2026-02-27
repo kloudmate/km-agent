@@ -69,13 +69,11 @@ if [ -f /etc/os-release ]; then
   case "$ID" in
     ubuntu|debian)
       PKG="deb"
-      # Find the asset URL matching the architecture
       PACKAGE_URL=$(echo "$LATEST_RELEASE_JSON" | jq -r ".assets[] | select(.name | endswith(\"_${DEB_ARCH}.deb\")) | .browser_download_url")
       INSTALL_CMD="dpkg -i"
       ;;
-    rhel|centos|rocky|almalinux|fedora|amzn|ol)  # Added amzn (Amazon Linux) and ol (Oracle Linux)
+    rhel|centos|rocky|almalinux|fedora|amzn|ol)
       PKG="rpm"
-      # Find the asset URL matching the architecture
       PACKAGE_URL=$(echo "$LATEST_RELEASE_JSON" | jq -r ".assets[] | select(.name | endswith(\".${RPM_ARCH}.rpm\")) | .browser_download_url")
       # Use yum/dnf to resolve dependencies instead of rpm -i
       if command -v dnf &> /dev/null; then
