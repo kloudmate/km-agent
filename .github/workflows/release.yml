@@ -33,18 +33,23 @@ jobs:
       - name: Clone private ebpf module
         run: |
           git clone https://x-access-token:${{ secrets.GHCR_PAT }}@github.com/kloudmate/kloudmate-ebpf-programs.git /tmp/km-ebpf
-      - name: Build Linux .deb package
-        run: make VERSION=${{ env.VERSION }} package-linux-deb
-      - name: Build Linux .rpm package
-        run: make VERSION=${{ env.VERSION }} package-linux-rpm
+      - name: Build Linux packages (amd64)
+        run: |
+          make VERSION=${{ env.VERSION }} GOARCH=amd64 package-linux-deb
+          make VERSION=${{ env.VERSION }} GOARCH=amd64 package-linux-rpm
+      - name: Build Linux packages (arm64)
+        run: |
+          make VERSION=${{ env.VERSION }} GOARCH=arm64 package-linux-deb
+          make VERSION=${{ env.VERSION }} GOARCH=arm64 package-linux-rpm
       - name: Build Windows Installer package (using Docker via make)
         run: make VERSION=${{ env.VERSION }} package-windows
       - name: List build artifacts
         run: |
           ls -l dist/
-          ls -l dist/rpm/RPMS/x86_64/
+          ls -l dist/rpm-x86_64/RPMS/x86_64/ || true
+          ls -l dist/rpm-aarch64/RPMS/aarch64/ || true
           ls -l dist/win/
-      - name: Upload Release Assets
+      - name: Upload Debian Asset (amd64)
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,14 +58,32 @@ jobs:
           asset_path: ./dist/kmagent_${{ env.VERSION }}_amd64.deb
           asset_name: kmagent_${{ env.VERSION }}_amd64.deb
           asset_content_type: application/vnd.debian.binary-package
-      - name: Upload RPM Asset
+      - name: Upload Debian Asset (arm64)
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./dist/rpm/RPMS/x86_64/kmagent-${{ env.VERSION }}-1.x86_64.rpm
+          asset_path: ./dist/kmagent_${{ env.VERSION }}_arm64.deb
+          asset_name: kmagent_${{ env.VERSION }}_arm64.deb
+          asset_content_type: application/vnd.debian.binary-package
+      - name: Upload RPM Asset (x86_64)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./dist/rpm-x86_64/RPMS/x86_64/kmagent-${{ env.VERSION }}-1.x86_64.rpm
           asset_name: kmagent-${{ env.VERSION }}-1.x86_64.rpm
+          asset_content_type: application/x-rpm
+      - name: Upload RPM Asset (aarch64)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./dist/rpm-aarch64/RPMS/aarch64/kmagent-${{ env.VERSION }}-1.aarch64.rpm
+          asset_name: kmagent-${{ env.VERSION }}-1.aarch64.rpm
           asset_content_type: application/x-rpm
       - name: Upload Windows Asset
         uses: actions/upload-release-asset@v1
