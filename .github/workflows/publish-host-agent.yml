@@ -25,6 +25,7 @@ jobs:
       - name: Clone private ebpf module
         run: |
           git clone https://x-access-token:${{ secrets.GHCR_PAT }}@github.com/kloudmate/kloudmate-ebpf-programs.git /tmp/km-ebpf
+          cd /tmp/km-ebpf && make docker-generate
 
       - name: Build & Push Image
         run: |

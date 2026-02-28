@@ -98,14 +98,13 @@ package-linux-rpm: build-linux
 	cp configs/host-col-config.yaml $(BUILD_DIR)/rpm-$(RPM_ARCH)/SOURCES/config.yaml
 
 	docker run --rm \
-		--platform linux/$(GOARCH) \
+		--platform linux/amd64 \
 		-v $(PWD)/$(BUILD_DIR)/rpm-$(RPM_ARCH):/rpm \
 		fedora:latest \
 		bash -c "dnf install -y rpm-build 2>&1 | tail -1 && \
 		         rpmbuild --define '_topdir /rpm' \
+		                  --target $(RPM_ARCH) \
 		                  -bb /rpm/SPECS/kmagent.spec"
-
-# --- Windows Installer Packaging ---
 
 build-installer: build-windows
 	mkdir -p $(WINDOWS_BUILD_DIR)
@@ -120,8 +119,5 @@ build-installer: build-windows
         		/dMyAppVersion=$(VERSION) "$(ISS_FILE_PATH)"
 	@echo ">>> Installer compilation finished."
 
-
-# FIX 5: Removed the redundant `package-windows: build-windows` definition.
-# This target now correctly depends on `build-installer`.
 package-windows: build-installer
 	@echo ">>> Windows installer package created."

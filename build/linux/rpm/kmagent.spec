@@ -9,7 +9,6 @@ Release: 1%{?dist}
 Summary: KloudMate Monitoring Agent
 License: MIT
 Group: Applications/System
-BuildArch: x86_64
 Source0: kmagent
 Source1: postinst
 Source2: kmagent.service
