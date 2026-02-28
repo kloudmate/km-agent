@@ -89,16 +89,21 @@ package-linux-rpm: build-linux
 	mkdir -p $(BUILD_DIR)/rpm-$(RPM_ARCH)/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 	cp $(BUILD_DIR)/linux/$(GOARCH)/$(APP_NAME) $(BUILD_DIR)/rpm-$(RPM_ARCH)/SOURCES/
 	cp build/linux/kmagent.service $(BUILD_DIR)/rpm-$(RPM_ARCH)/SOURCES/
-	
-	sed "s|^BuildArch:.*|BuildArch: ${RPM_ARCH}|" build/linux/rpm/kmagent.spec > $(BUILD_DIR)/rpm-$(RPM_ARCH)/SPECS/kmagent.spec
+	RPM_SAFE_VER=$$(echo "$(VERSION)" | tr '-' '_'); \
+	sed -e "s|^BuildArch:.*|BuildArch: $(RPM_ARCH)|" \
+	    -e "s|^Version:.*|Version: $$RPM_SAFE_VER|" \
+	    build/linux/rpm/kmagent.spec > $(BUILD_DIR)/rpm-$(RPM_ARCH)/SPECS/kmagent.spec
 
 	cp $(SCRIPT_DIR)/postinst $(BUILD_DIR)/rpm-$(RPM_ARCH)/SOURCES/postinst
 	cp configs/host-col-config.yaml $(BUILD_DIR)/rpm-$(RPM_ARCH)/SOURCES/config.yaml
 
-	rpmbuild --define "_topdir $(PWD)/$(BUILD_DIR)/rpm-$(RPM_ARCH)" \
-			 --define "version $(VERSION)" \
-			 --target $(RPM_ARCH) \
-			 -bb $(BUILD_DIR)/rpm-$(RPM_ARCH)/SPECS/kmagent.spec
+	docker run --rm \
+		--platform linux/$(GOARCH) \
+		-v $(PWD)/$(BUILD_DIR)/rpm-$(RPM_ARCH):/rpm \
+		fedora:latest \
+		bash -c "dnf install -y rpm-build 2>&1 | tail -1 && \
+		         rpmbuild --define '_topdir /rpm' \
+		                  -bb /rpm/SPECS/kmagent.spec"
 
 # --- Windows Installer Packaging ---
 
