@@ -16,7 +16,7 @@ import (
 
 	"github.com/kloudmate/km-agent/internal/config"
 	"github.com/kloudmate/km-agent/internal/instrumentation"
-	"github.com/kloudmate/km-agent/internal/shared"
+	"github.com/kloudmate/km-agent/internal/version"
 	"github.com/kloudmate/km-agent/rpc"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -132,7 +132,7 @@ func (u *K8sConfigUpdater) CheckForUpdatesK8s(ctx context.Context, p K8sUpdateCh
 		"hostname":          u.cfg.ClusterName,
 		"platform":          "k8s",
 		"k8s_deployments":   p.APMData,
-		"collector_version": shared.GetCollectorVersion(),
+		"collector_version": version.GetCollectorVersion(),
 		"agent_version":     p.Version,
 		"logs_enabled":      u.logsEnabled,
 		"apm_enabled":       u.apmEnabled,
@@ -236,7 +236,7 @@ func (a *K8sConfigUpdater) performConfigCheck(agentCtx context.Context) error {
 	a.logger.Info(string(bites))
 	params := K8sUpdateCheckerParams{
 		Version:          a.cfg.Version,
-		CollectorVersion: shared.GetCollectorVersion(),
+		CollectorVersion: version.GetCollectorVersion(),
 		CollectorStatus:  "Running",
 		APMData:          apmData,
 	}

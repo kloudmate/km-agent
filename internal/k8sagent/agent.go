@@ -8,7 +8,7 @@ import (
 
 	"context"
 
-	"github.com/kloudmate/km-agent/internal/shared"
+	"github.com/kloudmate/km-agent/internal/version"
 	"go.opentelemetry.io/collector/otelcol"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
@@ -74,7 +74,7 @@ func NewK8sAgent(info *AgentInfo) (*K8sAgent, error) {
 		stopCh:    make(chan struct{}),
 	}
 	agent.AgentInfo.setEnvForAgentVersion()
-	agent.AgentInfo.CollectorVersion = shared.GetCollectorVersion()
+	agent.AgentInfo.CollectorVersion = version.GetCollectorVersion()
 	logger.Infoln("kube agent initialized successfully")
 	return agent, nil
 }
