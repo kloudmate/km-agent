@@ -29,7 +29,7 @@ spec:
           {{- toYaml .Values.nodeAffinity | nindent 10 }}
       {{- end }}
       containers:
-        - name: config-updater
+        - name: fleet-manager
           image: "{{ .Values.configUpdater.image.repository }}:{{ .Values.configUpdater.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.configUpdater.image.pullPolicy }}
           env:
@@ -76,5 +76,5 @@ spec:
               cpu: "100m"
               memory: "128Mi"
             limits:
-              cpu: "2"
-              memory: "1Gi"
+              cpu: "500m"
+              memory: "512Mi"

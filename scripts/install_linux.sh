@@ -52,6 +52,14 @@ echo "✅ Found latest version: $VERSION"
 
 # --- Detect OS and Package Type ---
 ARCH=$(uname -m)
+DEB_ARCH="amd64"
+RPM_ARCH="x86_64"
+
+if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+  DEB_ARCH="arm64"
+  RPM_ARCH="aarch64"
+fi
+
 PKG=""
 PACKAGE_URL=""
 INSTALL_CMD=""
@@ -61,12 +69,12 @@ if [ -f /etc/os-release ]; then
   case "$ID" in
     ubuntu|debian)
       PKG="deb"
-      PACKAGE_URL=$(echo "$LATEST_RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url')
+      PACKAGE_URL=$(echo "$LATEST_RELEASE_JSON" | jq -r ".assets[] | select(.name | endswith(\"_${DEB_ARCH}.deb\")) | .browser_download_url")
       INSTALL_CMD="dpkg -i"
       ;;
-    rhel|centos|rocky|almalinux|fedora|amzn|ol)  # Added amzn (Amazon Linux) and ol (Oracle Linux)
+    rhel|centos|rocky|almalinux|fedora|amzn|ol)
       PKG="rpm"
-      PACKAGE_URL=$(echo "$LATEST_RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".rpm")) | .browser_download_url')
+      PACKAGE_URL=$(echo "$LATEST_RELEASE_JSON" | jq -r ".assets[] | select(.name | endswith(\".${RPM_ARCH}.rpm\")) | .browser_download_url")
       # Use yum/dnf to resolve dependencies instead of rpm -i
       if command -v dnf &> /dev/null; then
         INSTALL_CMD="dnf install -y"

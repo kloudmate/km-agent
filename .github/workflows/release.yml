@@ -2,91 +2,67 @@ name: Build and Upload Release Assets
 
 on:
   release:
-    types: [created] # Runs when a release is created or edited
+    types: [created]
 
 permissions:
-  contents: write # Needed to write release assets
+  contents: write
 
 jobs:
   build-assets:
     name: Build and Upload Assets
-    # Prevent running on prereleases unless intended
-    # if: github.event.release.prerelease == false
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [linux-amd64, linux-arm64, windows]
     steps:
-      # Check out the specific Git reference (tag) associated with the release
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name }} # Check out the code AT THE TAG
-
+          ref: ${{ github.event.release.tag_name }}
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-
       - name: Install Linux packaging tools
+        if: matrix.target != 'windows'
         run: |
           sudo apt-get update
           sudo apt-get install -y rpm
-
-      # Extract version from the release tag name
       - name: Determine Version
         id: get_version
         run: |
           VERSION_NUMBER=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
           echo "Using release tag version: $VERSION_NUMBER"
           echo "VERSION=$VERSION_NUMBER" >> $GITHUB_ENV
-
-      # - name: Vendor dependencies and patch kube-openapi
-      #   run: |
-      #     go mod vendor
-      #     if [ -f "vendor/k8s.io/kube-openapi/pkg/util/proto/document_v3.go" ]; then
-      #       sed -i 's|"gopkg.in/yaml.v3"|"go.yaml.in/yaml/v3"|g' vendor/k8s.io/kube-openapi/pkg/util/proto/document_v3.go
-      #       echo "Patched kube-openapi yaml import"
-      #     fi
-
-      - name: Build Linux .deb package
-        run: make VERSION=${{ env.VERSION }} package-linux-deb
-
-      - name: Build Linux .rpm package
-        run: make VERSION=${{ env.VERSION }} package-linux-rpm
-
-      - name: Build Windows Installer package (using Docker via make)
-        run: make VERSION=${{ env.VERSION }} package-windows
-
-      - name: List build artifacts # For debugging verification
+      - name: Clone private ebpf module
+        if: matrix.target != 'windows'
         run: |
-          ls -l dist/
-          ls -l dist/rpm/RPMS/x86_64/ # Adjust arch if needed
-          ls -l dist/win/
-      # Use a different action to upload assets to the *existing* release
+          git clone https://x-access-token:${{ secrets.GHCR_PAT }}@github.com/kloudmate/kloudmate-ebpf-programs.git /tmp/km-ebpf
+          cd /tmp/km-ebpf && make docker-generate
+      - name: Build Linux packages (amd64)
+        if: matrix.target == 'linux-amd64'
+        run: |
+          make VERSION=${{ env.VERSION }} GOARCH=amd64 package-linux-deb
+          make VERSION=${{ env.VERSION }} GOARCH=amd64 package-linux-rpm
+      - name: Build Linux packages (arm64)
+        if: matrix.target == 'linux-arm64'
+        run: |
+          make VERSION=${{ env.VERSION }} GOARCH=arm64 package-linux-deb
+          make VERSION=${{ env.VERSION }} GOARCH=arm64 package-linux-rpm
+      - name: Build Windows Installer package (using Docker via make)
+        if: matrix.target == 'windows'
+        run: make VERSION=${{ env.VERSION }} package-windows
+      - name: List build artifacts
+        run: |
+          ls -l dist/ || true
+          ls -l dist/rpm-x86_64/RPMS/x86_64/ || true
+          ls -l dist/rpm-aarch64/RPMS/aarch64/ || true
+          ls -l dist/win/ || true
       - name: Upload Release Assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ github.event.release.upload_url }} # URL for uploading assets to the triggering release
-          asset_path: ./dist/kmagent_${{ env.VERSION }}_amd64.deb
-          asset_name: kmagent_${{ env.VERSION }}_amd64.deb
-          asset_content_type: application/vnd.debian.binary-package
-
-      - name: Upload RPM Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./dist/rpm/RPMS/x86_64/kmagent-${{ env.VERSION }}-1.x86_64.rpm # Adjust name/path pattern!
-          asset_name: kmagent-${{ env.VERSION }}-1.x86_64.rpm # Adjust name!
-          asset_content_type: application/x-rpm
-
-      - name: Upload Windows Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./dist/win/kmagent-${{ env.VERSION }}-setup.exe # Adjust name pattern!
-          asset_name: kmagent-${{ env.VERSION }}-setup.exe # Adjust name!
-          asset_content_type: application/vnd.microsoft.portable-executable
+          fail_on_unmatched_files: false
+          files: |
+            dist/*.deb
+            dist/rpm-*/RPMS/*/*.rpm
+            dist/win/*.exe

@@ -1,0 +1,22 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Ensure shell scripts always use LF line endings (required for Linux execution)
+*.sh text eol=lf
+build/linux/scripts/* text eol=lf
+dist/linux/deb/DEBIAN/* text eol=lf
+dist/rpm/SOURCES/* text eol=lf
+
+# Explicitly declare binary files
+*.exe binary
+*.dll binary
+*.so binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
