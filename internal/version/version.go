@@ -1,11 +1,11 @@
-package shared
+package version
 
 import (
 	"fmt"
 	"runtime/debug"
 )
 
-// getCollectorVersion is used to give underlying collector's version
+// GetCollectorVersion is used to give underlying collector's version
 func GetCollectorVersion() (specificDepVersion string) {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {

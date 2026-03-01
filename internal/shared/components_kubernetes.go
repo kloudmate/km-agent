@@ -3,7 +3,7 @@
 package shared
 
 import (
-	"components.kloudmate.com/receiver/ebpfreceiver"
+	ebpfreceiver "components.kloudmate.com/receiver/ebpfreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/extension/cgroupruntimeextension"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/k8sattributesprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sclusterreceiver"

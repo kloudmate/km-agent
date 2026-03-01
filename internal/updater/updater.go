@@ -16,7 +16,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/kloudmate/km-agent/internal/config"
-	"github.com/kloudmate/km-agent/internal/shared"
+	"github.com/kloudmate/km-agent/internal/version"
 )
 
 // ConfigUpdater handles configuration updates from a remote API
@@ -74,7 +74,7 @@ func (u *ConfigUpdater) CheckForUpdates(ctx context.Context, p UpdateCheckerPara
 		"platform":           platform,
 		"architecture":       runtime.GOARCH,
 		"agent_version":      p.Version,
-		"collector_version":  shared.GetCollectorVersion(),
+		"collector_version":  version.GetCollectorVersion(),
 		"agent_status":       p.AgentStatus,
 		"collector_status":   p.CollectorStatus,
 		"last_error_message": p.CollectorLastError,

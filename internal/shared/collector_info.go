@@ -3,6 +3,8 @@ package shared
 import (
 	"fmt"
 
+	"github.com/kloudmate/km-agent/internal/version"
+
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/confmap"
 	"go.opentelemetry.io/collector/confmap/provider/envprovider"
@@ -17,7 +19,7 @@ func CollectorInfoFactory(cfgPath string) otelcol.CollectorSettings {
 		Command:     "kmagent",
 		Description: "KloudMate Agent for OpenTelemetry",
 		// Collector version
-		Version: GetCollectorVersion(),
+		Version: version.GetCollectorVersion(),
 	}
 
 	fmt.Println("config file ", cfgPath)
