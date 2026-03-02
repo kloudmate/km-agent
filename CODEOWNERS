@@ -1,1 +1,8 @@
+# Global Owner
 * @amitava82
+
+# Helm Chart Reviewers
+/deployment/helm/ @amitava82 @yash-s01 @yashnegi-km
+
+# Collector Configurations Reviewers
+/configs/ @amitava82 @yashnegi-km

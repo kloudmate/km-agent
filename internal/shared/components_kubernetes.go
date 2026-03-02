@@ -3,6 +3,7 @@
 package shared
 
 import (
+	ebpfreceiver "components.kloudmate.com/receiver/ebpfreceiver"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/extension/cgroupruntimeextension"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/k8sattributesprocessor"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sclusterreceiver"
@@ -48,6 +49,7 @@ func kubernetesReceivers() []receiver.Factory {
 		kubeletstatsreceiver.NewFactory(),
 		k8seventsreceiver.NewFactory(),
 		k8slogreceiver.NewFactory(),
+		ebpfreceiver.NewFactory(),
 	}
 }
 

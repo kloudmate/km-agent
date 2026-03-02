@@ -19,11 +19,11 @@ featuresEnabled:
 
 # names of components to be installed.
 clusterName: km-cluster
-daemonsetName: km-agent-daemonset
-deploymentName: km-agent-deployment
+daemonsetName: km-agent
+deploymentName: km-agent-cluster
 clusterRoleName: km-agent-cluster-role
 agentServiceName: km-agent-svc
-configUpdaterName: km-agent-config-updater
+configUpdaterName: km-fleet-manager
 serviceAccountName: km-agent-sa
 clusterRoleBindingName: km-agent-cluster-role-binding 
 instrumentationCrdName: km-agent-instrumentation-crd
@@ -103,6 +103,8 @@ nameOverride: ""
 fullnameOverride: ""
 
 podLabels: {}
+
+standaloneEBPF: false
 
 # ----------- Labels ------------
 
@@ -222,6 +224,7 @@ opentelemetry-operator:
     # The current setting 'true' is fine, but double-check your installation strategy.
     create: true
   enabled: true
+  fullnameOverride: "km-operator"
   admissionWebhooks:
     create: true
     servicePort: 443

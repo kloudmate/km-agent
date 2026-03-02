@@ -14,6 +14,14 @@ receivers:
         metrics:
           system.memory.utilization:
             enabled: true
+      filesystem:
+        metrics:
+          system.filesystem.usage:
+            enabled: true
+          system.filesystem.utilization:
+            enabled: true
+      disk: {}
+      network: {}            
   otlp:
     protocols:
       grpc:

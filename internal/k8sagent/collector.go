@@ -16,7 +16,20 @@ func (a *K8sAgent) startInternalCollector() error {
 	a.Logger.Infoln("Starting actual collector instance with new configuration...")
 
 	collectorSettings := shared.CollectorInfoFactory(a.otelConfigPath())
-
+	if a.Cfg.DeploymentMode == "DEPLOYMENT" {
+		factories, err := collectorSettings.Factories()
+		if err == nil {
+			// eBPF receiver cannot run in deployment mode (needs host access)
+			for typeName := range factories.Receivers {
+				if typeName.String() == "ebpfreceiver" {
+					delete(factories.Receivers, typeName)
+				}
+			}
+			collectorSettings.Factories = func() (otelcol.Factories, error) {
+				return factories, nil
+			}
+		}
+	}
 	// Create a context for this collector instance
 	a.collectorCtx, a.collectorCancel = context.WithCancel(context.Background())
 
