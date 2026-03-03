@@ -8,6 +8,7 @@ import (
 
 	"context"
 
+	kmlogger "github.com/kloudmate/km-agent/internal/logger"
 	"github.com/kloudmate/km-agent/internal/version"
 	"go.opentelemetry.io/collector/otelcol"
 	"go.uber.org/zap"
@@ -46,7 +47,9 @@ type AgentInfo struct {
 }
 
 func NewK8sAgent(info *AgentInfo) (*K8sAgent, error) {
-	zapLogger, err := zap.NewProduction()
+	zapCfg := zap.NewProductionConfig()
+	zapCfg.Level = zap.NewAtomicLevelAt(kmlogger.ParseLogLevel())
+	zapLogger, err := zapCfg.Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize logger: %w", err)
 	}

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/kloudmate/km-agent/internal/config"
+	kmlogger "github.com/kloudmate/km-agent/internal/logger"
 	"github.com/kloudmate/km-agent/internal/updater"
 	"github.com/kloudmate/km-agent/rpc"
 	cli "github.com/urfave/cli/v2"
@@ -88,6 +89,7 @@ func main() {
 	var agentCfg config.K8sAgentConfig
 	updaterflags := updaterFlags(&agentCfg)
 	loggerConfig := zap.NewProductionConfig()
+	loggerConfig.Level = zap.NewAtomicLevelAt(kmlogger.ParseLogLevel())
 	logger, _ := loggerConfig.Build()
 
 	app := &cli.App{

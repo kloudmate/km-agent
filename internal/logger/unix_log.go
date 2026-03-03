@@ -16,7 +16,9 @@ type KmLogger struct {
 
 // SetupLogger returns simple logger for unix systems
 func SetupLogger() *KmLogger {
-	logger, err := zap.NewProduction()
+	cfg := zap.NewProductionConfig()
+	cfg.Level = zap.NewAtomicLevelAt(ParseLogLevel())
+	logger, err := cfg.Build()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create logger: %v\n", err)
 		os.Exit(1)
