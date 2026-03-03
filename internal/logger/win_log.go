@@ -76,7 +76,7 @@ func SetupLogger() *KmLogger {
 	loggerCore := zapcore.NewCore(
 		zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
 		winlogSyncer,
-		zapcore.InfoLevel,
+		ParseLogLevel(),
 	)
 
 	logger := zap.New(loggerCore)

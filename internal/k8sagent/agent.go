@@ -8,6 +8,7 @@ import (
 
 	"context"
 
+	kmlogger "github.com/kloudmate/km-agent/internal/logger"
 	"github.com/kloudmate/km-agent/internal/version"
 	"go.opentelemetry.io/collector/otelcol"
 	"go.uber.org/zap"
@@ -46,26 +47,27 @@ type AgentInfo struct {
 }
 
 func NewK8sAgent(info *AgentInfo) (*K8sAgent, error) {
-	// ---------- Logging ----------
-	zapLogger, err := zap.NewProduction()
+	zapCfg := zap.NewProductionConfig()
+	zapCfg.Level = zap.NewAtomicLevelAt(kmlogger.ParseLogLevel())
+	zapLogger, err := zapCfg.Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize logger: %w", err)
 	}
 	logger := zapLogger.Sugar()
-	logger.Infow("bootstrapping kube agent")
 
 	cfg := NewK8sConfig()
-
-	// ---------- Initialize Kubernetes client ----------
 
 	kubecfg, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load in-cluster config: %w", err)
 	}
-	logger.Infof("loaded cluster info from In-Cluster service account")
-	k8sClient, err := kubernetes.NewForConfig(kubecfg)
+	logger.Info("loaded in-cluster kubernetes config")
 
-	// ---------- Create Kube agent ----------
+	k8sClient, err := kubernetes.NewForConfig(kubecfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
+	}
+
 	agent := &K8sAgent{
 		Cfg:       cfg,
 		Logger:    logger,
@@ -75,45 +77,41 @@ func NewK8sAgent(info *AgentInfo) (*K8sAgent, error) {
 	}
 	agent.AgentInfo.setEnvForAgentVersion()
 	agent.AgentInfo.CollectorVersion = version.GetCollectorVersion()
-	logger.Infoln("kube agent initialized successfully")
+
+	logger.Infow("kube agent initialized",
+		"version", info.Version,
+		"commit", info.CommitSHA,
+		"deploymentMode", cfg.DeploymentMode,
+	)
 	return agent, nil
 }
 
-// StartAgent first creates a otel config from agent config and then runs the agent
+// StartAgent creates an otel config from agent config and then runs the agent.
 func (km *K8sAgent) StartAgent(ctx context.Context) error {
-	km.Logger.Infow("kloudmate kubernetes agent info",
+	km.Logger.Infow("starting kubernetes agent",
 		"version", km.AgentInfo.Version,
 		"commitSHA", km.AgentInfo.CommitSHA,
-		"collector-version", km.AgentInfo.CollectorVersion,
+		"collectorVersion", km.AgentInfo.CollectorVersion,
 	)
 	return km.Start(ctx)
 }
 
-// Start runs the agent with otel config from the default path
+// Start runs the agent with otel config from the default path.
 func (a *K8sAgent) Start(ctx context.Context) error {
-	a.Logger.Infoln("Starting collector agent...")
-
-	// Start the initial collector instance
 	if err := a.startInternalCollector(); err != nil {
-		return fmt.Errorf("failed to start initial collector: %w", err)
-	} else {
-		a.Logger.Infoln("collector agent started successfully.")
+		return fmt.Errorf("failed to start collector: %w", err)
 	}
+	a.Logger.Info("collector agent started")
 	return nil
 }
 
-// Stop stops the underlying collector
+// Stop stops the underlying collector.
 func (a *K8sAgent) Stop() {
-	a.Logger.Infoln("Stopping collector agent...")
-
-	// Signal the polling goroutine to stop
+	a.Logger.Info("stopping collector agent")
 	close(a.stopCh)
 	a.wg.Wait()
-
-	// Stop the collector instance
 	a.stopInternalCollector()
-
-	a.Logger.Infoln("Collector agent stopped.")
+	a.Logger.Info("collector agent stopped")
 }
 
 func (a *K8sAgent) Stopch() {
@@ -126,7 +124,7 @@ func (a *K8sAgent) AwaitShutdown() {
 
 func NewK8sConfig() *K8sConfig {
 	config := &K8sConfig{
-		ConfigCheckInterval: os.Getenv(""),
+		ConfigCheckInterval: os.Getenv("KM_CONFIG_CHECK_INTERVAL"),
 		APIKey:              os.Getenv("KM_API_KEY"),
 		CollectorEndpoint:   os.Getenv("KM_COLLECTOR_ENDPOINT"),
 		ConfigMapName:       os.Getenv("CONFIGMAP_NAME"),
@@ -147,7 +145,7 @@ func (c *K8sConfig) Validate() error {
 	if c.APIKey == "" {
 		return fmt.Errorf("KM_API_KEY is required")
 	}
-	if c.APIKey == "" {
+	if c.CollectorEndpoint == "" {
 		return fmt.Errorf("KM_COLLECTOR_ENDPOINT is required")
 	}
 	if c.ConfigMapName == "" {

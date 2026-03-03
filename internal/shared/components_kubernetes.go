@@ -25,7 +25,8 @@ func Components() (otelcol.Factories, error) {
 	processors := BaseProcessorFactories()
 	connectors := BaseConnectorFactories()
 
-	receivers := kubernetesReceivers()
+	receivers := BaseReceiverFactories()
+	receivers = append(receivers, kubernetesReceivers()...)
 
 	extensions = append(extensions, kubernetesExtensions()...)
 
