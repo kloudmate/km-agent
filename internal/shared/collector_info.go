@@ -1,8 +1,6 @@
 package shared
 
 import (
-	"fmt"
-
 	"github.com/kloudmate/km-agent/internal/version"
 
 	"go.opentelemetry.io/collector/component"
@@ -14,15 +12,11 @@ import (
 )
 
 func CollectorInfoFactory(cfgPath string) otelcol.CollectorSettings {
-
 	info := component.BuildInfo{
 		Command:     "kmagent",
 		Description: "KloudMate Agent for OpenTelemetry",
-		// Collector version
-		Version: version.GetCollectorVersion(),
+		Version:     version.GetCollectorVersion(),
 	}
-
-	fmt.Println("config file ", cfgPath)
 
 	return otelcol.CollectorSettings{
 		BuildInfo:               info,
@@ -39,6 +33,6 @@ func CollectorInfoFactory(cfgPath string) otelcol.CollectorSettings {
 				},
 			},
 		},
-		SkipSettingGRPCLogger: true, // Prevents gRPC from setting its own logger, uses zap instead
+		SkipSettingGRPCLogger: true,
 	}
 }

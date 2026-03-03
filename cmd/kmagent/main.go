@@ -210,8 +210,9 @@ func main() {
 		}),
 		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:        "update-endpoint",
-			Usage:       "API key for authentication",
+			Usage:       "Agent config update endpoint",
 			EnvVars:     []string{"KM_UPDATE_ENDPOINT"},
+			Value:       "https://api.kloudmate.com/agents/config-check",
 			Destination: &program.cfg.ConfigUpdateURL,
 		}),
 		altsrc.NewBoolFlag(&cli.BoolFlag{

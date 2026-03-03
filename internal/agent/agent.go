@@ -80,7 +80,7 @@ func (a *Agent) StartAgent(ctx context.Context) error {
 		defer a.wg.Done()
 		a.runConfigUpdateChecker(ctx)
 	}()
-	a.logger.Info("Agent start sequence initiated.")
+	a.logger.Info("agent start sequence initiated")
 	setupComplete = true
 	return nil
 }
@@ -88,11 +88,11 @@ func (a *Agent) StartAgent(ctx context.Context) error {
 // Shutdown gracefully shuts down the agent
 func (a *Agent) Shutdown(ctx context.Context) error {
 	if !a.isRunning.CompareAndSwap(true, false) {
-		a.logger.Info("Agent shutdown called, but agent is not marked as running.")
+		a.logger.Debug("shutdown called but agent is not running")
 		return nil
 	}
 	close(a.shutdownSignal)
-	a.logger.Info("Stopping current collector instance (if any).")
+	a.logger.Info("stopping collector instance")
 	a.stopCollectorInstance()
 
 	waitCh := make(chan struct{})
@@ -103,7 +103,7 @@ func (a *Agent) Shutdown(ctx context.Context) error {
 
 	select {
 	case <-waitCh:
-		a.logger.Info("All agent goroutines completed.")
+		a.logger.Info("all agent goroutines completed")
 	case <-ctx.Done():
 		a.logger.Errorf("Agent shutdown timed out: %v", ctx.Err())
 		return ctx.Err()
@@ -114,7 +114,7 @@ func (a *Agent) Shutdown(ctx context.Context) error {
 func (a *Agent) manageCollectorLifecycle(ctx context.Context) error {
 	// Initial check to exit early and avoid unnecessary work.
 	if !a.isRunning.Load() {
-		a.logger.Info("Agent is shutting down, not starting new collector.")
+		a.logger.Info("agent shutting down, skipping collector start")
 		return nil
 	}
 
@@ -133,7 +133,7 @@ func (a *Agent) manageCollectorLifecycle(ctx context.Context) error {
 		// This prevents a race condition if another collector was started in the meantime.
 		if a.collector == collector {
 			a.collector = nil
-			a.logger.Debug("Collector instance cleared from agent.")
+			a.logger.Debug("collector instance cleared")
 		}
 	}()
 
@@ -142,20 +142,21 @@ func (a *Agent) manageCollectorLifecycle(ctx context.Context) error {
 	if !a.isRunning.Load() {
 		// The agent was shut down between the initial check and now. Abort.
 		a.collectorMu.Unlock()
-		a.logger.Info("Agent shutdown initiated, aborting collector start.")
+		a.logger.Info("agent shutdown initiated, aborting collector start")
 		return nil // Or a specific error if desired, like context.Canceled
 	}
 	a.collector = collector
 	a.collectorMu.Unlock()
 
-	a.logger.Info("Collector instance created. Starting its run loop...")
+	a.logger.Info("collector instance created, starting run loop")
 	runErr := collector.Run(ctx)
 	if runErr != nil {
 		a.collectorError = runErr.Error()
+		a.logger.Errorw("collector run loop exited with error", "error", runErr)
 	} else {
 		a.collectorError = ""
+		a.logger.Info("collector run loop exited normally")
 	}
-	a.logger.Infof("Collector run loop finished. Error: %v", runErr)
 
 	return runErr
 }
@@ -167,9 +168,9 @@ func (a *Agent) stopCollectorInstance() {
 	a.collectorMu.Unlock()
 
 	if collector != nil {
-		a.logger.Info("Initiating shutdown for active collector instance...")
+		a.logger.Info("shutting down active collector instance")
 		collector.Shutdown()
-		a.logger.Info("Collector shutdown signal sent.")
+		a.logger.Info("collector shutdown complete")
 	}
 }
 
@@ -186,21 +187,24 @@ func (a *Agent) UpdateConfig(_ context.Context, newConfig map[string]interface{}
 	if err := os.Rename(tempFile, a.cfg.OtelConfigPath); err != nil {
 		return fmt.Errorf("failed to replace config file: %w", err)
 	}
-	a.logger.Info("Successfully updated collector configuration")
+	a.logger.Infow("collector configuration updated", "configPath", a.cfg.OtelConfigPath)
 	return nil
 }
 
 // runConfigUpdateChecker run ticker for performConfigCheck
 func (a *Agent) runConfigUpdateChecker(ctx context.Context) {
 	if a.cfg.ConfigUpdateURL == "" {
-		a.logger.Info("Config update URL not configured, skipping config update checks")
+		a.logger.Debug("config update URL not configured, skipping update checks")
 		return
 	}
 	if a.cfg.ConfigCheckInterval <= 0 {
-		a.logger.Info("Config check interval not set or invalid, skipping config update checks")
+		a.logger.Debug("config check interval not set, skipping update checks")
 		return
 	}
-	a.logger.Infof("Config update URL %s started with interval %ds", a.cfg.ConfigUpdateURL, a.cfg.ConfigCheckInterval)
+	a.logger.Infow("config update checker started",
+		"updateURL", a.cfg.ConfigUpdateURL,
+		"intervalSeconds", a.cfg.ConfigCheckInterval,
+	)
 	ticker := time.NewTicker(time.Duration(a.cfg.ConfigCheckInterval) * time.Second)
 	defer ticker.Stop()
 
@@ -216,10 +220,10 @@ func (a *Agent) runConfigUpdateChecker(ctx context.Context) {
 				a.logger.Errorf("Periodic config check failed: %v", err)
 			}
 		case <-a.shutdownSignal:
-			a.logger.Info("Config update checker stopping due to shutdown.")
+			a.logger.Info("config update checker stopping")
 			return
 		case <-ctx.Done():
-			a.logger.Info("Config update checker stopping due to context cancellation.")
+			a.logger.Info("config update checker stopping")
 			return
 		}
 	}
@@ -230,7 +234,7 @@ func (a *Agent) performConfigCheck(agentCtx context.Context) error {
 	ctx, cancel := context.WithTimeout(agentCtx, 10*time.Second)
 	defer cancel()
 
-	a.logger.Info("Checking for configuration updates...")
+	a.logger.Debug("checking for configuration updates")
 
 	a.collectorMu.Lock()
 	params := updater.UpdateCheckerParams{
@@ -261,14 +265,9 @@ func (a *Agent) performConfigCheck(agentCtx context.Context) error {
 			a.collectorError = err.Error()
 			return fmt.Errorf("failed to update config file: %w", err)
 		}
-		a.logger.Info("Configuration change requires collector restart.")
+		a.logger.Info("configuration changed, restarting collector")
 		if !a.isRunning.Load() {
-			a.logger.Info("Agent is shutting down, skipping restart.")
-			return nil
-		}
-
-		if !a.isRunning.Load() {
-			a.logger.Info("Agent is shutting down, skipping restart.")
+			a.logger.Info("agent shutting down, skipping restart")
 			return nil
 		}
 
@@ -279,12 +278,12 @@ func (a *Agent) performConfigCheck(agentCtx context.Context) error {
 			if err := a.manageCollectorLifecycle(agentCtx); err != nil {
 				a.collectorError = err.Error()
 			} else {
-				a.logger.Info("Collector restarted successfully.")
+				a.logger.Info("collector restarted successfully")
 				a.collectorError = ""
 			}
 		}()
 	} else {
-		a.logger.Info("No configuration change or restart required.")
+		a.logger.Debug("no configuration change detected")
 	}
 	return nil
 }

@@ -3,9 +3,7 @@ package main
 import (
 	"context"
 	"os"
-	"sync"
 
-	// configupdater "github.com/kloudmate/km-agent/configupdater"
 	"github.com/kloudmate/km-agent/internal/config"
 	"github.com/kloudmate/km-agent/internal/updater"
 	"github.com/kloudmate/km-agent/rpc"
@@ -47,8 +45,9 @@ func updaterFlags(cfg *config.K8sAgentConfig) []cli.Flag {
 		}),
 		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:        "update-endpoint",
-			Usage:       "API key for authentication",
+			Usage:       "Agent config update endpoint",
 			EnvVars:     []string{"KM_UPDATE_ENDPOINT"},
+			Value:       "https://api.kloudmate.com/agents/config-check",
 			Destination: &cfg.ConfigUpdateURL,
 		}),
 		altsrc.NewStringFlag(&cli.StringFlag{
@@ -103,12 +102,12 @@ func main() {
 					ctx, cancel := context.WithCancel(c.Context)
 					defer cancel()
 
-					logger.Sugar().Infow("kloudmate config updater info",
+					logger.Sugar().Infow("starting config updater",
 						"version", version,
 						"commitSHA", commit,
 					)
 					go rpc.StartRpcServer()
-					logger.Info("loading InClusterConfig via service account.", zap.Any("config", agentCfg))
+					logger.Info("loading in-cluster kubernetes config")
 					kubeconfig, err := rest.InClusterConfig()
 					if err != nil {
 						return err
@@ -127,27 +126,17 @@ func main() {
 					kubeUpdater := updater.NewKubeConfigUpdaterClient(kubeAgentConfig, logger.Sugar())
 					kubeUpdater.SetConfigPath()
 
-					var wg sync.WaitGroup
-					errCh := make(chan error)
-					wg.Add(1)
-					go func() {
-						defer wg.Done()
-						kubeUpdater.StartConfigUpdateChecker(ctx)
-					}()
+					logger.Info("starting config update checker")
+					kubeUpdater.StartConfigUpdateChecker(ctx)
 
-					for err := range errCh {
-						if err != nil {
-							logger.Info("error while fetching config changes", zap.Error(err))
-						}
-					}
 					close(kubeAgentConfig.StopCh)
-					wg.Wait()
+					logger.Info("config updater stopped")
 					return nil
 				},
 			},
 		},
 	}
 	if err := app.Run(os.Args); err != nil {
-		logger.Fatal("config updater cannot failed to start : ", zap.Error(err))
+		logger.Fatal("config updater failed to start", zap.Error(err))
 	}
 }
